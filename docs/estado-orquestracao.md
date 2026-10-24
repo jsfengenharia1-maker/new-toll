@@ -16,16 +16,13 @@ Atualizado em 24/10/2026. Ler junto com o Andamento de `docs/plano-execucao.md`.
 4. Briefing padrão dos agentes: citar `docs/regras-agentes.md`. Antes: ver as rodadas recentes no histórico desta sessão; regras fixas — worktree próprio + `ln -s /home/user/new-toll/node_modules node_modules`; consultar `docs/mapa-codigo.md`; e2e com `{ exact: true }` exceto NumField/Select (regex ancorada); cada cartão compila sozinho; não criar tarefas agendadas; sem processos em segundo plano; relatório UMA vez; `npm run mapa` no fim.
 
 ## Rodada em andamento
-24/10/2026 (conferir ao retomar):
-- (a) `nucleo` (Sonnet alto): E4d — armadura e detalhamento das escadas (núcleo + cartões em `docs/cartoes/E4d/`).
-- (b) `nucleo` (Sonnet médio): L3 — importação IFC (web-ifc vendorizado, aceito), núcleo + cartões em `docs/cartoes/L3/`.
-- (c) auditoria independente da frente V (agente que não a executou), relatório em `docs/auditorias/auditoria-V.md`.
+25/10/2026 (conferir ao retomar): E4e — relatório, desenhos e fechamento da frente E (nucleo Sonnet médio, worktree a partir da E4d). Ao fechar: auditoria E.
 
-Última rodada fechada em 24/10/2026: cartões E3e, E3f, E4b e E4c aplicados; LDLᵀ esparso (`src/core/sparseldl.ts`, grau mínimo) no `fe3d.ts` acima de n·hb² > 4e8 — telhado com diafragma de >10 min para ~3,5 s, vitest completo de ~9 min para ~4 min. Sete itens da E3f com ressalva rebaixados a Parcial (C7.1, C7.8, C7.15, C7.66, C7.67, C7.77, C7.195). 1.648 testes, 105 e2e, pacote 4.492 KB.
+Última rodada fechada: E4d (armadura das escadas, núcleo + interface), L3 (IFC, web-ifc 0.0.78 vendorizado; núcleo + interface), auditorias V e L (sem bloqueantes) e correções (V6; V6d–V6f: flecha por cliques, consulta de nó na 3D, esforços do pilar na altura, cargas por caso e vento na planta, folha Resultados SCR, figuras de isovalores no memorial; correções L). C6.3 Parcial (L7). 1.714 testes, 111 e2e, pacote 4.657 KB.
 
 ## Próxima rodada (depois desta)
-1. Executar cartões E4d e L3 (Haiku/Sonnet conforme a fatia); E4e (relatório, desenhos e fechamento da frente E).
-2. FU7c, auditorias E e L, fechamento.
+1. Auditoria E (independente) e correções; FU7c; L7 (pano automático, cruz tracejada, painel de ferramentas C6.3).
+2. Fechamento: revisão numérica, desempenho, pacote (~4,7 MB: dividir sob demanda), republicação do artifact, revisão final dos "a confirmar".
 
 ## Fila depois disso
 - E4d–E4e (escadas), L3 (IFC).
@@ -40,4 +37,4 @@ Atualizado em 24/10/2026. Ler junto com o Andamento de `docs/plano-execucao.md`.
 - Biblioteca de normas editável (N3) feita; NBR 15200:2024 virá do usuário depois.
 
 ## Números no último merge
-1.648 testes, 105 fluxos e2e (paralelo), pacote 4.492 KB.
+1.714 testes, 111 fluxos e2e (paralelo), pacote 4.657 KB.
