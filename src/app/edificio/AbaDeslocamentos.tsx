@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { calculoAtual, useBuilding } from './store';
 import { pavimentosOrdenados, type BuildingModel } from '../../core/building/types';
 import { hipotesesDisponiveis } from '../../core/resultados/deformada';
-import { consultaNo, csvDeslocamentos, maximosPilaresCombinados, maximosPorPano, tabelaDeslocamentosMalha } from '../../core/resultados/consultas';
+import { casosDoPortico, consultaNo, csvDeslocamentos, maximosPilaresCombinados, maximosPorPano, maximosPorRadier, tabelaDeslocamentosMalha } from '../../core/resultados/consultas';
 import { flechaDaHipotese, flechaEnvoltoria, flechaMaisDesfavoravel, type FamiliaEnvoltoria, type MedidaFlecha, type ReferenciaFlecha } from '../../core/resultados/flechaPontos';
 import { Button, Group, Hint, NumField, Seg, Select, download } from '../ui';
 import { TabelaConsultaNo } from './ConsultaNoUI';
@@ -60,6 +60,7 @@ export function AbaDeslocamentos({ b }: { b: BuildingModel }) {
 
   const consulta = useMemo(() => (an && pavId ? consultaNo(b, an, dim, noZ === undefined ? { x: cx, y: cy, pavimento: pavId } : { x: cx, y: cy, z: noZ }) : null), [b, an, dim, pavId, cx, cy, noZ]);
   const panos = useMemo(() => (an ? maximosPorPano(b, an) : []), [b, an]);
+  const radiers = useMemo(() => (an ? maximosPorRadier(b, an) : []), [b, an]);
   const pilares = useMemo(() => (an ? maximosPilaresCombinados(b, an, 'FREQ') : []), [b, an]);
   const flecha = useMemo(() => {
     if (!an || !pavId) return null;
@@ -109,6 +110,21 @@ export function AbaDeslocamentos({ b }: { b: BuildingModel }) {
             </tbody>
           </table>
         </div>
+        {radiers.length > 0 && (
+          <div className="tablewrap" data-desloc-radiers={radiers.length}>
+            <table className="data quadro">
+              <thead><tr><th>Radier ou viga elástica</th>{casosDoPortico(an!).map((c) => <th key={c}>uz máx. {c} (mm)</th>)}</tr></thead>
+              <tbody>
+                {radiers.map((r) => (
+                  <tr key={r.id}>
+                    <td className="tl">{r.nome}</td>
+                    {casosDoPortico(an!).map((c) => <td key={c} className="num">{r.casos[c] ? mm(r.casos[c].uz) : '—'}{r.casos[c]?.levantamento ? ' (levantamento: hipótese inválida)' : ''}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
         <div className="tablewrap" data-desloc-pilares={pilares.length}>
           <table className="data quadro">
             <thead><tr><th>Pavimento</th><th>|ux| máx. (mm)</th><th>Combinação em x</th><th>Distorção x</th><th>|uy| máx. (mm)</th><th>Combinação em y</th><th>Distorção y</th></tr></thead>

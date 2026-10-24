@@ -666,6 +666,14 @@ svg.mono .hinge { fill: #fff !important; }
 .edif table.quadro tr.bad td { color: var(--bad); font-weight: 600; }
 .prancha-prev { padding: 8px; background: #fff; }
 .prancha-prev svg { width: 100%; height: auto; display: block; }
+.simb-previa { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.simb-previa figure { margin: 0; display: grid; gap: 2px; justify-items: center; font-size: var(--fs-sm); color: var(--muted); }
+.simb-previa svg { width: 44px; height: 44px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.simb-contorno { fill: none; stroke: var(--ink-strong); stroke-width: 1.5px; }
+.simb-solido { fill: var(--ink-strong); stroke: none; }
+.simb-hach { fill: var(--muted); fill-opacity: 0.55; stroke: none; }
+.simb-trac { fill: none; stroke: var(--ink-strong); stroke-width: 1.5px; stroke-dasharray: 4 3; }
+.simb-fino { fill: none; stroke: var(--ink-strong); stroke-width: 1px; }
 .carimbo-campos { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
 .edif table.quadro tr.warn td { color: var(--warn, #b7791f); }
 @media (max-width: 900px) { .edif { grid-template-columns: 1fr; } .edif-in { max-height: 45vh; } .planta-cv { min-height: 360px; } }

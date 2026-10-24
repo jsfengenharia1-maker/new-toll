@@ -6,7 +6,7 @@ import type { Dimensionamento } from '../building/dimensionamento';
 import { classeDoCaso, legendaDeCargas } from '../resultados/cargasCaso';
 import { bandas, encadear, extremos, faixaExibida, fmtIso, isolinhas, legenda, niveisAutomaticos, N_TOKENS_ISO } from '../resultados/bandas';
 import { hipoteseDeCombinacao } from '../resultados/deformada';
-import { campoDoPavimento, hipotesesDeLaje, infoGrandeza, pavimentosComMapa, type GrandezaIso } from '../resultados/isovalores';
+import { campoDoPavimento, GRANDEZAS_ISO, hipotesesDeLaje, infoGrandeza, pavimentosComMapa, type GrandezaIso } from '../resultados/isovalores';
 import { contornoPilar, geometriaViga, lancesDoPilar, pavimentosDoGrupo, type BuildingModel, type Carga } from '../building/types';
 import { eixosDaCamera, type V3 } from '../vista3d/camera';
 import { construirCena } from '../vista3d/cena';
@@ -123,10 +123,12 @@ export function montarPranchasResultados(
   b: BuildingModel, an: AnaliseEdificio | null, dim: Dimensionamento | null, o: OpcoesArmacao & { grandeza?: GrandezaIso; hipotese?: string } = {},
 ): Prancha[] {
   if (!an) return [];
-  const grandeza = o.grandeza ?? 'uz', info = infoGrandeza(grandeza);
+  const esc = b.prancha?.resultados, daObra = GRANDEZAS_ISO.find((x) => x.id === esc?.grandeza)?.id;
+  const grandeza: GrandezaIso = o.grandeza ?? daObra ?? 'uz', info = infoGrandeza(grandeza);
   if (info.grupo === 'radier') return [];
+  const idHip = o.hipotese ?? esc?.hipotese;
   const qp = combinacoesEdificio(b, an).find((c) => c.tipo === 'QP'), hips = hipotesesDeLaje(b, an);
-  const hip = info.porHipotese ? (o.hipotese ? hips.find((h) => h.id === o.hipotese) : qp ? hipoteseDeCombinacao(qp) : hips[0]) : undefined;
+  const hip = info.porHipotese ? (idHip ? hips.find((h) => h.id === idHip) ?? (qp ? hipoteseDeCombinacao(qp) : hips[0]) : qp ? hipoteseDeCombinacao(qp) : hips[0]) : undefined;
   const cfg = cfgArmacao(b), out: Prancha[] = [];
   for (const pv of pavimentosComMapa(b, an)) {
     const pav = b.pavimentos.find((p) => p.id === pv.id), g = b.grupos.find((x) => x.id === pav?.grupo);

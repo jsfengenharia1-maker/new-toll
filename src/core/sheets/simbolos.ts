@@ -22,3 +22,16 @@ export function primitivasDoSimbolo(simbolo: SimboloPilar, contorno: P[]): Prim[
     default: return [{ t: 'pl', c: 'PILAR', pts: contorno, fechada: true }];
   }
 }
+
+/** Estado do pilar no pavimento aberto: chega e continua (passa), morre nele ou nasce nele. */
+export type EstadoSimbolo = 'chega' | 'morre' | 'nasce';
+/** Símbolo configurado para o estado do pilar no pavimento (planta de formas e planta do aplicativo). */
+export const simboloDoEstado = (e: EstadoSimbolo, s: SimbolosPilar): SimboloPilar => (e === 'nasce' ? s.nasce : e === 'morre' ? s.morre : s.passa);
+
+/** Como a planta do aplicativo (canvas) desenha cada primitiva do símbolo. */
+export type TracoPlanta = 'preenchido' | 'hachurado' | 'tracejado' | 'fino' | 'contorno';
+export function tracoDaPrimitiva(p: Prim): TracoPlanta {
+  if (p.t === 'hach') return p.c === 'PILAR-HACH' ? 'hachurado' : 'preenchido';
+  if (p.c === 'PILAR-NASCE') return 'tracejado';
+  return p.c === 'PILAR-HACH' ? 'fino' : 'contorno';
+}

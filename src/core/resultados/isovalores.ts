@@ -7,7 +7,7 @@ import { armaduraNecessariaNervurada } from '../building/nervuradasDim';
 import { arranjoNervuras, geometriaBidirecional, lajeComAbacos } from '../building/nervuradas';
 import { errosTipoLaje } from '../building/tiposLaje';
 import { pavimentosOrdenados, type BuildingModel, type Laje } from '../building/types';
-import { triangularNos, type Campo, type P } from './bandas';
+import { areaDasBandas, areaDoCampo, bandas, triangularNos, type Campo, type P } from './bandas';
 import { deslocamentosHipotese, hipotesesDisponiveis, type Hipotese } from './deformada';
 
 export type GrandezaIso =
@@ -15,7 +15,7 @@ export type GrandezaIso =
   | 'Q' | 'Qx' | 'Qy' | 'Mx' | 'My' | 'Mxy'
   | 'QCalc' | 'QxCalc' | 'QyCalc' | 'MxInf' | 'MyInf' | 'MxSup' | 'MySup'
   | 'AsInfX' | 'AsInfY' | 'AsSupX' | 'AsSupY' | 'AsInf' | 'AsSup'
-  | 'rSigmaMax' | 'rSigmaMin' | 'rW';
+  | 'rSigmaMax' | 'rSigmaMin' | 'rW' | 'rSigma' | 'rWh';
 
 export type GrupoGrandeza = 'deslocamento' | 'esforco' | 'calculo' | 'armadura' | 'radier';
 
@@ -47,6 +47,8 @@ export const GRANDEZAS_ISO: InfoGrandeza[] = [
   { id: 'rSigmaMax', rotulo: 'Tensão máxima no terreno', unidade: 'kPa', grupo: 'radier', porHipotese: false },
   { id: 'rSigmaMin', rotulo: 'Tensão mínima no terreno (negativa = levantamento)', unidade: 'kPa', grupo: 'radier', porHipotese: false },
   { id: 'rW', rotulo: 'Recalque do radier (negativo para baixo)', unidade: 'mm', grupo: 'radier', porHipotese: false },
+  { id: 'rSigma', rotulo: 'Tensão no terreno na hipótese (negativa = levantamento)', unidade: 'kPa', grupo: 'radier', porHipotese: true },
+  { id: 'rWh', rotulo: 'Deslocamento do radier na hipótese (negativo para baixo, positivo = levantamento)', unidade: 'mm', grupo: 'radier', porHipotese: true },
 ];
 
 export const infoGrandeza = (id: GrandezaIso) => GRANDEZAS_ISO.find((g) => g.id === id)!;
@@ -199,17 +201,97 @@ function valorNodal(
   }
 }
 
-/** Campo do radier (C12.11): tensão máxima e mínima no terreno (kPa, envoltória das raras) e recalque (mm, negativo para baixo). */
-export function campoDoRadier(b: BuildingModel, dim: Dimensionamento | null | undefined, radier: string, grandeza: 'rSigmaMax' | 'rSigmaMin' | 'rW'): ResultadoCampo {
-  const r = dim?.radiers?.find((x) => x.id === radier), geo = b.fundacao?.radiers?.find((x) => x.id === radier);
-  if (!r || !geo || !r.nos.length) return { campo: null, avisos: ['Radier sem resultado de base elástica.'] };
-  const info = infoGrandeza(grandeza), nos: P[] = r.nos.map((n) => [n.x, n.y]);
-  const valores = r.nos.map((n) => (grandeza === 'rSigmaMax' ? n.sigma : grandeza === 'rSigmaMin' ? n.sigmaMin : -n.w * 1000));
+/** Grandezas do radier por hipótese (caso ou combinação); as demais usam a envoltória das raras do dimensionamento. */
+export const GRANDEZAS_RADIER_HIPOTESE: GrandezaIso[] = ['rSigma', 'rWh'];
+
+/** Nós do radier (ou viga elástica) na base elástica e o deslocamento vertical (m, negativo para baixo) de cada um numa hipótese. */
+function deslocamentosDoRadier(an: AnaliseEdificio, radier: string, h: Hipotese) {
+  const nos = (an.baseElastica?.nos ?? []).filter((n) => n.ref === radier);
+  const d = deslocamentosHipotese(an, h);
+  return { nos, uz: nos.map((n) => d.portico[n.no * 6 + 2]), ignorados: d.ignorados };
+}
+
+/**
+ * Campo do radier (C12.11): tensão máxima e mínima no terreno (kPa, envoltória das raras) e recalque (mm, negativo para baixo);
+ * por hipótese (`rSigma`, `rWh`, V7e), a tensão k·(−uz) e o deslocamento uz da hipótese escolhida (caso ou combinação, com a análise em `opc`).
+ */
+export function campoDoRadier(
+  b: BuildingModel, dim: Dimensionamento | null | undefined, radier: string, grandeza: 'rSigmaMax' | 'rSigmaMin' | 'rW' | 'rSigma' | 'rWh',
+  opc?: { an?: AnaliseEdificio | null; hipotese?: Hipotese },
+): ResultadoCampo {
+  const geo = b.fundacao?.radiers?.find((x) => x.id === radier), info = infoGrandeza(grandeza), avisos: string[] = [];
+  let nos: P[], valores: number[], nome: string;
+  if (info.porHipotese) {
+    const an = opc?.an;
+    if (!an?.baseElastica || !geo) return { campo: null, avisos: ['Radier sem análise de base elástica.'] };
+    const h = opc?.hipotese ?? hipotesesDisponiveis(b, an)[0];
+    if (!h) return { campo: null, avisos: ['Sem hipótese de carga.'] };
+    const d = deslocamentosDoRadier(an, radier, h);
+    if (!d.nos.length) return { campo: null, avisos: ['Radier sem nós na base elástica.'] };
+    if (d.ignorados.length) avisos.push(`Casos sem deslocamento no radier (não entram): ${d.ignorados.join(', ')}.`);
+    nos = d.nos.map((n) => [n.x, n.y]);
+    valores = d.nos.map((n, i) => (grandeza === 'rSigma' ? -n.k * d.uz[i] : d.uz[i] * 1000));
+    nome = `${geo.nome ?? radier} — ${h.nome}`;
+  } else {
+    const r = dim?.radiers?.find((x) => x.id === radier);
+    if (!r || !geo || !r.nos.length) return { campo: null, avisos: ['Radier sem resultado de base elástica.'] };
+    nos = r.nos.map((n) => [n.x, n.y]);
+    valores = r.nos.map((n) => (grandeza === 'rSigmaMax' ? n.sigma : grandeza === 'rSigmaMin' ? n.sigmaMin : -n.w * 1000));
+    nome = r.nome;
+  }
   const contorno = geo.contorno as P[], furos = (geo.furos ?? []) as P[][];
   const triangulos = triangularNos(nos, contorno, furos);
-  if (!triangulos.length) return { campo: null, avisos: ['Radier sem malha.'] };
+  if (!triangulos.length) return { campo: null, avisos: [...avisos, 'Radier sem malha.'] };
   const e = triangulos.length / 3;
-  return { campo: { nos, valores, triangulos, grandeza, unidade: info.unidade, rotulo: `${info.rotulo} — ${r.nome}`, elementoDoTriangulo: Array.from({ length: e }, () => radier), contornos: [contorno, ...furos] }, avisos: [] };
+  return { campo: { nos, valores, triangulos, grandeza, unidade: info.unidade, rotulo: `${info.rotulo} — ${nome}`, elementoDoTriangulo: Array.from({ length: e }, () => radier), contornos: [contorno, ...furos] }, avisos };
+}
+
+/** Linha da tabela do radier por hipótese: tensões extremas (kPa), maior recalque e maior levantamento (mm) e se a hipótese é inválida. */
+export interface LinhaRadierHipotese {
+  id: string; hipotese: string; tipo: 'caso' | 'combinacao';
+  sigmaMax: number; sigmaMin: number;
+  /** Maior deslocamento para baixo (mm, ≥ 0). */
+  recalque: number;
+  /** Maior deslocamento para cima (mm, ≥ 0): tensão de tração no solo, que a mola linear não limita. */
+  levantamento: number;
+  /** Combinação com levantamento: o solo não traciona, a hipótese precisa de nova análise (aumentar carga, área ou rigidez). */
+  invalida: boolean;
+}
+
+/** Tensão no terreno e deslocamento do radier (ou viga elástica) em cada caso e combinação (C12.11, K1.11.20). */
+export function tabelaRadierPorHipotese(b: BuildingModel, an: AnaliseEdificio, radier: string): LinhaRadierHipotese[] {
+  if (!an.baseElastica) return [];
+  const out: LinhaRadierHipotese[] = [];
+  for (const h of hipotesesDisponiveis(b, an)) {
+    const d = deslocamentosDoRadier(an, radier, h);
+    if (!d.nos.length || d.ignorados.length === Object.values(h.fatores).filter(Boolean).length) continue;
+    const sig = d.nos.map((n, i) => -n.k * d.uz[i]);
+    const lev = Math.max(0, ...d.uz.map((u) => u * 1000)), rec = Math.max(0, ...d.uz.map((u) => -u * 1000));
+    out.push({ id: h.id, hipotese: h.nome, tipo: h.tipo, sigmaMax: Math.max(...sig), sigmaMin: Math.min(...sig), recalque: rec, levantamento: lev < 1e-6 ? 0 : lev, invalida: h.tipo === 'combinacao' && lev >= 1e-6 });
+  }
+  return out;
+}
+
+/** CSV da tabela por hipótese (separador ponto e vírgula, vírgula decimal). */
+export function csvRadierHipoteses(linhas: LinhaRadierHipotese[]): string {
+  const n = (v: number) => v.toFixed(3).replace('.', ',');
+  return ['Hipótese;Tipo;σ máx (kPa);σ mín (kPa);Recalque (mm);Levantamento (mm);Situação', ...linhas.map((l) => [l.hipotese, l.tipo === 'caso' ? 'caso' : 'combinação', n(l.sigmaMax), n(l.sigmaMin), n(l.recalque), n(l.levantamento), l.invalida ? 'inválida (levantamento)' : 'ok'].join(';'))].join('\n');
+}
+
+/** Bitolas (mm) oferecidas no limite por diâmetro. */
+export const BITOLAS_LIMITE_MM = [5, 6.3, 8, 10, 12.5, 16, 20, 25];
+/** Área de aço por metro (cm²/m) de barras de diâmetro φ (mm) a cada s (cm): π·φ²/4 · 100/s. */
+export const areaPorMetro = (phiMm: number, sCm: number) => (Math.PI * (phiMm / 10) ** 2 / 4) * (100 / sCm);
+/** Maior espaçamento (cm, múltiplos de 2,5 entre 5 e 30) com que barras φ atendem a taxa As (cm²/m), ou null quando φ c/5 não basta. */
+export function espacamentoParaArea(phiMm: number, As: number): number | null {
+  for (let s = 30; s >= 5; s -= 2.5) if (areaPorMetro(phiMm, s) >= As - 1e-9) return s;
+  return null;
+}
+
+/** Parte do campo com valor ≥ limite: área (m²), total (m²) e fração; o que ultrapassa a armadura adotada, a σadm ou a bitola escolhida. */
+export function areaAcimaDoLimite(c: Campo, limite: number): { area: number; total: number; fracao: number } {
+  const total = areaDoCampo(c), area = areaDasBandas(bandas(c, [], { min: limite }));
+  return { area, total, fracao: total > 0 ? Math.min(1, area / total) : 0 };
 }
 
 /** Elemento (laje) sob o ponto (x, y) do mapa, para o clique (C12.15). */

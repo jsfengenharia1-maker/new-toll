@@ -5,7 +5,7 @@
 import { barArea } from '../concrete';
 import { opcoesEmUso, perfilDe } from '../building/opcoes';
 import { ARMACAO_PADRAO, type BuildingModel, type ConfigArmacao, type Formato } from '../building/types';
-import { FORMATOS, LARGURA_LEGENDA, folhaECarimbo, margens, ret, txt, type AcoPrancha, type Camada, type LinhaResumoAco, type LinhaTabelaAco, type P, type Prancha, type Prim, type TipoPrancha } from './prancha';
+import { dimensoesFolha, LARGURA_LEGENDA, folhaECarimbo, margens, ret, txt, type AcoPrancha, type Camada, type LinhaResumoAco, type LinhaTabelaAco, type P, type Prancha, type Prim, type TipoPrancha } from './prancha';
 
 export const cfgArmacao = (b: BuildingModel): ConfigArmacao => ({ ...ARMACAO_PADRAO, ...(b.prancha?.armacao ?? {}) });
 export const perdasDe = (b: BuildingModel) => opcoesEmUso(b.opcoes, perfilDe(b)).perdasAco;
@@ -222,7 +222,7 @@ export function bloco(prims: Prim[], chaves: Set<string>, nome: string): Bloco {
 
 /** Área de desenho de uma folha de armação (mm): à esquerda da coluna de tabelas e acima da faixa do título. */
 export function areaArmacao(f: Formato) {
-  const [W, H] = FORMATOS[f], m = margens(f);
+  const [W, H] = dimensoesFolha(f), m = margens(f);
   return { x0: m.esq + 6, y0: m.outras + 16, x1: W - m.outras - LARGURA_LEGENDA - 8, y1: H - m.outras - 5 };
 }
 
@@ -258,7 +258,7 @@ export function empacotar(blocos: Bloco[], larg: number, alt: number, cap: numbe
 
 /** Linhas da tabela de aço que cabem na coluna junto com as notas e o resumo (estimativa para a paginação). */
 export function capacidadeTabela(f: Formato, hLeg: number, blocosFixos: BlocoTabela[], linhasResumo: number) {
-  const [, H] = FORMATOS[f], m = margens(f);
+  const [, H] = dimensoesFolha(f), m = margens(f);
   const alt = H - 2 * m.outras - 2 - hLeg - 6 - blocosFixos.reduce((s, t) => s + alturaBloco(t), 0) - (HL * (2 + linhasResumo + 3) + 3) - 2 * HL - 3;
   return Math.max(5, Math.floor(alt / HL));
 }
@@ -275,7 +275,7 @@ export function montarFolha(m: MontagemFolha): Prancha {
   const fc = folhaECarimbo(m.b, m.formato, { tipo: m.tipo, sigla: m.sigla, conteudo: m.conteudo, escala: m.escala, carimbo: m.carimbo });
   const col = colunaDeTabelas(fc.moldura, fc.hLeg, m.tabelas);
   const avisos = [...m.avisos];
-  const [W, H] = FORMATOS[m.formato];
+  const [W, H] = dimensoesFolha(m.formato);
   const area = areaArmacao(m.formato);
   if (col.colunas > 1) {
     const [dx0, , dx1] = caixaPrims(m.desenho);

@@ -1486,7 +1486,11 @@ export const FUNDACAO_VAZIA = (): FundacaoEdificio => ({ terreno: { sigmaModo: '
 /** Arranque: pilar de altura zero (nasce e morre na fundação), só para levar cargas à fundação. */
 export const ehArranque = (p: Pick<Pilar, 'nasce' | 'morre'>) => p.nasce === 'fundacao' && p.morre === 'fundacao';
 
-export type Formato = 'A0' | 'A1' | 'A2' | 'A3' | 'A4';
+export type Formato = 'A0' | 'A1' | 'A2' | 'A3' | 'A4' | 'livre';
+/** Folha do usuário e margens configuráveis (V7d, K1.11.54): largura × altura da folha 'livre' e margens (mm); ausente = os padrões (A3 420 × 297; margem esquerda 20; demais 10 em A0–A1 e 7 nas outras). */
+export interface FolhaUsuario { largura?: number; altura?: number; margemEsq?: number; margem?: number }
+/** Folha de resultados (V7d, K1.11.62): grandeza do mapa de isovalores (`GrandezaIso`) e hipótese (id); ausente = deslocamento vertical na quase permanente. */
+export interface EscolhaResultados { grandeza?: string; hipotese?: string }
 export interface Carimbo {
   empresa: string; obra: string; cliente: string; local: string;
   responsavel: string; registro: string; art: string; etapa: string; desenho: string; revisao: string; data: string;
@@ -1511,6 +1515,10 @@ export interface ConfigPrancha {
   moldura?: ConfigMoldura;
   /** Detalhes DXF inseridos nas pranchas (V5, K1.11.54). */
   detalhes?: DetalheInserido[];
+  /** Folha do usuário (formato 'livre') e margens (V7d, K1.11.54). */
+  folha?: FolhaUsuario;
+  /** Mapa da folha de resultados (V7d, K1.11.62). */
+  resultados?: EscolhaResultados;
 }
 export type SimboloPilar = 'hachura' | 'tracejado' | 'cruz' | 'solido' | 'vazio';
 export interface SimbolosPilar { passa: SimboloPilar; nasce: SimboloPilar; morre: SimboloPilar }

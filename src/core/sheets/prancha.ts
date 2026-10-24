@@ -2,7 +2,7 @@
 // do modelo, e folha, carimbo e quadro de pilares no espaço do papel (mm). Os escritores (PDF, DXF, DWG, SVG)
 // recebem a mesma prancha.
 import { primitivasEscadas } from './escadasPrancha';
-import { ARMACAO_PADRAO, contornoPilar, geometriaViga, lancesDoPilar, pavimentosOrdenados, secaoNoLance, PRANCHA_PADRAO, type BuildingModel, type Carimbo, type Formato, type Pilar, type SecaoPilar, contornoNoLance } from '../building/types';
+import { type FolhaUsuario, ARMACAO_PADRAO, contornoPilar, geometriaViga, lancesDoPilar, pavimentosOrdenados, secaoNoLance, PRANCHA_PADRAO, type BuildingModel, type Carimbo, type Formato, type Pilar, type SecaoPilar, contornoNoLance } from '../building/types';
 import { pontoRef, refDe } from '../building/vistaObra';
 import { dentroPoligono, pontoInterno, type P } from '../geom/faces';
 import { rotuloLaje } from '../building/tiposLaje';
@@ -73,11 +73,34 @@ export type Prim =
   /** Região preenchida (sólida); `g` = cinza de 0 (preto) a 1 (branco) no PDF e no SVG (padrão 0,6; o DXF e o DWG usam a cor da camada). */
   | { t: 'hach'; c: Camada; pts: P[]; g?: number };
 
-export const FORMATOS: Record<Formato, [number, number]> = { A0: [1189, 841], A1: [841, 594], A2: [594, 420], A3: [420, 297], A4: [297, 210] };
+export const FORMATOS: Record<Formato, [number, number]> = { A0: [1189, 841], A1: [841, 594], A2: [594, 420], A3: [420, 297], A4: [297, 210], livre: [420, 297] };
+/** Folha do usuário em vigor durante a montagem (V7d): definida por `comFolha`, lida por `dimensoesFolha` e `margens`. */
+let folhaAtiva: FolhaUsuario | undefined;
+/** Executa `fn` com a folha do usuário e as margens da obra (as pranchas montadas dentro dela usam essas dimensões). */
+export function comFolha<T>(cfg: { folha?: FolhaUsuario } | undefined, fn: () => T): T {
+  const antes = folhaAtiva;
+  folhaAtiva = cfg?.folha;
+  try { return fn(); } finally { folhaAtiva = antes; }
+}
+/** Largura × altura (mm) da folha: A0–A4 fixos; 'livre' usa a folha do usuário (padrão A3). */
+export const dimensoesFolha = (f: Formato): [number, number] => (f === 'livre' ? [folhaAtiva?.largura ?? FORMATOS.livre[0], folhaAtiva?.altura ?? FORMATOS.livre[1]] : FORMATOS[f]);
 /** Margens (mm) [a confirmar na NBR 16752]: esquerda 20 (maior, para furação, como nas folhas de referência); demais 10
- * (A0, A1) ou 7 (A2–A4). Legenda com 178 mm de largura (175–180 mm nas folhas de referência). */
-export const margens = (f: Formato) => ({ esq: 20, outras: f === 'A0' || f === 'A1' ? 10 : 7 });
+ * (A0, A1) ou 7 (A2–A4 e livre). Configuráveis na obra (`folha.margemEsq`, `folha.margem`). Legenda com 178 mm de largura (175–180 mm nas folhas de referência). */
+export const margens = (f: Formato) => ({ esq: folhaAtiva?.margemEsq ?? 20, outras: folhaAtiva?.margem ?? (f === 'A0' || f === 'A1' ? 10 : 7) });
 export const LARGURA_LEGENDA = 178;
+/** Limites da folha do usuário (mm): lados de 150 a 5000, margens de 0 a 100 e área útil da planta de pelo menos 50 × 50. */
+export const LIMITES_FOLHA = { lado: [150, 5000], margem: [0, 100], areaMin: 50 } as const;
+/** Erros da folha do usuário (vazio = válida). */
+export function validarFolha(p: FolhaUsuario | undefined): string[] {
+  if (!p) return [];
+  const erros: string[] = [], [l0, l1] = LIMITES_FOLHA.lado, [m0, m1] = LIMITES_FOLHA.margem;
+  for (const [k, rot] of [['largura', 'Largura'], ['altura', 'Altura']] as const) if (p[k] !== undefined && !(p[k]! >= l0 && p[k]! <= l1)) erros.push(`${rot} da folha ${p[k]} mm fora de ${l0} a ${l1}.`);
+  for (const [k, rot] of [['margemEsq', 'Margem esquerda'], ['margem', 'Margem']] as const) if (p[k] !== undefined && !(p[k]! >= m0 && p[k]! <= m1)) erros.push(`${rot} ${p[k]} mm fora de ${m0} a ${m1}.`);
+  if (erros.length) return erros;
+  const a = comFolha({ folha: p }, () => areaDesenho('livre'));
+  if (a.x1 - a.x0 < LIMITES_FOLHA.areaMin || a.y1 - a.y0 < LIMITES_FOLHA.areaMin) erros.push(`Folha ${p.largura ?? FORMATOS.livre[0]} × ${p.altura ?? FORMATOS.livre[1]} mm com essas margens deixa área útil de ${Math.max(0, Math.round(a.x1 - a.x0))} × ${Math.max(0, Math.round(a.y1 - a.y0))} mm (mínimo ${LIMITES_FOLHA.areaMin}): aumente a folha ou reduza as margens.`);
+  return erros;
+}
 /** Escalas da planta de formas automática: a partir de 1:75, como nas folhas de referência (1:50 só quando escolhida). */
 export const ESCALAS = [75, 100, 125, 200, 250];
 
@@ -180,8 +203,8 @@ function distintos(v: number[]): number[] {
 }
 
 /** Área disponível para a planta (mm): moldura menos a coluna da legenda e a faixa do título. */
-function areaDesenho(f: Formato) {
-  const [W, H] = FORMATOS[f], m = margens(f);
+export function areaDesenho(f: Formato) {
+  const [W, H] = dimensoesFolha(f), m = margens(f);
   const x0 = m.esq + 5, y0 = m.outras + 18, x1 = W - m.outras - LARGURA_LEGENDA - 10, y1 = H - m.outras - 5;
   return { x0, y0, x1, y1 };
 }
@@ -301,7 +324,7 @@ export function montarPrancha(b: BuildingModel, grupo: string, o: OpcoesPrancha 
   let formato: Formato = fFix ?? 'A0', escala = eFix || ESCALAS[ESCALAS.length - 1], ok = false;
   busca: for (const e of escs) for (const f of forms) if (cabe(f, e)) { formato = f; escala = e; ok = true; break busca; }
   if (!ok) avisos.push(`A planta não cabe na folha ${formato} em 1:${escala}: escolha um formato maior ou outra escala.`);
-  const [W, H] = FORMATOS[formato], area = areaDesenho(formato);
+  const [W, H] = dimensoesFolha(formato), area = areaDesenho(formato);
   const k = escala / 1000; // m no modelo por mm no papel
 
   // ---------- espaço do modelo ----------
@@ -443,12 +466,12 @@ export interface OpcoesFolha { tipo: TipoPrancha; sigla?: string; conteudo: stri
  */
 export function folhaECarimbo(b: BuildingModel, formato: Formato, o: OpcoesFolha) {
   const cfg = { ...PRANCHA_PADRAO, ...(b.prancha ?? {}) };
-  const [W, H] = FORMATOS[formato], mg = margens(formato);
+  const [W, H] = dimensoesFolha(formato), mg = margens(formato);
   const papel: Prim[] = [];
   const fx0 = mg.esq, fy0 = mg.outras, fx1 = W - mg.outras, fy1 = H - mg.outras;
   papel.push(ret('FOLHA-FINA', 0, 0, W, H), ret('FOLHA', fx0, fy0, fx1, fy1));
   // marcas de dobra para o formato A4 (dobras verticais a 185 mm da direita e depois a cada 190 mm; horizontais a cada 297 mm) [a confirmar na NBR 13142]
-  if (formato !== 'A4') {
+  if (formato !== 'A4' && formato !== 'livre') {
     for (let x = W - 185; x > 210; x -= 190) papel.push({ t: 'pl', c: 'FOLHA-FINA', pts: [[x, 0], [x, 5]] }, { t: 'pl', c: 'FOLHA-FINA', pts: [[x, H - 5], [x, H]] });
     for (let y = 297; y < H - 1; y += 297) papel.push({ t: 'pl', c: 'FOLHA-FINA', pts: [[0, y], [5, y]] }, { t: 'pl', c: 'FOLHA-FINA', pts: [[W - 5, y], [W, y]] });
   }
@@ -493,7 +516,7 @@ export function folhaECarimbo(b: BuildingModel, formato: Formato, o: OpcoesFolha
 /** Uma prancha por grupo com elementos lançados, numeradas na ordem dos pavimentos. */
 export function montarPranchas(b: BuildingModel, o: Omit<OpcoesPrancha, 'numero' | 'total'> = {}): Prancha[] {
   const grupos = [...new Set(pavimentosOrdenados(b).map((p) => p.grupo))].filter((g) => b.vigas.some((v) => v.grupo === g) || b.lajes.some((l) => l.grupo === g));
-  return grupos.map((g, i) => montarPrancha(b, g, { ...o, numero: i + 1, total: grupos.length }));
+  return comFolha(b.prancha, () => grupos.map((g, i) => montarPrancha(b, g, { ...o, numero: i + 1, total: grupos.length })));
 }
 
 /** Transformação do modelo (m) para o papel (mm) pela janela da prancha. */

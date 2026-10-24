@@ -257,6 +257,7 @@ function Vista() {
           {!!an?.vento && !nivelFund && <Dropdown aria-label="Vento na planta" title="Setas das forças de vento por zona do pavimento aberto, para o caso escolhido (depois de calcular)" value={pl.ventoPlanta} onChange={(e) => pl.set({ ventoPlanta: e.target.value })}>
             <option value="">Vento na planta: não</option>{an.vento.casos.map((c) => <option key={c.nome} value={c.nome}>Vento na planta: {c.nome}</option>)}
           </Dropdown>}
+          <label className="check small" title="Desenha os pilares que passam, nascem ou morrem no pavimento com os símbolos escolhidos para as pranchas (editor na vista Pranchas, grupo Estilo de desenho, símbolos e saídas)"><Input type="checkbox" checked={pl.simbolosPlanta} onChange={(e) => pl.set({ simbolosPlanta: e.target.checked })} /> <span>Símbolos das pranchas</span></label>
           <label className="check small"><Input type="checkbox" checked={pl.inferior} onChange={(e) => pl.set({ inferior: e.target.checked })} /> <span>Inferior</span></label>
           {!!dim?.vigotas?.length && <CamadaVigotas />}
           {!!dim?.vigotas?.length && <label className="check small" title="Lajes treliçadas: desenha todas as faixas de vigotas em vez de uma por grupo de igualação"><Input type="checkbox" checked={pl.vigotasTodas} onChange={(e) => pl.set({ vigotasTodas: e.target.checked })} /> <span>Mostrar todas as faixas</span></label>}
