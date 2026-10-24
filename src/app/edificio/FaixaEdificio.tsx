@@ -181,10 +181,15 @@ function Fundacoes() {
 
 function Pranchas() {
   return (
-    <RibbonGroup label="Folhas">
-      <RibbonButton icon="pranchas" label="Abrir Pranchas" title="Abre a vista Pranchas (tipo, grupo, formato, escala, PDF, DXF e DWG)" onClick={() => ui({ aba: 'pranchas' })} />
-      <RibbonButton icon="config" label="Opções de armação e locação…" onClick={() => ui({ aba: 'pranchas' })} />
-    </RibbonGroup>
+    <>
+      <RibbonGroup label="Folhas">
+        <RibbonButton icon="pranchas" label="Abrir Pranchas" title="Abre a vista Pranchas (tipo, grupo, formato, escala, PDF, DXF e DWG)" onClick={() => ui({ aba: 'pranchas' })} />
+        <RibbonButton icon="config" label="Opções de armação e locação…" onClick={() => ui({ aba: 'pranchas' })} />
+      </RibbonGroup>
+      <RibbonGroup label="Estilo">
+        <RibbonButton icon="config" label="Estilo de desenho e símbolos…" title="Abre a vista Pranchas no bloco de estilo de desenho, símbolos dos pilares e DXF importados" onClick={() => { ui({ aba: 'pranchas' }); requestAnimationFrame(() => document.querySelector('[data-estilo-pranchas]')?.scrollIntoView({ block: 'nearest' })); }} />
+      </RibbonGroup>
+    </>
   );
 }
 

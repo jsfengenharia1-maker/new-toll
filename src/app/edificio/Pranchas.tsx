@@ -7,6 +7,7 @@ import { Button, Check, download, Group, Hint, NumField, Select, TextField } fro
 import { PRECISA_CALCULO, TIPOS_PRANCHA, tiposDe, type TipoSaida } from '../../core/sheets/conjunto';
 import { siglaDe } from '../../core/sheets/prancha';
 import { RotulosLajes } from './EdicaoLajes';
+import { EstiloPranchas } from './EstiloPranchas';
 import { nf } from '../../core/sheets/armacao';
 import { zip } from '../../core/zip';
 import { ARQUIVO_LOGO, base64Bytes, LIMITE_LOGO } from '../../core/sheets/logo';
@@ -156,6 +157,7 @@ export function Pranchas() {
             </>
           )}
         </div>
+        <EstiloPranchas />
         {precisa && !dim && <Hint><span data-aviso-calculo="sem">As pranchas de armação e a tabela de cargas da locação exigem o cálculo. Calcule e dimensione o edifício na aba Dimensionamento.</span></Hint>}
         {precisa && dim && !atual && <p className="hint bad" data-aviso-calculo="desatualizado">O dimensionamento é de uma revisão anterior do modelo. Recalcule na aba Dimensionamento para gerar as pranchas de armação e a locação com cargas.</p>}
         {(tipo === 'fundacao' || tipo === 'todas') && atual && !fundAtual && !!b.fundacao?.elementos.length && (
