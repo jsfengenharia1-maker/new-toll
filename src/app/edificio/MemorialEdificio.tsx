@@ -9,6 +9,7 @@ import { MemorialConsolos } from './MemorialConsolos';
 import { MemorialInclinadas } from './MemorialInclinadas';
 import { MemorialEscadas } from './MemorialEscadas';
 import { MemorialEscadasCalculo } from './MemorialEscadasCalculo';
+import { MemorialEscadasArmadura } from './MemorialEscadasArmadura';
 import { MemorialVigotasFicha } from './MemorialVigotasFicha';
 import { PAINEL_TELA } from '../../core/building/telasSoldadas';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
@@ -198,6 +199,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
 
           <MemorialEscadas b={b} h2={h2} />
           <MemorialEscadasCalculo b={b} h2={h2} />
+          <MemorialEscadasArmadura b={b} dim={dim} h2={h2} />
           <MemorialCortes b={b} dim={dim} h2={h2} />
           <MemorialDiagonais b={b} dim={dim} h2={h2} />
           <MemorialConsolos b={b} dim={dim} h2={h2} />
@@ -490,9 +492,9 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
               ))}
             </>)}
             <MemorialVigotasFicha dim={dim} h2={h2} />
-            {((dim.resumoAcoVigas?.length ?? 0) > 0 || (dim.resumoAcoPilares?.length ?? 0) > 0 || (dim.resumoAcoLajes?.length ?? 0) > 0 || (dim.resumoAcoVigotas?.length ?? 0) > 0 || (dim.resumoAcoNervuradas?.length ?? 0) > 0 || (dim.resumoAcoParedes?.length ?? 0) > 0 || (dim.resumoTelas?.length ?? 0) > 0) && (<>
+            {((dim.resumoAcoVigas?.length ?? 0) > 0 || (dim.resumoAcoPilares?.length ?? 0) > 0 || (dim.resumoAcoLajes?.length ?? 0) > 0 || (dim.resumoAcoVigotas?.length ?? 0) > 0 || (dim.resumoAcoNervuradas?.length ?? 0) > 0 || (dim.resumoAcoParedes?.length ?? 0) > 0 || (dim.resumoTelas?.length ?? 0) > 0 || (dim.resumoAcoEscadas?.length ?? 0) > 0) && (<>
               {h2('Resumo geral de aço')}
-              {([['Vigas', dim.resumoAcoVigas ?? []], ['Pilares', dim.resumoAcoPilares ?? []], ['Paredes e pilares-parede', dim.resumoAcoParedes ?? []], ['Lajes maciças', dim.resumoAcoLajes ?? []], ['Lajes treliçadas (adicionais, negativos e distribuição)', dim.resumoAcoVigotas ?? []], ['Lajes nervuradas bidirecionais (nervuras, base e malha da mesa)', dim.resumoAcoNervuradas ?? []], ['Lajes alveolares (negativos na capa)', dim.resumoAcoAlveolares ?? []], ['Total geral (vigas, pilares, paredes, lajes, vigotas, nervuradas e alveolares)', somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoParedes ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? [], dim.resumoAcoNervuradas ?? [], dim.resumoAcoAlveolares ?? [])]] as const).map(([tit, rs]) => (
+              {([['Vigas', dim.resumoAcoVigas ?? []], ['Pilares', dim.resumoAcoPilares ?? []], ['Paredes e pilares-parede', dim.resumoAcoParedes ?? []], ['Lajes maciças', dim.resumoAcoLajes ?? []], ['Lajes treliçadas (adicionais, negativos e distribuição)', dim.resumoAcoVigotas ?? []], ['Lajes nervuradas bidirecionais (nervuras, base e malha da mesa)', dim.resumoAcoNervuradas ?? []], ['Lajes alveolares (negativos na capa)', dim.resumoAcoAlveolares ?? []], ...((dim.resumoAcoEscadas?.length ?? 0) > 0 ? [['Escadas (lances e patamares)', dim.resumoAcoEscadas ?? []] as const] : []), [(dim.resumoAcoEscadas?.length ?? 0) > 0 ? 'Total geral (vigas, pilares, paredes, lajes, vigotas, nervuradas, alveolares e escadas)' : 'Total geral (vigas, pilares, paredes, lajes, vigotas, nervuradas e alveolares)', somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoParedes ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? [], dim.resumoAcoNervuradas ?? [], dim.resumoAcoAlveolares ?? [], dim.resumoAcoEscadas ?? [])]] as const).map(([tit, rs]) => (
                 <div key={tit} className="avoid">
                   <h3>{tit}</h3>
                   <table>
@@ -514,7 +516,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
                   <p>Painéis de {fmt(PAINEL_TELA.largura)} × {fmt(PAINEL_TELA.comprimento)} m cortados no pano, com traspasse de {fmt(opc.lajeTelaTraspasse, 0)} cm entre painéis e cobrimento nas bordas; peso = 7850 kg/m³ × área de aço das duas direções [a confirmar: dimensões dos fios e das malhas do catálogo conferidas por catálogos de fabricantes, séries L e T fora do catálogo].</p>
                 </div>
               )}
-              <p>Perdas de {fmt(perdasDoResumo(somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoParedes ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? [], dim.resumoAcoNervuradas ?? [], dim.resumoAcoAlveolares ?? [])), 1)} % sobre o peso (opção "perdas de aço"). Lajes maciças pelo detalhamento; lajes treliçadas pelas barras adicionais, negativos e distribuição (as treliças eletrossoldadas vêm em tabela própria, abaixo, e não entram nos totais de barras); lajes nervuradas seguem estimadas por taxa na tabela de quantitativos e não entram neste resumo.</p>
+              <p>Perdas de {fmt(perdasDoResumo(somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoParedes ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? [], dim.resumoAcoNervuradas ?? [], dim.resumoAcoAlveolares ?? [], dim.resumoAcoEscadas ?? [])), 1)} % sobre o peso (opção "perdas de aço"). Lajes maciças pelo detalhamento; lajes treliçadas pelas barras adicionais, negativos e distribuição (as treliças eletrossoldadas vêm em tabela própria, abaixo, e não entram nos totais de barras); lajes nervuradas seguem estimadas por taxa na tabela de quantitativos e não entram neste resumo.</p>
               {(dim.trelicas?.length ?? 0) > 0 && (
                 <div className="avoid">
                   <h3>Treliças eletrossoldadas (por tipo)</h3>
