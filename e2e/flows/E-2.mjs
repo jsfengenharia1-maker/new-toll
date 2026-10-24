@@ -1,7 +1,7 @@
 // Fluxos de interface — E (parte 2/2).
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { grupoEdif, tab, downloadText, telaDe } from './helpers.mjs';
+import { grupoEdif, tab, downloadText, telaDe, enquadrarEstavel } from './helpers.mjs';
 
 export const f_E2c = {
     name: 'E2c: viga inclinada entre pavimentos (lançamento, ligação, carga, resultados, armadura bloqueada e memorial)',
@@ -474,8 +474,7 @@ export const f_E3b = {
       assert.match(await page.locator('[data-lista-erros]').innerText(), /VIGOTA_(POS|CORTANTE|NEG)/);
       // 7) exposição e momentos mínimos por pano (grupo Vínculos e engastes, com a laje selecionada na planta)
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
-      await page.keyboard.press('f');
-      await page.waitForTimeout(500);
+      await enquadrarEstavel(page);
       const [ax, ay] = await telaDe(page, -0.6, -0.6), [bx, by] = await telaDe(page, 8.6, 5.6);
       await page.mouse.move(ax, ay); await page.mouse.down(); await page.mouse.move(bx, by, { steps: 8 }); await page.mouse.up();
       const vg = await grupoEdif(page, /^Vínculos, flambagem e cobrimento/);

@@ -119,6 +119,20 @@ export async function telaDe(page, x, y) {
   }
 }
 
+/** Enquadra (F) e espera por condição: a transformada da planta (`data-vista`) fica igual em 4 leituras seguidas, uma por quadro de animação. */
+export async function enquadrarEstavel(page) {
+  await page.keyboard.press('f');
+  const ler = () => page.locator('.planta-cv').getAttribute('data-vista');
+  let ant = null, iguais = 0;
+  for (let t = 0; t < 200 && iguais < 4; t++) {
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+    const v = await ler();
+    iguais = v === ant ? iguais + 1 : 0;
+    ant = v;
+  }
+  if (iguais < 4) throw new Error('a vista da planta não estabilizou depois de F');
+}
+
 /** Reenquadra (F) até todos os pontos do modelo caírem dentro da área de desenho: a barra da ferramenta muda a altura da planta e o
  *  reenquadramento pode correr antes do layout assentar; um clique fora da área não vira ponto. */
 export async function reenquadrarAte(page, pontos) {

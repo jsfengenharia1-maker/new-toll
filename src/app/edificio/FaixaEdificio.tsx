@@ -85,6 +85,7 @@ function Edicao() {
       </RibbonGroup>
       <RibbonGroup label="Referências" radios="Ferramenta"><Ferr f="moverRef" icon="referencia" /><Ferr f="contaGotas" icon="contaGotas" /></RibbonGroup>
       <RibbonGroup label="Lajes" radios="Ferramenta">
+        <RibbonButton icon="laje" label="Tipos de laje…" title="Abre a Configuração da obra em Tipos de laje" onClick={() => ui({ cfg: 'tiposLaje' })} />
         <Ferr f="puncao" icon="puncao" disabled={!dim?.puncao?.length} />
         <Ferr f="zonaLaje" icon="zona" /><Ferr f="linhaDobra" icon="dobra" /><Ferr f="direcaoPano" icon="laje" /><Ferr f="insercaoPano" icon="laje" />
         <RibbonButton icon="zona" label="Editar armaduras das lajes" title="Abre o painel de edição das armaduras sob a planta" onClick={() => { ui({ aba: 'planta' }); pl.set({ camadaPuncao: false, painelLajes: true, armaduraLajes: pl.armaduraLajes === 'nenhuma' ? 'ambas' : pl.armaduraLajes }); }} />

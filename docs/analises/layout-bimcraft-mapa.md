@@ -70,12 +70,12 @@ Regras gerais do mapa: (1) nenhum comando muda de nome, de rótulo acessível (`
 | P44 | Estrutura: Seções | 1 | Estrutura | DOCA-D / PROP:Seções | |
 | P45 | Estrutura: Opções de análise | 1 | Estrutura | CFG (Pórtico: Opções de análise) e RB:analise | |
 | P46 | Estrutura: Dimensionamento das barras | 1 | Estrutura | DOCA-D / PROP | |
-| P47 | Estrutura: Transformar seleção (mover, copiar, girar, espelhar; Repetir última) | 1 | Estrutura | RB:edicao / Transformar (botões) e DOCA-D | |
+| P47 | Estrutura: Transformar seleção (mover, copiar, girar, espelhar; Repetir última) | 1 | Estrutura | RB:edicao / Seleção (botão "Transformar seleção…") e DOCA-D | |
 | P48 | Estrutura: Cotas manuais | 1 | Estrutura | DOCA-D / PROP | |
 | P49 | Painel Cargas: Casos de carga | 2 | panels/Cargas | RB:cargas / Casos; DOCA-D | |
-| P50 | Cargas: Aplicar carga | 2 | Cargas | RB:cargas / Aplicar; DOCA-D | |
+| P50 | Cargas: Aplicar carga | 2 | Cargas | RB:cargas / Cargas; DOCA-D | |
 | P51 | Cargas: lista “Cargas em <caso>” | 2 | Cargas | DOCA-D | |
-| P52 | Cargas: Combinações | 2 | Cargas | RB:cargas / Combinações; DOCA-D | |
+| P52 | Cargas: Combinações | 2 | Cargas | RB:cargas / Cargas; DOCA-D | |
 | P53 | Painel Resultados: Carregamento, Diagrama, Extremos, Tabelas, Ao longo de um caminho | 3 | panels/Resultados | RB:analise / Resultados; DOCA-D | |
 | P54 | Painel Influência: Linha de influência, Trem-tipo, Caminho e envoltória | 4 | panels/Influencia | RB:analise / Influência; DOCA-D | |
 | P55 | Painel Dimensionar: Barras, Cargas na fundação, Estabilidade global, Premissas, Barra n | 5 | panels/Dimensionar | RB:dimensionamento; DOCA-D | |
@@ -98,7 +98,7 @@ Regras gerais do mapa: (1) nenhum comando muda de nome, de rótulo acessível (`
 | E9 | Grupo "Obra" (Nova obra…, Obras recentes…, Dados gerais…, corpo `DadosGeraisCorpo`) | | Edificio.tsx | RB:arquivo / Obra (botões); CFG:Dados gerais (corpo) | `DadosGeraisJanela` (JAN) continua como a janela do botão "Dados gerais…" |
 | E10 | Nova obra (assistente `NovaObra`, passos) | | NovaObra.tsx, NovaObraPassos.tsx | JAN, aberto de RB:arquivo / Obra | |
 | E11 | Obras recentes | | ObrasRecentes.tsx | JAN, RB:arquivo / Obra | |
-| E12 | Importar de texto | | ImportarTexto.tsx | JAN, RB:arquivo / Importar | |
+| E12 | Importar de texto | | ImportarTexto.tsx | JAN, RB:arquivo / Obra | |
 | E13 | Pavimentos (tabela: nome, grupo, cota, pé-direito, +1, ×; NovoPavimento) | | Edificio.tsx `Pavimentos` + `NovoPavimento` | NAV (nó Pavimentos) e PROP:Pavimento (editor da linha selecionada); RB:lancamento / Pavimentos (Novo pavimento, +1 acima, Remover) | `aria-label="Nome de <pav>"`, `Remover <pav>` preservados |
 | E14 | Grupos (tabela: nome, uso NBR 6120, rev., q) | | Edificio.tsx `Grupos` | NAV (nó Grupos) e PROP:Grupo | |
 | E15 | Grupos: cópia, união e áreas | | GruposL4.tsx `GruposCopiaGrupo` | RB:edicao / Grupos (Copiar de outro grupo…, Unir pavimentos…); PROP:Áreas | diálogos `CopiarGrupoDialogo`, `UnirPavimentosDialogo` (JAN) |
@@ -121,14 +121,14 @@ Regras gerais do mapa: (1) nenhum comando muda de nome, de rótulo acessível (`
 | E32 | Ábacos de vento (NBR 6123) | | AbacosVento.tsx | CFG:Vento | |
 | E33 | Casos de carga (+ arranjos) | | Casos.tsx, CasosArranjos.tsx | RB:cargas / Casos; CFG:Casos de carga | |
 | E34 | Estados-limite e combinações | | EstadosLimite.tsx | CFG:Estados-limite | |
-| E35 | Empuxo de terra | | Empuxo.tsx | RB:cargas / Empuxo; CFG:Empuxo | |
+| E35 | Empuxo de terra | | Empuxo.tsx | RB:cargas / Outras ações; CFG:Empuxo | |
 | E36 | Opções de cálculo (perfis sistema/NBR) | | OpcoesCalculo.tsx | CFG:Opções de cálculo; RB:analise (botão) | |
 | E37 | Etapas de carga (flechas) | | EtapasFlecha.tsx | CFG:Etapas de carga | |
-| E38 | Incêndio | | Incendio.tsx | RB:dimensionamento / Incêndio; CFG:Incêndio | |
+| E38 | Incêndio | | Incendio.tsx | RB:dimensionamento / Proteção ao fogo; CFG:Incêndio | |
 | E39 | Materiais e segurança (+ biblioteca) | | Materiais.tsx, MateriaisBiblioteca.tsx | CFG:Materiais e segurança | |
 | E40 | Tabelas de armadura | | TabelasArmadura.tsx | CFG:Tabelas de armadura | `tabelaFoco` (atalho da lista de erros) abre CFG na tabela |
 | E41 | Biblioteca de normas | | BibliotecaNormas.tsx | CFG:Biblioteca de normas | |
-| E42 | Tipos de laje (+ fichas/enchimentos) | | TiposLaje.tsx | CFG:Tipos de laje; RB:lancamento / Lajes | |
+| E42 | Tipos de laje (+ fichas/enchimentos) | | TiposLaje.tsx | CFG:Tipos de laje; RB:edicao / Lajes | |
 | E43 | Vínculos, flambagem e cobrimento (seleção) | | Vinculos.tsx | PROP:Vínculos (elemento selecionado) | |
 | E44 | Vigas inclinadas (janela e lista) | | InclinadasUI.tsx, `InclinadasHost` | RB:lancamento / Elementos (botão "Vigas inclinadas"); JAN | também item da paleta Ctrl+K |
 
@@ -151,7 +151,7 @@ Todas as 40 ferramentas de `Ferramenta` (plantaStore.ts) e a tecla de `TECLA_FER
 | T11 | Limite da fundação | T | PlantaBarra | RB:fundacoes / Limites |
 | T12 | Limite pela máscara | Q | PlantaBarra | RB:fundacoes / Limites |
 | T13 | Mover | M | PlantaBarra | RB:edicao / Modificar |
-| T14 | Medir | D | PlantaBarra | RB:vista / Consulta |
+| T14 | Medir | D | PlantaBarra | RB:vista / Navegação |
 | T15 | Alinhar máscara | (sem tecla; só com máscara) | MascaraGrupo | RB:lancamento / Gabarito |
 | T16 | Radier | W | Fundacao.tsx/BaseElasticaUI | RB:fundacoes / Elementos |
 | T17 | Viga sobre base elástica | X | BaseElasticaUI | RB:fundacoes / Elementos |
@@ -308,7 +308,7 @@ Teclas da planta (Planta.tsx, `onKey`; só no módulo Edifício, com foco fora d
 
 - Pórtico: 58 itens (P1 a P58).
 - Edifício, colunas e grupos: 44 itens (E1 a E44).
-- Ferramentas da planta: 40 (T1 a T40); opções da barra da planta: 22 (B1 a B22); teclas: 16 (K1 a K16).
+- Ferramentas da planta: 41 (T1 a T41); opções da barra da planta: 22 (B1 a B22); teclas: 16 (K1 a K16).
 - Fundação, vistas e janelas: 13 (F1 a F13) + 10 vistas (V1 a V10) + 8 janelas (W1 a W8) = 31.
 - Módulo Fundações: 6 (M1 a M6). Barra de status: 6 (S1 a S6).
 - Total: 58 + 44 + 41 + 22 + 16 + 31 + 6 + 6 = **224 itens**, sem item sem destino; 13 duplicados resolvidos (seção 7).

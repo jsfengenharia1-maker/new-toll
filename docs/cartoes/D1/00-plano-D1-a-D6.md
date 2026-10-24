@@ -1,6 +1,6 @@
 # Migração para o layout BIMCraft: plano de fatias D1 a D6
 
-Base: `docs/analises/layout-bimcraft-mapa.md` (223 itens, todos com destino) e `docs/analises/design-bimcraft.md`. Decisão do usuário de 23/10/2026: todos os comandos e opções continuam, só mudam de lugar. Ordem obrigatória D1 → D6; dentro da fatia, na ordem dos arquivos (cada cartão compila sozinho depois dos anteriores). Cada fatia termina com `npx tsc -b`, `npm test`, `npm run build` e `npm run e2e -- --workers 4` completos verdes, `npm run mapa` regenerado e auditoria independente ao fim da frente.
+Base: `docs/analises/layout-bimcraft-mapa.md` (224 itens, todos com destino) e `docs/analises/design-bimcraft.md`. Decisão do usuário de 23/10/2026: todos os comandos e opções continuam, só mudam de lugar. Ordem obrigatória D1 → D6; dentro da fatia, na ordem dos arquivos (cada cartão compila sozinho depois dos anteriores). Cada fatia termina com `npx tsc -b`, `npm test`, `npm run build` e `npm run e2e -- --workers 4` completos verdes, `npm run mapa` regenerado e auditoria independente ao fim da frente.
 
 ## Fatias
 

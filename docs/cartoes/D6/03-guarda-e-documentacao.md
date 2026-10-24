@@ -28,7 +28,7 @@ const teclas = (() => {
 describe('mapa de migração do layout', () => {
   it('existe e tem a contagem do cabeçalho', () => {
     expect(mapa).toBeTruthy();
-    expect(mapa).toContain('**223 itens**');
+    expect(mapa).toContain('**224 itens**');
   });
 
   it('as 40 ferramentas da planta têm linha no mapa, com a tecla quando existe', () => {
