@@ -9,14 +9,14 @@ import { pavimentosOrdenados, type BuildingModel } from '../../core/building/typ
 import { useBuilding } from './store';
 import { TiposLanceAba } from './TiposLanceUI';
 
-interface EstadoJanela { aberta: boolean; id?: string; abrir: (id?: string) => void; fechar: () => void }
+interface EstadoJanela { aberta: boolean; id?: string; aba?: 'dados' | 'lances' | 'tipos'; abrir: (id?: string, aba?: 'dados' | 'lances' | 'tipos') => void; fechar: () => void }
 /** Estado da janela das escadas (a faixa do Lançamento a abre). */
-export const useEscadaUI = create<EstadoJanela>((set) => ({ aberta: false, abrir: (id) => set({ aberta: true, id }), fechar: () => set({ aberta: false, id: undefined }) }));
+export const useEscadaUI = create<EstadoJanela>((set) => ({ aberta: false, abrir: (id, aba) => set({ aberta: true, id, aba }), fechar: () => set({ aberta: false, id: undefined, aba: undefined }) }));
 
 /** Monta a janela quando aberta (colocada uma vez no Edifício). */
 export function EscadaHost() {
-  const { aberta, id, fechar } = useEscadaUI();
-  return aberta ? <JanelaEscada idInicial={id} onClose={fechar} /> : null;
+  const { aberta, id, aba, fechar } = useEscadaUI();
+  return aberta ? <JanelaEscada idInicial={id} abaInicial={aba} onClose={fechar} /> : null;
 }
 
 const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
@@ -184,11 +184,11 @@ function Resumo({ g }: { g: GeometriaEscada }) {
   );
 }
 
-function JanelaEscada({ idInicial, onClose }: { idInicial?: string; onClose: () => void }) {
+function JanelaEscada({ idInicial, abaInicial, onClose }: { idInicial?: string; abaInicial?: 'dados' | 'lances' | 'tipos'; onClose: () => void }) {
   const { sessao } = useBuilding();
   const b = sessao.modelo, escadas = b.escadas ?? [];
   const [sel, setSel] = useState(idInicial ?? escadas[0]?.id ?? '');
-  const [aba, setAba] = useState<'dados' | 'lances' | 'tipos'>('dados');
+  const [aba, setAba] = useState<'dados' | 'lances' | 'tipos'>(abaInicial ?? 'dados');
   const e = escadas.find((x) => x.id === sel) ?? escadas[0];
   const g = e ? geometriaEscada(e, tiposLanceDisponiveis(b), b) : null;
   return (

@@ -546,6 +546,17 @@ export const f_E4a = {
       await jan.getByRole('button', { name: 'Criar tipo de lance', exact: true }).click();
       await jan.getByText(/o desnível inicial deve ser zero ou pelo menos 10 cm/).waitFor();
       await jan.getByRole('button', { name: 'Fechar', exact: true }).click();
+      // 4b) Navegador: abre o nó Escadas e seleciona E1; as Propriedades mostram a escada e o espelho é editável
+      await page.getByRole('treeitem', { name: /^Escadas/ }).click();
+      await page.getByRole('treeitem', { name: 'E1', exact: true }).click();
+      const jan2 = page.getByRole('dialog', { name: 'Escadas', exact: true });
+      await jan2.waitFor();
+      await jan2.getByRole('button', { name: 'Fechar', exact: true }).click();
+      const prop = page.locator('[data-escada-propriedades]');
+      await prop.waitFor();
+      assert.match(await page.locator('.typecard').innerText(), /Escada · 1 lance\(s\)/);
+      await prop.getByLabel(/^Espelho \(altura do degrau\)/).fill('0.16667');
+      await prop.getByLabel(/^Espelho \(altura do degrau\)/).press('Tab');
       // 5) memorial: seção Escadas com os dados, a geometria e as cargas
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
       await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();

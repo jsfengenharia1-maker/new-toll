@@ -34,6 +34,7 @@ import { JanelaBaseMuro } from './MurosUI';
 import { JanelaVigaFundacao } from './VigaFundacao';
 import { limiteDaMensagem, sobreposicoesDe } from './fundacaoGrupo';
 import { useInclinadasUI } from './InclinadasUI';
+import { useEscadaUI } from './EscadaUI';
 
 const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
 export const ST_TXT = { ok: 'ok', fail: 'não atende', review: 'revisar' } as const;
@@ -123,10 +124,11 @@ export function ListaErros({ onIr }: { onIr: (tipo: 'viga' | 'pilar' | 'laje' | 
               <tbody>
                 {itens.map((i, k) => {
                   const inc = i.tipo === 'inclinada' && i.id ? i.id : null;
+                  const esc = i.tipo === 'escada' && i.id ? i.id : null;
                   const el = i.tipo !== 'obra' && i.tipo !== 'inclinada' && i.tipo !== 'diagonal' && i.tipo !== 'consolo' && i.tipo !== 'escada' && i.id ? { tipo: i.tipo, id: i.id } : null;
                   return (
                     <LinhaElemento key={k} className={`${el || inc ? 'click' : ''} ${i.nivel === 'erro' ? 'bad' : 'warn'}`} title={el ? 'Clique: ver na planta. Duplo clique: resultados do elemento.' : inc ? 'Clique: abre a janela da viga inclinada.' : undefined}
-                      ir={() => (inc ? useInclinadasUI.getState().abrir(inc) : el && onIr(el.tipo, el.id, i.pavimento))} abrir={() => (inc ? useInclinadasUI.getState().abrir(inc) : el && abrirJanela({ ...el, pavimento: i.pavimento }))}>
+                      ir={() => (esc ? useEscadaUI.getState().abrir(esc) : inc ? useInclinadasUI.getState().abrir(inc) : el && onIr(el.tipo, el.id, i.pavimento))} abrir={() => (esc ? useEscadaUI.getState().abrir(esc) : inc ? useInclinadasUI.getState().abrir(inc) : el && abrirJanela({ ...el, pavimento: i.pavimento }))}>
                       <td className="tl">{TIPO_TXT[i.tipo]} {i.nome}</td><td className="tl">{i.pavimento ?? '—'}</td>
                       <td><Pill tone={i.nivel === 'erro' ? 'bad' : 'warn'}>{i.codigo}</Pill></td><td className="tl">{i.mensagem}{i.sugestao && <div className="small muted" data-sugestao={i.codigo}>Sugestão: {i.sugestao}</div>}</td>
                       <td>
