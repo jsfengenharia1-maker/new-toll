@@ -15,14 +15,14 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 4. Pilares | 63 | 52 | 4 | 0 | 7 |
 | 5. Muros e paredes estruturais | 30 | 25 | 1 | 0 | 4 |
 | 6. Vigas | 108 | 75 | 8 | 0 | 25 |
-| 7. Lajes | 195 | 99 | 29 | 0 | 67 |
+| 7. Lajes | 195 | 105 | 23 | 0 | 67 |
 | 8. Escadas | 65 | 65 | 0 | 0 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 22 | 1 | 0 | 3 |
 | 11. Fundações | 70 | 64 | 0 | 1 | 5 |
 | 12. Isovalores e deformada | 22 | 19 | 2 | 1 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **527** | **46** | **4** | **186** |
+| **Total** | **763** | **533** | **40** | **4** | **186** |
 
 ## Pendências por frente
 
@@ -30,7 +30,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 33 | 1 | 34 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 27 | 1 | 28 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 0 | 0 | 0 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 11 | 3 | 14 |
@@ -490,7 +490,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.73 | Projeção horizontal da viga pelo eixo ou pela face, com a face superior desenhada em linha contínua (cumeeira mais larga, rincão mais estreito). | Feito | — | E3f: face superior das vigas planas em traço contínuo na planta (faceSuperiorDaViga) [E3f] |
 | C7.74 | Rotação da seção de vigas horizontais (cumeeira, borda) para acompanhar o pano, só em vigas planas. Sem coincidência com a interseção, não gira e ganha altura para os dois panos. | Feito | — | E3f: seção das vigas planas gira com o pano (secaoNoPlano) e face superior desenhada na planta [E3f] |
 | C7.75 | Limitações: pano inclinado não se apoia em muro, e não há viga comum com o coroamento de muro. | Parcial | E | E3f: aviso PLANO_MURO (núcleo, diagnósticos); E5d: texto da limitação na interface e no memorial dos planos |
-| C7.76 | Na planta de formas, valor da inclinação junto ao texto de desnível, com croqui opcional do pavimento (pilares, eixos de vigas, setas de inclinação) em quadro de tamanho configurável. | Parcial | E | E3f: textoInclinacao na planta (E3f-02); croqui configurável (croquiPavimento, campo Croqui (mm)) nas pranchas ainda não existe — E5a: desenhar o croqui do pavimento nas pranchas |
+| C7.76 | Na planta de formas, valor da inclinação junto ao texto de desnível, com croqui opcional do pavimento (pilares, eixos de vigas, setas de inclinação) em quadro de tamanho configurável. | Feito | — | E3f: textoInclinacao na planta; E5a: nas formas, inclinação sob o rótulo do pano (prancha.ts) e croqui do pavimento (croquiPavimento, sheets/croquiPrancha.ts primitivasCroqui) só com lajes inclinadas, lado configurável pela opção armacao.croqui (mm, padrão 60; campo Croqui em Opções de armação e locação); premissa e5a-pranchas-inclinadas |
 | C7.77 | Exemplos: telhado de duas águas, mansarda com águas-furtadas, rampa de garagem para subsolo (grupo intermediário, pilares próprios, muro na base, viga comum no topo) e rampa entre pavimentos de estacionamento. Curvas de rampa de preferência em plano horizontal. | Parcial | E | E3f: exemplo cobertura em duas águas (criarExemplo('telhado'), Obras recentes) calculado e com memorial dos planos (e2e E3f); mansarda, rampa de garagem e rampa entre pavimentos sem exemplo na interface (rampa de garagem só no teste) [E3f] — E5d: exemplos de mansarda com águas-furtadas, de rampa de garagem e de rampa entre pavimentos em `criarExemplo` (a rampa de garagem só existe no teste) |
 | | **7.1.4 Aberturas** | | | |
 | C7.78 | Aberturas retangulares com escolha do tipo de viga de borda, nos quatro modos a seguir. | Feito | — | L5 núcleo: `laje.aberturaRetangular { borda: nenhuma / chata / alta }` (vigas de borda traçadas, `Laje.furosBorda`; 15 × 40 cm a confirmar); interface: cartão 03; memorial: cartão 06 — Feito 23/10/2026: interface em LancamentoL5.tsx e Planta.tsx (ferramentas de lançamento); e2e L5 [L5] |
@@ -517,8 +517,8 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.91 | Vista da armadura inferior das lajes moldadas no local, indisponível quando a exibição de esforços está ligada. | Parcial | E | armadura inferior das nervuras moldadas por vigota (`posicoes` inferior, lista de vigotas); a vista na planta não ligada com a exibição de esforços [E3b] — E5e: vista da armadura inferior das moldadas na planta, indisponível com os esforços ligados |
 | C7.92 | Chave geral de exibição de esforços para todos os tipos de vigota, que condiciona as vistas de momentos e de cortantes. | Parcial | V | [V5] núcleo: chave geral `esforcos` em `rotulosDeVigotas`/`textoVigota`, que condiciona as vistas e desliga a armadura inferior (C7.91); interface na aba Esforços (AbaEsforcos.tsx); falta a camada na planta |
 | C7.93 | Exibição agrupada: mostra um só valor de esforço/tipo para cada grupo de vigotas iguais. | Feito | — | rótulo "Gn · n vigotas" por grupo de igualação na planta e uma linha por grupo na tabela (R6) |
-| C7.94 | Armadura superior em lajes inclinadas: desenho do dobramento ao lado da barra. | Parcial | E | E3f: dobraDaBarra no núcleo; desenho do dobramento nas pranchas de armação ainda não existe — E5a: desenhar o dobramento ao lado da barra |
-| C7.95 | Armadura superior em lajes inclinadas: marca do ponto de dobra como traço perpendicular ao eixo da barra. | Parcial | E | E3f: marcaDeDobra no núcleo (traço perpendicular ao eixo); desenho nas pranchas ainda não existe — E5a: desenhar a marca do ponto de dobra |
+| C7.94 | Armadura superior em lajes inclinadas: desenho do dobramento ao lado da barra. | Feito | — | E3f: dobraDaBarra; E5a: sheets/armacaoInclinadas.ts desenharDobra (perfil desdobrado ao lado da barra, comprimento real) chamada em armacaoLajes.ts; premissa e5a-pranchas-inclinadas |
+| C7.95 | Armadura superior em lajes inclinadas: marca do ponto de dobra como traço perpendicular ao eixo da barra. | Feito | — | E3f: marcaDeDobra; E5a: desenharDobra desenha a marca (traço perpendicular ao eixo) em cada ponto de dobra nas pranchas de armação das lajes (armacaoLajes.ts) |
 | | **7.2.1.2 Igualar vigotas** | | | |
 | C7.96 | Agrupamento automático de vigotas quando (Mmáx − Mmín) do grupo < percentual × Mmáx, com o percentual dado pelo usuário. | Feito | — | agrupamento por (Mmáx − Mmín) < percentual × Mmáx (opção vigotaIgualacaoDif) (R6) |
 | C7.97 | Igualação feita ponto a ponto da discretização da vigota, considerando todas as combinações de todas as vigotas do grupo. | Feito | — | igualação ponto a ponto na discretização de 0,25 m com todas as combinações de todos os pavimentos do grupo (`esforcosDoGrupo`, opção `vigotaIgualacaoPonto`; por pico no perfil NBR) [E3b] |
@@ -557,7 +557,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.126 | Aviso pós-cálculo: flecha de lajes nervuradas e maciças não é verificada automaticamente; o usuário consulta a flecha elástica entre dois pontos e compara com o limite da norma. | Feito | — | flecha de lajes maciças estimada e comparada com L/250 (o manual não verifica) |
 | C7.127 | Aviso pós-cálculo recomendando recalcular quando há perfis de aço maiores que os lançados. | Fora | — | perfis de aço nas lajes (aço no edifício fora do escopo) |
 | C7.128 | Geração da armadura de lajes maciças/nervuradas sem cálculo completo, com a geometria atual, para editar à mão; apaga toda a armadura existente da obra. | Feito | — | `lajes.gerarArmadura` (`mcp: false`): mínimos e base sem os esforços da análise (`Laje.semCalculo`, `detalharLaje`), apaga a edição e as predefinidas; confirmação no painel (`GerarArmadura`); `laje.barras` com `refazer` volta ao cálculo mantendo zonas e linhas de dobra; aviso LAJE_SEM_CALCULO (R7e) |
-| C7.129 | Vista da armadura em lajes inclinadas: desenho do dobramento, comprimentos parciais de cada lado da dobra e marca do ponto de dobra. | Parcial | E | E3f: dobraDaBarra e marcaDeDobra no núcleo; vista da armação nas pranchas ainda não existe — E5a: desenhar a dobra, os comprimentos parciais e a marca na vista da armação |
+| C7.129 | Vista da armadura em lajes inclinadas: desenho do dobramento, comprimentos parciais de cada lado da dobra e marca do ponto de dobra. | Feito | — | E5a: vista da armação das lajes inclinadas (armacaoLajes.ts + armacaoInclinadas.ts): dobramento, comprimento parcial (cm) de cada trecho, ângulo e marca do ponto de dobra; C com o comprimento real (acrescimoReal) |
 | C7.130 | Vista com siglas de reforço superior e inferior junto às barras de reforço. | Feito | — | siglas RI (inferior) e RS (superior) junto às barras calculadas na planta, na janela da laje e nas pranchas (opção `lajeSiglaReforco`, `siglaReforco`); base, predefinidas e distribuição sem sigla (R7e) |
 | C7.131 | Vista das linhas de flexão (linhas de corte para armadura) definidas pelo usuário. | Feito | — | linhas de dobra (`laje.linhaDobra`, `BuildingModel.linhasDobra`, ferramenta na planta e pela aresta da laje): desenhadas na planta, na janela da laje e nas pranchas ("LD1…") (R7e) |
 | C7.132 | Troca de diâmetro/espaçamento escolhendo um conjunto de armadura de uma tabela, atribuível às lajes; a tabela é editável. | Feito | — | conjunto φ/espaçamento da tabela de armadura da laje (R7a) aplicado às posições marcadas (`laje.barras` com `conjunto`, validado pela tabela; erro FORA_TABELA_LAJE) (R7e) |
@@ -571,7 +571,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.140 | As barras novas somam-se às existentes; para substituir, apagar antes. | Feito | — | os grupos informados somam-se à armadura calculada (a exigência por anel é abatida); para substituir, apagar antes (`laje.puncao`, `puncao.ts`) [N2d] |
 | C7.141 | Apagar grupos de armadura de punção (lajes cogumelo, maciças e nervuradas) um a um ou por janela de captura. | Parcial | E | apagar grupos de armadura de punção um a um, por pilar ou pela seleção por janela (comando `laje.puncao`, botão “Apagar punção da seleção”); [N2d] — E5f: apagar grupos de punção nas lajes cogumelo e nervuradas |
 | | **7.2.3 Lajes alveolares** | | | |
-| C7.142 | Vistas de lajes alveolares inclinadas: desenho do dobramento e marca do ponto de dobra. | Parcial | E | E3f: dobraDaBarra vale para a capa das alveolares inclinadas (núcleo); desenho na prancha ainda não existe — E5a: desenhar o dobramento e a marca nas vistas das alveolares inclinadas |
+| C7.142 | Vistas de lajes alveolares inclinadas: desenho do dobramento e marca do ponto de dobra. | Feito | — | E5a: barrasAlveolaresDobradas (armacaoInclinadas.ts): negativo da capa das alveolares inclinadas que cruza a linha de dobra, desenhado com dobramento e marca na folha das negativas; a prancha de lajes passa a existir para grupo só de alveolares com dobra. [a confirmar: negativos[0] no início do eixo da placa] |
 | C7.143 | Catálogo de fabricante com fichas das placas alveolares; quadro de propriedades no relatório de dados da obra. | Feito | — | E3e: catálogo editável na biblioteca de normas (gabarito sem dado de fabricante: o usuário cadastra as placas) e quadro de propriedades das placas no memorial (MemorialAlveolares.tsx, com a marca da ficha) [E3e] |
 | | **7.2.4 Lajes mistas (steel deck)** | | | |
 | C7.144 | Cálculo em duas fases: construção e serviço. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
@@ -627,7 +627,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.192 | Configuração própria dos elementos de laje mista no desenho da planta de formas. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
 | C7.193 | Relatório de esforços em vigotas: envoltórias de momento, cortante e torção de um alinhamento, com croqui do grupo de pavimentos e da vigota. | Feito | — | `relatorioEsforcos` (`vigotasRelatorio.ts`): envoltórias de momento, cortante e torção do alinhamento e croqui do grupo de pavimentos e da vigota [E3b] |
 | C7.194 | Quantitativo das vigotas: peso e comprimento por metro com perda; nas moldadas no local, armaduras superior, inferior e transversal (cortante em comprimento total ou estribo em ômega). | Parcial | E | `quantitativoVigotas` (número e comprimento com perdas por tipo) e `quantitativoMoldadas` (inferior, superior e transversal); estribo em ômega e cortante em comprimento total não implementados (pendência do usuário) [E3b] — E5e: estribo em ômega e cortante em comprimento total, dependem de `pendencias-usuario.md` |
-| C7.195 | Desenho de panos inclinados na planta: tangente da inclinação junto ao texto de cota e croqui do pavimento com tamanho configurável (só com lajes inclinadas). | Parcial | E | E3f: tangente da inclinação junto ao texto de cota na planta (textoInclinacao); croqui do pavimento ainda não existe nas pranchas (C7.76) [E3f] — E5a: croqui do pavimento com tamanho configurável |
+| C7.195 | Desenho de panos inclinados na planta: tangente da inclinação junto ao texto de cota e croqui do pavimento com tamanho configurável (só com lajes inclinadas). | Feito | — | E3f: tangente da inclinação na planta (textoInclinacao); E5a: tangente nas formas e croqui do pavimento com tamanho configurável (opção armacao.croqui, 0 = sem), só com lajes inclinadas |
 
 ## 8. Escadas
 

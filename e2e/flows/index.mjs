@@ -114,6 +114,7 @@ export const flows = [
   m_E_2.f_E4a,
   m_E_2.f_E3e,
   m_E_3.f_E3f,
+  m_E_3.f_E5a,
   m_E_2.f_E4b_inserir,
   m_E_2.f_E4b_editar,
   m_E_2.f_E4b_copiar,

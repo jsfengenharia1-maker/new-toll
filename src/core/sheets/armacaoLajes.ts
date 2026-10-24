@@ -19,6 +19,8 @@ import { pontoInterno } from '../geom/faces';
 import { marcasPontoFixo, primitivasMascara } from './gabarito';
 import { caixa, type P, type Prancha, type Prim } from './prancha';
 import { Posicoes, acoDaFolha, cfgArmacao, cmInt, montarFolha, nf, notas, perdasDe, phiTxt, plantaNaFolha, qtd, resumoAco, tabelaAco, type BlocoTabela } from './armacao';
+import { acrescimoReal, barrasAlveolaresDobradas, desenharDobra } from './armacaoInclinadas';
+import { lajeInclinada } from '../building/planos';
 import { acharGrupo, gruposOrdenados, type OpcoesArmacao } from './armacaoVigas';
 
 type Face = 'inf' | 'sup';
@@ -43,7 +45,9 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
     const dets = (dim.detalhesLajes ?? []).filter((d) => lajes.some((l) => l.id === d.laje));
     const vigs = (dim.vigotas ?? []).filter((v) => v.grupo === g);
     const nervs = (dim.nervuradas ?? []).filter((n) => lajes.some((l) => l.id === n.laje));
-    if (!dets.length && !vigs.length && !nervs.length) continue;
+    const alvDob = barrasAlveolaresDobradas(b, g, dim);
+    if (!dets.length && !vigs.length && !nervs.length && !alvDob.length) continue;
+    const inclinado = lajes.some((l) => lajeInclinada(b, l));
     const pavs = pavimentosDoGrupo(b, g), ref = pavs[0], nomeG = b.grupos.find((x) => x.id === g)?.nome ?? g;
     const vigas = b.vigas.filter((v) => v.grupo === g);
     const pilares = ref ? b.pilares.filter((p) => lancesDoPilar(b, p).some((x) => x.id === ref.id)) : [];
@@ -83,7 +87,9 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
     for (const fl of folhas) {
       const reg = new Posicoes(), modelo: Prim[] = [...fundo];
       const barra = (x: PosicaoLaje, rep: number, laje: string) => {
-        const face = x.face as Face, aco = face === 'inf' ? acoI : acoS, C = cmInt(x.comprimento);
+        // laje inclinada (E5a): comprimento real (inclinado) da barra; dobramento, marca e comprimentos parciais ao lado
+        const dob = inclinado ? desenharDobra(b, g, x.a, x.z, k, x.face === 'inf' ? 'ARMADURA' : 'ARMADURA-NEG') : null;
+        const face = x.face as Face, aco = face === 'inf' ? acoI : acoS, C = cmInt(x.comprimento + (inclinado ? acrescimoReal(b, g, x.a, x.z) : 0));
         const L0 = cmInt(x.ganchos[0]), L1 = cmInt(x.ganchos[1]);
         const pos = reg.pos(`L|${face}|${Math.min(L0, L1)}|${Math.max(L0, L1)}`, aco, x.phi, C, x.n * rep);
         const c = face === 'inf' ? 'ARMADURA' : 'ARMADURA-NEG';
@@ -95,6 +101,7 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
         pts.push(x.a, x.z);
         if (L1) pts.push([x.z[0] + nn[0] * x.ganchos[1], x.z[1] + nn[1] * x.ganchos[1]]);
         modelo.push({ t: 'pl', c, pts });
+        if (dob) modelo.push(...dob.prims);
         // linha de distribuição com traços nas pontas
         const [f0, f1] = x.faixa, Lf = Math.hypot(f1[0] - f0[0], f1[1] - f0[1]);
         if (Lf > 1e-6) {
@@ -113,6 +120,12 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
         if (off[0] || off[1]) modelo.push({ t: 'pl', c: 'COTA', pts: [[x.a[0] + (x.z[0] - x.a[0]) * t, x.a[1] + (x.z[1] - x.a[1]) * t], m] });
       };
       for (const d of dets) for (const x of d.posicoes) if (fl.faces.includes(x.face)) barra(x, d.repeticoes, d.laje);
+      // alveolares inclinadas (E5a, C7.142): negativos da capa que cruzam a linha de dobra, com dobramento e marca (quantitativo nas alveolares)
+      if (fl.faces.includes('sup')) for (const ab of alvDob) {
+        const dob = desenharDobra(b, g, ab.a, ab.z, k, 'ARMADURA-NEG'), { ang, n } = angLegivel(ab.a, ab.z);
+        modelo.push({ t: 'pl', c: 'ARMADURA-NEG', pts: [ab.a, ab.z] }, ...dob.prims);
+        modelo.push({ t: 'txt', c: 'TEXTO', p: [(ab.a[0] + ab.z[0]) / 2 + n[0] * 0.8 * k, (ab.a[1] + ab.z[1]) / 2 + n[1] * 0.8 * k], h: 2 * k, s: `${ab.nome}: negativo da capa ${phiTxt(ab.phi)} c/${cmInt(ab.s)} C=${cmInt(dob.real)}`, ang, ah: 'c', av: 'base' });
+      }
       // base em tela soldada detalhada: painel com diagonais e "T1 – Q138 – 2,45 × 6,00" (m), traspasse pelos retângulos sobrepostos
       const telas = new Map<string, { n: number; area: number; peso: number }>();
       const relacao: string[][] = [];
@@ -285,6 +298,7 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
         `Concreto C${fck} (fck = ${fck} MPa); aço ${acoI} (inferior) e ${acoS} (superior).`,
         `Cobrimento nominal das lajes: ${String(b.norma.cobrimento.laje).replace('.', ',')} cm (CAA ${b.norma.caa}).`,
         ...(punc.length || livres.length ? ['Armadura de punção: estribos (grampos verticais) ou conectores entre as armaduras superior e inferior, em linhas radiais a partir do pilar; primeira barra a no máximo 0,5d da face e entre barras no máximo 0,75d (NBR 6118, 19.5.3) [a confirmar].'] : []),
+        ...(inclinado ? ['Lajes inclinadas: C é o comprimento real (inclinado) da barra; o dobramento é o perfil desdobrado ao lado da barra, com o comprimento de cada trecho (cm), o ângulo e a marca do ponto de dobra (traço perpendicular ao eixo).'] : []),
         `Quantidades por laje${pavs.length > 1 ? `; "${pavs.length}×n" = ${pavs.length} pavimentos × n barras` : ''}.`,
         ...indicada,
       ]);

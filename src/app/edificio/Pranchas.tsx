@@ -229,6 +229,7 @@ export function Pranchas() {
           <Select label="Escala das elevações de paredes" value={arm.escalaParedes} options={escalas([20, 25, 40, 50, 75, 100], arm.escalaParedes)} onChange={(e) => pa({ escalaParedes: e })} />
           <Select label="Escala dos cortes das escadas" value={arm.escalaEscadas} options={escalas([10, 20, 25, 50], arm.escalaEscadas)} onChange={(e) => pa({ escalaEscadas: e })} />
         </div>
+        <NumField label="Croqui do pavimento nas formas, só com lajes inclinadas (0 = sem)" unit="mm" min={0} width={260} value={arm.croqui} onChange={(v) => pa({ croqui: Math.min(200, v) })} />
         <Check label="Lajes: positivas e negativas em folhas separadas" checked={arm.lajesSeparadas === 1} onChange={(v) => pa({ lajesSeparadas: v ? 1 : 0 })} />
         <Check label="Quadro de pilares no fim das pranchas de pilares" checked={arm.quadroPilares === 1} onChange={(v) => pa({ quadroPilares: v ? 1 : 0 })} />
         <Check label={`Gabarito (máscara DXF/DWG) nas formas e nas lajes${b.mascaras.length ? '' : ' (sem máscara importada)'}`} checked={arm.mascara === 1} onChange={(v) => pa({ mascara: v ? 1 : 0 })} />

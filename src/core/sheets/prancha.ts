@@ -10,6 +10,8 @@ import { arranjoDaLaje } from '../building/nervuradas';
 import { nomeAbaco, primitivasAbaco } from './abacoDesenho';
 import { contornoDoLado, ladosDoPP, lancesDoPP } from '../building/pilarParede';
 import { encaixar } from './logo';
+import { croquiPavimento, lajeInclinada, textoInclinacao } from '../building/planos';
+import { primitivasCroqui } from './croquiPrancha';
 import type { EstiloDesenho } from './estilo';
 import { primitivasDoSimbolo, simbolosEmUso } from './simbolos';
 import { aplicarMoldura } from './saidas';
@@ -315,6 +317,7 @@ export function montarPrancha(b: BuildingModel, grupo: string, o: OpcoesPrancha 
     for (const cb of nb?.arr.cubetas ?? []) modelo.push({ t: 'pl', c: 'FORMA-FINA', pts: cb.poligono, fechada: true });
     // ábacos (E3d): zona maciça efetiva com hachura, nome e cotas
     for (const ef of nb?.abacos ?? []) modelo.push(...primitivasAbaco(l, ef, `${nomeAbaco(nb!.abacos, ef.abaco.id)} h=${Math.round(ef.abaco.hAbaco * 100)}`, k, 'LAJE'));
+    if (lajeInclinada(b, l)) modelo.push({ t: 'txt', c: 'LAJE', p: [pr[0], pr[1] - 4 * k], h: 2 * k, s: textoInclinacao(b, l), ah: 'c', av: 'topo' });
     for (const f of l.furos ?? []) {
       modelo.push({ t: 'pl', c: 'LAJE', pts: f, fechada: true });
       const [a0, b0, a1, b1] = caixa(f);
@@ -418,6 +421,9 @@ export function montarPrancha(b: BuildingModel, grupo: string, o: OpcoesPrancha 
   papel.push(txt('FOLHA-TEXTO', area.x0, fy0 + 10, 4.5, `PLANTA DE FORMAS — ${(g?.nome ?? grupo).toUpperCase()}`));
   papel.push(txt('FOLHA-TEXTO', area.x0, fy0 + 4.5, 2.5, `ESCALA 1:${escala} · cotas em cm · níveis em m: ${niveis || '—'}`));
 
+  // croqui do pavimento (E5a, C7.76, C7.195): só com lajes inclinadas, tamanho da opção `croqui` (mm; 0 = sem), à esquerda do quadro
+  const cq = opc.croqui > 0 ? croquiPavimento(b, grupo, opc.croqui) : null;
+  if (cq) papel.push(...primitivasCroqui(cq, Math.min(area.x1, fx1 - largQuadro - 4) - 2, fy0 + 16).prims);
   // janela: área livre à esquerda do quadro, centrada na geometria
   const jx1 = Math.min(area.x1, fx1 - largQuadro - 4);
   if (jx1 < area.x1 - 1 && !cabeEm(jx1)) avisos.push('O quadro de pilares invade a área do desenho: use um formato maior.');
