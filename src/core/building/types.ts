@@ -296,8 +296,8 @@ export interface PilarParede {
   /** 'fundacao' ou id do pavimento em cuja laje a parede nasce (apoio engastado nesse nível, a confirmar). */
   nasce: string;
   morre: string;
-  /** Vínculo externo da base: engaste (padrão) ou rótula (giros livres). */
-  vinculoBase?: 'engaste' | 'rotula';
+  /** Vínculo externo da base: engaste (padrão), rótula (giros livres) ou molas de Winkler de sapata corrida (FU7c: k das opções, largura = espessura de cada lado + 2 × o balanço; lados curtos em barra ficam engastados). */
+  vinculoBase?: 'engaste' | 'rotula' | 'molas';
   /** Armadura bloqueada por pano (E1d). */
   armaduras?: ArmaduraPano[];
   /** Comprimentos de emenda editados por pavimento (E1d). */
@@ -432,8 +432,12 @@ export interface Parede {
   /** Armadura bloqueada por pano e comprimentos de emenda editados (E1d). */
   armaduras?: ArmaduraPano[];
   emendas?: EmendaParede[];
-  /** Base da parede para a fundação (FU7b): apoio direto (padrão) ou sapata corrida com largura e altura próprias. */
-  base?: { tipo: 'apoio' | 'sapataCorrida'; largura?: number; altura?: number };
+  /**
+   * Base da parede para a fundação: apoio direto (padrão), sapata corrida com largura e altura próprias (FU7b) ou viga de
+   * fundação sem vínculo externo (FU7c: viga sobre base elástica sob o eixo da parede, ligada aos nós da base da casca;
+   * `largura` = base apoiada no solo, `altura` = h, `k` = coeficiente de reação, ausente = `radierK`).
+   */
+  base?: { tipo: 'apoio' | 'sapataCorrida' | 'viga'; largura?: number; altura?: number; k?: number };
 }
 
 /** Vínculo externo da base do pilar (N2c). */

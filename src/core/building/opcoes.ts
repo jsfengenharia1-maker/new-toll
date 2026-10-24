@@ -322,6 +322,12 @@ export interface OpcoesCalculo {
   fundCorridaDeslizamento: number;
   /** Sapata corrida de parede de topo travado por laje (FU7b): 1 = o deslizamento usa a força horizontal líquida do conjunto das paredes travadas; 0 = cada sapata sozinha com a reação da própria parede. */
   fundCorridaDeslizGrupo: number;
+  /** Base da parede sobre sapata corrida (FU7c): coeficiente de reação do solo (kN/m³) das molas na base da casca; 0 = base engastada (comportamento anterior). */
+  fundParedeK: number;
+  /** Base da parede sobre sapata corrida (FU7c): balanço de cada lado (cm) que dá a largura das molas quando B não é informada (B = espessura + 2 × balanço). */
+  fundParedeAba: number;
+  /** Vigas embutidas em paredes de concreto (FU7c): 1 = armadura própria (mínimos da norma, a parede apoia a viga em todo o comprimento); 0 = dimensionada como viga comum. */
+  paredeVigaEmbutida: number;
   /** Pilar-parede (E1b): lado com comprimento ≥ este fator × a espessura vira casca; o mais curto vira barra (pilar). */
   pilarParedeLimite: number;
   /** Pilar-parede (E1b): altura da viga fictícia no topo de cada lado casca, que liga vigas e lajes em qualquer posição (cm). */
@@ -1090,6 +1096,12 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Comprimento de apoio da verga e da contraverga além de cada lado da abertura, arredondado para cima ao módulo do bloco.' },
   { chave: 'alvenariaVergaFiadas', rotulo: 'Verga de blocos: fiadas de canaleta', min: 1, max: 4, passo: 1, padrao: 1, fonte: 'Prática de projeto (uma fiada de canaleta grauteada); a confirmar', aConfirmar: true,
     descricao: 'Altura da verga em fiadas de canaleta (cada fiada = altura modular do bloco).' },
+  { chave: 'fundParedeK', rotulo: 'Base de parede sobre sapata corrida: coeficiente de reação do solo (k)', unidade: 'kN/m³', min: 0, max: 1000000, passo: 1000, padrao: 100000, padraoNBR: 0, fonteNBR: 'NBR 6118 e NBR 6122 não fixam o coeficiente: sem mola, base da parede engastada (comportamento anterior)', fonte: 'Programa de referência (padrão alto, 100 000 kN/m³, evita recalque diferencial entre a parede e os pilares de vinculação externa); 0 = engaste; a confirmar', aConfirmar: true,
+    descricao: 'Molas de Winkler na base da casca da parede de concreto que nasce na fundação com sapata corrida: vertical k·B por metro e giro em torno do eixo da parede k·B³/12 por metro; deslocamentos horizontais e giro em planta presos. 0 liga o engaste rígido (comportamento anterior). Vale para a parede com base em sapata corrida; a base em viga de fundação usa o k da base elástica.' },
+  { chave: 'fundParedeAba', rotulo: 'Base de parede sobre sapata corrida: balanço de cada lado para as molas', unidade: 'cm', min: 0, max: 200, passo: 5, padrao: 30, fonte: 'Estimativa do Statikos (a largura B só é conhecida depois do cálculo); informar B na base da parede substitui', aConfirmar: true,
+    descricao: 'Largura B das molas da base da parede sem B informada: espessura da parede + 2 × este balanço. A sapata calculada pode resultar em B diferente; o aviso aparece no resultado.' },
+  { chave: 'paredeVigaEmbutida', rotulo: 'Vigas embutidas em parede de concreto: armadura própria', min: 0, max: 1, passo: 1, padrao: 1, padraoNBR: 0, fonteNBR: 'NBR 6118 não trata a viga embutida: dimensionada como viga comum', booleana: true, fonte: 'Programa de referência (viga embutida em parede e cintas: taxas mínimas); NBR 6118, 17.3.5.2.1 e 17.4.1.1.1 (mínimos); a confirmar', aConfirmar: true,
+    descricao: 'Ligado: a viga embutida numa parede de concreto (viga de coroamento, cinta) é apoiada pela parede em todo o comprimento e leva a armadura mínima longitudinal (As,mín da NBR 6118, 17.3.5.2.1) e transversal (ρsw,mín, 17.4.1.1.1), e a armadura calculada pelo pórtico deixa de valer (a parede, e não a viga, leva a carga). Desligado: dimensionada como viga comum.' },
   { chave: 'alvenariaVigaArmar', rotulo: 'Vigas sobre muros de alvenaria: armar sempre', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Programa de referência (armadura opcional das vigas no nível das lajes sobre muros de alvenaria genérica e das de coroamento em blocos; a de topo do muro de subsolo é sempre armada)', aConfirmar: false,
     descricao: 'Ligado: as vigas embutidas em muros de alvenaria são dimensionadas e armadas. Desligado: a armadura da viga sobre alvenaria genérica ou de coroamento em blocos é dispensada (o resultado diz “armadura opcional dispensada”); a viga de topo do muro de subsolo é sempre armada.' },
   { chave: 'alvenariaVigaBMin', rotulo: 'Vigas sobre muros: largura mínima', unidade: 'cm', min: 5, max: 40, passo: 1, padrao: 14, fonte: 'Programa de referência (espessuras mínimas configuráveis); valor do Statikos [a confirmar]', aConfirmar: true,
@@ -1146,7 +1158,7 @@ export const OPCOES_ANALISE: ReadonlySet<keyof OpcoesCalculo> = new Set<keyof Op
   // N2c: P-Δ 3D no lugar do γz e trecho rígido no topo dos pilares (face inferior da viga) entram no modelo de cálculo
   'segundaOrdem', 'pilarComprimento',
   // E1a: engaste da base do pilar apoiado em viga ou laje (transição) entra na rigidez do modelo
-  'engasteTransicao',
+  'engasteTransicao', 'fundParedeK', 'fundParedeAba',
   // E1b: modelo do pilar-parede (casca ou barra) e viga fictícia do topo
   'pilarParedeLimite', 'pilarParedeVigaAltura',
   // N2e: trecho rígido da viga apoiada, barras curtas e desnível entre panos entram no modelo de cálculo
@@ -1200,7 +1212,7 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   // E1e: verificação, verga e vigas da alvenaria estrutural (só o dimensionamento sobre a análise vigente)
   'alvenariaCumprimento', 'alvenariaTracao', 'alvenariaGamaM', 'alvenariaFkPrisma', 'alvenariaPrisma', 'alvenariaFlambagem', 'alvenariaLambdaMax', 'alvenariaLambdaMaxArmada',
   'alvenariaExcMin', 'alvenariaCisalhInicial', 'alvenariaCisalhMax', 'alvenariaTaxaVertMin', 'alvenariaTaxaHorMin', 'alvenariaVergaApoio', 'alvenariaVergaFiadas',
-  'alvenariaVigaArmar', 'alvenariaVigaBMin', 'alvenariaVigaHMin',
+  'alvenariaVigaArmar', 'alvenariaVigaBMin', 'alvenariaVigaHMin', 'paredeVigaEmbutida',
   // E2a: seções T/L (flexão na seção T e barras de canto da mesa)
   'mesaDimensionamento', 'mesaBarrasCanto',
   // E2c: coeficientes de flambagem das vigas inclinadas (só o dimensionamento)

@@ -7,6 +7,7 @@
 //   cortante normal à parede (kN/m); o pilar espalha a carga pelo lado da sapata isolada equivalente (C5.28).
 // Folha de dependências: só tipos e `paredesBase`/`geom` (o cálculo da sapata está em `sapataCorrida.ts`).
 import type { Draft } from 'immer';
+import type { Modelo3, Resultado3 } from '../fe3d';
 import type { AnaliseEdificio } from './analitico';
 import { niveisDaParede } from './paredesBase';
 import { centroPilar, contornoPilar, deslocarPolilinha, FUNDACAO_VAZIA, secaoNoLance, lancesDoPilar, type BuildingModel, type Parede, type Pilar, type SapataCorrida } from './types';
@@ -112,6 +113,23 @@ export const temCorridas = (b: BuildingModel) => corridasEfetivas(b).length > 0;
 
 // ---------------------------------------------------------------- cargas por metro
 
+const molasIdx = new WeakMap<Modelo3, Map<number, { gdl: number; k: number }[]>>();
+/**
+ * Reação do nó do modelo (apoios + molas, FU7c): a dos gdl presos mais a força que as molas do nó fazem na estrutura
+ * (−k·u; a mola num gdl livre não aparece em `reacoes`). Convenção das reações: N > 0 é compressão em z.
+ */
+export function reacaoDoNo(md: Modelo3, r3: Resultado3, ic: number, n: number): number[] | undefined {
+  const r = r3.reacoes[ic].get(n);
+  if (!r) return undefined;
+  let idx = molasIdx.get(md);
+  if (!idx) { idx = new Map(); for (const m of md.molas ?? []) { const l = idx.get(m.no); if (l) l.push(m); else idx.set(m.no, [m]); } molasIdx.set(md, idx); }
+  const ms = idx.get(n);
+  if (!ms) return r;
+  const out = [...r];
+  for (const m of ms) out[m.gdl] -= m.k * r3.desloc[ic][n * 6 + m.gdl];
+  return out;
+}
+
 const direcaoEm = (pts: P[], s: number): P => {
   let acc = 0;
   for (let i = 0; i + 1 < pts.length; i++) {
@@ -211,7 +229,7 @@ export function cargasLinearesDaParede(b: BuildingModel, an: AnaliseEdificio, w:
     const leitura = (r3: NonNullable<typeof res>, ic: number) => {
       const itens: Item[] = [];
       for (const n of nos) {
-        const r = r3.reacoes[ic]?.get(n);
+        const r = reacaoDoNo(md, r3, ic, n);
         if (!r) continue;
         const pr = projecao(pontos, [md.nos[n][0], md.nos[n][1]]), u = direcaoEm(pontos, pr.s);
         itens.push({ s: pr.s, N: r[2], M: (r[3] ?? 0) * u[0] + (r[4] ?? 0) * u[1], H: r[0] * -u[1] + r[1] * u[0] });

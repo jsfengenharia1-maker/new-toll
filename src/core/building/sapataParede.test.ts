@@ -32,6 +32,7 @@ const nomePav = (b: BuildingModel, nome: string) => b.pavimentos.find((p) => p.n
 function umaParede(extra: Record<string, unknown> = {}) {
   const s = padrao();
   ok(s, 'fundacao.terreno', { sigmaAdm: 200 });
+  ok(s, 'opcoes.definir', { valores: { fundParedeK: 0 } }); // FU7c: a opção antiga (base engastada) fica fixada nos baselines da FU7b
   ok(s, 'parede.criar', { pontos: [[0, 0], [12, 0]], espessura: 0.2, morre: nomePav(s.modelo, 'Tipo 1'), ...extra });
   return s;
 }
@@ -124,6 +125,7 @@ describe('sapata corrida de parede: cargas por metro das reações da base', () 
 function caixa(base: Record<string, unknown> = { tipo: 'sapataCorrida' }, laje = true, soUma = false) {
   const s = padrao();
   ok(s, 'fundacao.terreno', { sigmaAdm: 200 });
+  ok(s, 'opcoes.definir', { valores: { fundParedeK: 0 } }); // FU7c: a opção antiga (base engastada) fica fixada nos baselines da FU7b
   ok(s, 'empuxo.tipo', { nome: 'Aterro', metodo: 'repouso', estratos: [{ espessura: 20, gama: 18, phi: 30 }], cotaAterro: 3 });
   ok(s, 'caso.criar', { nome: 'Empuxo', natureza: 'H', empuxo: s.modelo.empuxos![0].id });
   const caso = s.modelo.casos!.find((c) => c.nome === 'Empuxo')!.id, t1 = nomePav(s.modelo, 'Tipo 1');

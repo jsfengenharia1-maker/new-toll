@@ -41,7 +41,7 @@ export function MemorialPilaresParede({ b, dim, h2 }: { b: BuildingModel; dim: D
             const l0 = lancesDoPP(b, q)[0]?.id ?? '', lados = ladosDoPP(b, q);
             return <tr key={q.id}>
               <td className="l">{q.nome}</td><td className="l">{b.tiposPilarParede?.find((t) => t.id === q.tipo)?.nome ?? q.tipo}</td><td>{fmt(q.x)}; {fmt(q.y)}</td><td>{fmt(q.angulo, 0)}°</td>
-              <td className="l">{nomePav(q.nasce)}</td><td className="l">{nomePav(q.morre)}</td><td className="l">{q.vinculoBase === 'rotula' ? 'rotulada' : 'engastada'}</td>
+              <td className="l">{nomePav(q.nasce)}</td><td className="l">{nomePav(q.morre)}</td><td className="l">{q.vinculoBase === 'rotula' ? 'rotulada' : q.vinculoBase === 'molas' ? 'sobre molas' : 'engastada'}</td>
               <td className="l">{lados.map((g) => `${g.i + 1}: ${fmt(g.L * 100, 0)} × ${fmt(g.esp(l0).t * 100, 0)} (${g.casca ? 'casca' : 'barra'})`).join('; ')}</td>
             </tr>;
           })}

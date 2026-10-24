@@ -36,7 +36,7 @@ export function ParedesGrupo({ b, onPlanta }: { b: BuildingModel; onPlanta?: () 
   const [nasce, setNasce] = useState('fundacao');
   const [morre, setMorre] = useState('');
   const [vinc, setVinc] = useState<'engaste' | 'rotula'>('engaste');
-  const [fund, setFund] = useState<'apoio' | 'sapata'>('apoio');
+  const [fund, setFund] = useState<'apoio' | 'sapata' | 'viga'>('apoio');
   const [tipoP, setTipoP] = useState<'concreto' | 'alvenaria' | 'blocos'>('concreto');
   const [mat, setMat] = useState('');
   const tiposMat = tipoP === 'concreto' ? [] : tiposDoTipoParede(b, tipoP);
@@ -57,12 +57,12 @@ export function ParedesGrupo({ b, onPlanta }: { b: BuildingModel; onPlanta?: () 
         <Select label="Nasce em" value={nasce} options={nasceOpcoes} onChange={setNasce} />
         <Select label="Morre em" value={morreEf} options={ps.map((p) => ({ v: p.id, label: p.nome }))} onChange={setMorre} />
         <Select label="Base" value={vinc} options={[{ v: 'engaste', label: 'engastada' }, { v: 'rotula', label: 'rotulada' }]} onChange={setVinc} />
-        <Select label="Fundação da parede" aria-label="Fundação da parede" value={fund} options={[{ v: 'apoio', label: 'apoio direto' }, { v: 'sapata', label: 'sapata corrida' }]} onChange={setFund} />
+        <Select label="Fundação da parede" aria-label="Fundação da parede" value={fund} options={[{ v: 'apoio', label: 'apoio direto' }, { v: 'sapata', label: 'sapata corrida' }, { v: 'viga', label: 'viga de fundação' }]} onChange={setFund} />
         <Select label="Tipo de parede" value={tipoP} options={[{ v: 'concreto', label: 'concreto' }, { v: 'alvenaria', label: 'alvenaria genérica' }, { v: 'blocos', label: 'blocos de concreto' }]} onChange={setTipoP} />
         {tipoP !== 'concreto' && (
           <Select label="Material da parede" value={matEf} options={tiposMat.length ? tiposMat.map((t) => ({ v: t.id, label: t.nome })) : [{ v: '', label: '(crie em Alvenaria estrutural)' }]} onChange={(v) => { setMat(v); const c = larguraDoMaterialCm(b, v); if (c !== undefined) setEsp(c); }} />
         )}
-        <Button disabled={tipoP !== 'concreto' && !matEf} onClick={() => { usePlanta.getState().set({ ferramenta: 'parede', pwParams: { espessura: cm2m(esp), nasce, morre: morreEf, vinculoBase: vinc, ...(tipoP !== 'concreto' ? { tipo: tipoP, material: matEf } : {}), ...(fund === 'sapata' && nasce === 'fundacao' ? { base: { tipo: 'sapataCorrida' } } : {}) } }); onPlanta?.(); }}>Traçar na planta</Button>
+        <Button disabled={tipoP !== 'concreto' && !matEf} onClick={() => { usePlanta.getState().set({ ferramenta: 'parede', pwParams: { espessura: cm2m(esp), nasce, morre: morreEf, vinculoBase: vinc, ...(tipoP !== 'concreto' ? { tipo: tipoP, material: matEf } : {}), ...(fund !== 'apoio' && nasce === 'fundacao' ? { base: { tipo: fund === 'sapata' ? 'sapataCorrida' : 'viga' } } : {}) } }); onPlanta?.(); }}>Traçar na planta</Button>
       </div>
       <div className="row wrap">
         <Select label="Camada da máscara" value={camadaEf} options={camadas.map((c) => ({ v: c, label: c }))} onChange={setCamada} />

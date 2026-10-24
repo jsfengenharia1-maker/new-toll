@@ -23,7 +23,7 @@ const empuxoSchema: JsonSchema = { type: 'object', additionalProperties: false, 
   cotaTerreno: { type: 'number', description: 'cota do terreno junto à parede (m); ausente = a do tipo de empuxo' },
   liquido: { type: 'object', additionalProperties: false, required: ['cota'], properties: { cota: { type: 'number' }, gama: { type: 'number', minimum: 1, maximum: 30 } }, description: 'empuxo hidrostático: cota da superfície e γ (kN/m³, padrão 10)' },
 } };
-const baseSchema: JsonSchema = { type: 'object', additionalProperties: false, required: ['tipo'], properties: { tipo: { type: 'string', enum: ['apoio', 'sapataCorrida'] }, largura: { type: 'number', minimum: 0.2, maximum: 10 }, altura: { type: 'number', minimum: 0.1, maximum: 3 } } };
+const baseSchema: JsonSchema = { type: 'object', additionalProperties: false, required: ['tipo'], properties: { tipo: { type: 'string', enum: ['apoio', 'sapataCorrida', 'viga'] }, largura: { type: 'number', minimum: 0.2, maximum: 10 }, altura: { type: 'number', minimum: 0.1, maximum: 3 }, k: { type: 'number', minimum: 1000, maximum: 1000000 } } };
 
 /** Pontos sem repetidos consecutivos, arredondados a 0,1 mm. */
 const limpar = (pts: P[]): P[] => { const out: P[] = []; for (const p of pts) if (!out.length || Math.hypot(p[0] - out.at(-1)![0], p[1] - out.at(-1)![1]) > 1e-6) out.push([r4(p[0]), r4(p[1])]); return out; };

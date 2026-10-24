@@ -12,6 +12,7 @@ import { ceil05 } from '../rebar';
 import { baseBarra, type Barra3, type Modelo3, type Resultado3 } from '../fe3d';
 import { areaPoligono, dentroPoligono, type P } from '../geom/faces';
 import type { AnaliseEdificio, BarraGrelha, GrelhaPavimento } from './analitico';
+import { eixoDaBaseParede } from './corridaParede';
 import { direcaoPrincipal, torcaoRet } from './analitico';
 import type { CombinacaoEd } from './combinacoes';
 import { alfa0t, lbBasico } from './detalhamento';
@@ -50,6 +51,8 @@ export const TABELA_K: { solo: string; min: number; max: number }[] = [
  */
 export interface VigaElasticaEf extends VigaElastica {
   corrida?: true;
+  /** Viga de fundação sob o eixo de uma parede de concreto (FU7c, `Parede.base.tipo = 'viga'`): id da parede. */
+  parede?: string;
   bApoio?: number;
   /** Espessura da aba (m). */
   h0?: number;
@@ -101,7 +104,7 @@ const CACHE_VIGAS = new WeakMap<BuildingModel, VigaElasticaEf[]>();
 export function vigasElasticasEf(b: BuildingModel): VigaElasticaEf[] {
   const reais: VigaElasticaEf[] = b.fundacao?.vigasElasticas ?? [];
   const cs = b.fundacao?.corridas ?? [];
-  if (!cs.length) return reais;
+  if (!cs.length && !b.paredes?.some((w) => w.base?.tipo === 'viga')) return reais;
   const c0 = CACHE_VIGAS.get(b);
   if (c0) return c0;
   const out = vigasElasticasEfCalc(b, reais, cs);
@@ -117,7 +120,12 @@ function vigasElasticasEfCalc(b: BuildingModel, reais: VigaElasticaEf[], cs: Sap
     return { id: c.id, nome: c.nome, pontos: c.pontos, b: g.B, h: g.h, ...(c.k ? { k: c.k } : {}), ...(c.sigmaAdm ? { sigmaAdm: c.sigmaAdm } : {}),
       corrida: true as const, bApoio: g.bw, h0: g.h0, secao: secaoCorrida(g.B, g.bw, g.h, g.h0, op.torcaoViga) };
   });
-  return [...reais, ...virtuais];
+  // base da parede em viga de fundação (FU7c): viga sobre base elástica sob o eixo da parede, ligada aos nós da base da casca
+  const doMuro: VigaElasticaEf[] = (b.paredes ?? []).filter((w) => w.base?.tipo === 'viga' && w.nasce === 'fundacao').map((w) => {
+    const e = eixoDaBaseParede(b, w), base = w.base!;
+    return { id: `vf_${w.id}`, nome: `VF-${w.nome}`, pontos: e.pontos, b: base.largura ?? e.bw + 0.2, h: base.altura ?? 0.5, ...(base.k ? { k: base.k } : {}), parede: w.id, bApoio: e.bw };
+  });
+  return [...reais, ...virtuais, ...doMuro];
 }
 
 // ---------------- geometria: pilares sobre a base elástica ----------------
@@ -276,7 +284,7 @@ export interface MontagemBase {
  * (k·b³/12 por metro) para não girar livre. Barras: E do concreto da fundação; radier com I = largura·h³/12 e
  * J = (fator de torção das lajes)·2I; viga com a seção b × h e o fator de torção das vigas.
  */
-export function montarBaseElastica(b: BuildingModel, op: OpcoesCalculo & { nu: number }, pm: Modelo3, z: number, casos: string[]): MontagemBase | null {
+export function montarBaseElastica(b: BuildingModel, op: OpcoesCalculo & { nu: number }, pm: Modelo3, z: number, casos: string[], pontosParede: Record<string, [number, number][]> = {}): MontagemBase | null {
   const fe = b.fundacao;
   if (!temBaseElastica(b)) return null;
   const E = concretoDe(b, 'fundacao').Ecs * 1000, G = E / (2 * (1 + op.nu));
@@ -368,9 +376,12 @@ export function montarBaseElastica(b: BuildingModel, op: OpcoesCalculo & { nu: n
     for (const sg of segs) { ss.add(sg.s0); const n = Math.max(1, Math.ceil(sg.L / s - 1e-9)); for (let j = 1; j < n; j++) ss.add(sg.s0 + (j * sg.L) / n); }
     const proj = meus.map((x) => ({ x, pr: projecaoNaViga(v, x.c) }));
     for (const { pr } of proj) ss.add(pr.s);
-    const lista = [...ss].sort((a, zz) => a - zz).filter((t, j, arr) => j === 0 || t - arr[j - 1] > 0.02 || proj.some((q) => Math.abs(q.pr.s - t) < 1e-9));
+    // viga de fundação sob parede (FU7c): nós nas posições exatas dos nós da base da casca (a casca reaproveita os nós da viga)
+    const nosParede = (v.parede ? pontosParede[v.parede] ?? [] : []).map((q) => ({ q, s: projecaoNaViga(v, q).s }));
+    for (const x of nosParede) ss.add(x.s);
+    const lista = [...ss].sort((a, zz) => a - zz).filter((t, j, arr) => j === 0 || t - arr[j - 1] > 0.02 || proj.some((q) => Math.abs(q.pr.s - t) < 1e-9) || nosParede.some((q) => Math.abs(q.s - t) < 1e-9));
     const ponto = (t: number): { p: P; u: P } => { const sg = segs.find((x) => t <= x.s0 + x.L + 1e-9) ?? segs.at(-1)!, f = Math.min(1, Math.max(0, (t - sg.s0) / sg.L)); return { p: [sg.a[0] + f * (sg.z[0] - sg.a[0]), sg.a[1] + f * (sg.z[1] - sg.a[1])], u: [(sg.z[0] - sg.a[0]) / sg.L, (sg.z[1] - sg.a[1]) / sg.L] }; };
-    const nos = lista.map((t) => { const { p, u } = ponto(t); pm.nos.push([p[0], p[1], z]); return { g: pm.nos.length - 1, t, p, u }; });
+    const nos = lista.map((t) => { const { p: p0, u } = ponto(t), ex = nosParede.find((q) => Math.abs(q.s - t) < 1e-9), p: P = ex ? ex.q : p0; pm.nos.push([p[0], p[1], z]); return { g: pm.nos.length - 1, t, p, u }; });
     const sec = v.secao ?? { A: v.b * v.h, Iz: (v.b * v.h ** 3) / 12, Iy: (v.h * v.b ** 3) / 12, J: op.torcaoViga * torcaoRet(v.b, v.h) };
     for (let j = 0; j + 1 < nos.length; j++) {
       pm.barras.push({ i: nos[j].g, j: nos[j + 1].g, E, G, ...sec });
@@ -457,6 +468,8 @@ export interface ResultadoRadier {
 }
 
 export interface ResultadoVigaElastica {
+  /** Parede de concreto cuja base é esta viga de fundação (FU7c). */
+  parede?: string;
   id: string; nome: string; b: number; h: number; k: number; sigmaAdm: number | null; L: number;
   sigmaMax: number; sigmaMin: number; combMax: string; combMin: string; recalque: number;
   /** Envoltória ELU: momento que traciona a face inferior e a superior (kN·m) e cortante (kN). */
@@ -570,7 +583,7 @@ export function dimensionarBaseElastica(b: BuildingModel, an: AnaliseEdificio, c
     });
   }
   const vigasElasticas: ResultadoVigaElastica[] = [];
-  for (const v of b.fundacao?.vigasElasticas ?? []) {
+  for (const v of [...(b.fundacao?.vigasElasticas ?? []), ...vigasElasticasEf(b).filter((x) => x.parede)]) {
     const r = dimensionarVigaElastica(b, an, v, combs);
     if (r) vigasElasticas.push(r);
   }
@@ -633,6 +646,7 @@ export function dimensionarVigaElastica(b: BuildingModel, an: AnaliseEdificio, v
   notas.push(`Molas k × b × comprimento de influência (k = ${fmt(v.k ?? op.radierK, 0)} kN/m³); giro em torno do eixo com k·b³/12 por metro; envoltória ELU nas pontas das barras.`);
   const volume = v.secao ? v.secao.A * L : v.b * v.h * L;
   return {
+    ...(v.parede ? { parede: v.parede } : {}),
     id: v.id, nome: v.nome, b: v.b, h: v.h, k: v.k ?? op.radierK, sigmaAdm: sAdm, L, sigmaMax: t.max, sigmaMin: t.min, combMax: t.cMax, combMin: t.cMin, recalque: t.rec,
     Md, Vd, diagrama: { s, Minf, Msup, V }, armadura: { inf, sup, AsMin, estribo: est, ...(pele ? { pele } : {}) }, nos: t.out,
     volume, aco: acoKg, status: msgs.some((m) => classificar(m).nivel === 'erro') ? 'fail' : 'ok', mensagens: msgs, notas,

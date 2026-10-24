@@ -26,6 +26,7 @@ import { dimensionarParedes, type ResultadoParedeDim } from './paredesDim';
 import { dimensionarConsolos, type ResultadoConsolo } from './consolos';
 import { verificarPremoldadas, type ResultadoPremoldada } from './premoldadas';
 import { classificar } from './revisao';
+import { aplicarVigasEmbutidas, type ResultadoVigaEmbutida } from './vigaEmbutida';
 import { aplicarDispensaVigasMuro, dimensionarAlvenaria, type ResultadoAlvenaria } from './alvenariaDim';
 import { detalharParedes, resumoAcoParedes, type DetalheParede } from './detalhamentoParedes';
 import { dimensionarMuroArrimo, matMuroDe, type ResultadoMuroDim } from './muroArrimoDim';
@@ -1761,6 +1762,8 @@ export interface Dimensionamento { escadas?: ResumoLanceCalculo[]; vigas: Result
   /** Vigas de equilíbrio e de travamento (FU2) e avisos gerais das fundações (cargas do nível de fundação sem destino). */
   vigasFundacao?: ResultadoVigaFundacao[]; avisosFundacao?: string[];
   /** Base elástica (FU6): radiers e vigas sobre base elástica (tensões no solo, recalques e armaduras), detalhamento e aço dos radiers. */
+  /** Vigas embutidas em paredes de concreto com armadura própria (FU7c). */
+  vigasEmbutidas?: ResultadoVigaEmbutida[];
   radiers?: ResultadoRadier[]; vigasElasticas?: ResultadoVigaElastica[]; detalhesRadier?: DetalheLaje[]; resumoAcoRadiers?: ReturnType<typeof resumoAcoRadiers>;
   /** Sapatas corridas (FU7a): sob parede (dimensionamento rígido) ou sob pilares (viga sobre base elástica na análise global); calculadas com a fundação. */
   corridas?: ResultadoCorrida[];
@@ -1859,6 +1862,8 @@ export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { 
     }
   }
   { const al = dimensionarAlvenaria(b, an, elu, d.paredes, an.opcoes); if (al) { d.alvenaria = al; aplicarDispensaVigasMuro(d.vigas, al.vigasMuro); } }
+  // vigas embutidas em paredes de concreto (FU7c, K1.4.74): armadura própria (mínimos); a parede leva a carga
+  { const ve = aplicarVigasEmbutidas(b, an.opcoes, d.vigas); if (ve.length) d.vigasEmbutidas = ve; }
   if (b.murosArrimo?.length) d.muros = b.murosArrimo.map((m) => ({ id: m.id, nome: m.nome, ...dimensionarMuroArrimo(m, matMuroDe(b, an.opcoes)) }));
   if (estadoEmUso(b, 'equilibrio').ativo) { const eq = equilibrioGlobal(b, an, an.opcoes); if (eq.length) d.equilibrio = eq; }
   const avisosAcoes = [...textosAlertas(b, alertasSituacoes(b, combs)), ...(d.equilibrio ?? []).filter((e) => !e.ok).map((e) => `Equilíbrio global: tombamento com vento a ${e.direcao}° (momento estabilizante ${Math.round(e.Mest)} kN·m < instabilizante ${Math.round(e.Minst)} kN·m).`)];
