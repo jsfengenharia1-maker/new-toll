@@ -21,7 +21,7 @@ export interface MemoriaDetalhada {
   ms: number;
 }
 
-export const ESCOPO_MD1 = 'Fase 1: cargas por caso, combinações com os coeficientes, resumo da análise (γz, totais e deslocamentos) e a cadeia completa das vigas e dos pilares de concreto armado (esforços determinantes, flexão, cortante, ancoragem, fissuração, flecha; esbeltez, 2ª ordem local, flexão oblíqua, armaduras). Lajes, nervuradas, punção, fundações, escadas, paredes e o pórtico 2D entram nas fases seguintes (docs/spec-memoria-detalhada.md).';
+export const ESCOPO_MD2 = 'Fases 1 e 2: cargas por caso, combinações com os coeficientes, resumo da análise (γz, totais e deslocamentos) e a cadeia completa das vigas e dos pilares de concreto armado (esforços determinantes, flexão, cortante, ancoragem, fissuração, flecha; esbeltez, 2ª ordem local, flexão oblíqua, armaduras). As lajes maciças entram com cargas por pano, momentos da grelha (Wood-Armer por nó), flexão, mínimos, fissuração, cortante, flecha (imediata, fissurada e diferida), barras e negativos com os comprimentos. Nervuradas e vigotas, punção, fundações, escadas, paredes e o pórtico 2D entram nas fases seguintes (docs/spec-memoria-detalhada.md).';
 
 export interface OpcoesMemoria {
   /** Análise já feita (reaproveitada); sem ela, a análise é refeita. */
@@ -41,7 +41,7 @@ export function memoriaDetalhada(b: BuildingModel, o: OpcoesMemoria = {}): { mem
   const dim = comMemoria(reg, () => dimensionarEdificio(b, an, { fundacao: false }));
   const ms = performance.now() - t0;
   const elementos = [...new Set(reg.passos.map((p) => p.elemento))];
-  return { memoria: { versao: 1, obra: b.obra?.nome || 'Edifício', escopo: ESCOPO_MD1, passos: reg.passos, elementos, truncado: reg.truncado, ms }, an, dim };
+  return { memoria: { versao: 1, obra: b.obra?.nome || 'Edifício', escopo: ESCOPO_MD2, passos: reg.passos, elementos, truncado: reg.truncado, ms }, an, dim };
 }
 
 function passosGlobais(reg: Registrador, b: BuildingModel, an: AnaliseEdificio) {

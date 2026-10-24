@@ -108,16 +108,7 @@ export function registrarViga(mem: Registrador, x: CtxMemoriaViga) {
   // ---- fissuração (combinação frequente)
   const fiss = (rot: string, Mk: number, bb: BarChoice | null, dd: number, fc: boolean, wk: number) => {
     if (!bb || !Mk) return;
-    const r = crackWidth(x.sec, fc, bb.As, bb.phi, dd, Mk, c, x.caa);
-    const tf = `Fissuração – ${rot}`;
-    P('dimensionamento', tf, { descricao: 'Momento da combinação frequente', formula: 'Md,ser = Σ Gk + ψ1·Q1k + Σ ψ2·Qjk', expressao: `Md,ser = ${fm(Mk)}`, resultado: Mk, unidade: 'kN·m', norma: `${NBR}, 11.8.3.2`, entradas: {} });
-    P('dimensionamento', tf, { descricao: 'Linha neutra no estádio II (αe = 15)', formula: 'b·x²/2 = αe·As·(d − x)', expressao: `x = ${fm(r.x)}`, resultado: r.x, unidade: 'm', norma: `${NBR}, 17.3.3.2`, entradas: { As: bb.As, d: dd, ae: 15 } });
-    P('dimensionamento', tf, { descricao: 'Tensão na armadura no estádio II', formula: 'σs = αe·M·(d − x)/III', expressao: `σs = ${fm(r.sigmaS)}`, resultado: r.sigmaS, unidade: 'MPa', norma: `${NBR}, 17.3.3.2`, entradas: { M: Mk / 1000, d: dd, x: r.x } });
-    const hcr = Math.min(x.h - dd + 7.5 * (bb.phi / 1000), x.h / 2);
-    P('dimensionamento', tf, { descricao: 'Taxa na área de envolvimento (Acr = bw·mín(h − d + 7,5φ; h/2))', formula: 'ρr = As/Acr', expressao: `ρr = ${fm(bb.As)}/(${fm(x.b)}·${fm(hcr)}) = ${fm(r.rhoR)}`, resultado: r.rhoR, unidade: '', norma: `${NBR}, 17.3.3.2`, aConfirmar: true, entradas: { As: bb.As, bw: x.b, hcr } });
-    P('dimensionamento', tf, { descricao: 'Abertura w1', formula: 'w1 = φ/(12,5·η1)·(σs/Es)·(3·σs/fct,m), η1 = 2,25', expressao: `w1 = ${fm(bb.phi)}/(12,5·2,25)·(${fm(r.sigmaS)}/${ES})·(3·${fm(r.sigmaS)}/${fm(c.fctm)}) = ${fm(r.w1)}`, resultado: r.w1, unidade: 'mm', norma: `${NBR}, 17.3.3.2`, entradas: { phi: bb.phi, sigmaS: r.sigmaS, Es: ES, fctm: c.fctm, eta1: 2.25 } });
-    P('dimensionamento', tf, { descricao: 'Abertura w2', formula: 'w2 = φ/(12,5·η1)·(σs/Es)·(4/ρr + 45)', expressao: `w2 = ${fm(bb.phi)}/(12,5·2,25)·(${fm(r.sigmaS)}/${ES})·(4/${fm(r.rhoR)} + 45) = ${fm(r.w2)}`, resultado: r.w2, unidade: 'mm', norma: `${NBR}, 17.3.3.2`, entradas: { phi: bb.phi, sigmaS: r.sigmaS, Es: ES, rhoR: r.rhoR, eta1: 2.25 } });
-    P('dimensionamento', tf, { descricao: 'Abertura característica', formula: 'wk = mín(w1; w2) ≤ wk,lim', expressao: `wk = mín(${fm(r.w1)}; ${fm(r.w2)}) = ${fm(wk)} ${wk <= x.wkLim + 1e-9 ? '≤' : '>'} ${fm(x.wkLim)}`, resultado: wk, unidade: 'mm', norma: `${NBR}, 13.4.2 (Tabela 13.4)`, entradas: { w1: r.w1, w2: r.w2, wkLim: x.wkLim } });
+    passosFissuracao(mem, el, `Fissuração – ${rot}`, { sec: x.sec, fc, As: bb.As, phi: bb.phi, d: dd, Mk, c, caa: x.caa, h: x.h, b: x.b, wkLim: x.wkLim, wk });
   };
   fiss('face inferior', x.MkPos, x.bi, x.dI, x.fcPos, x.wk[0]);
   if (x.AsSup > 0) fiss('face superior', -x.MkNeg, x.bs, x.dS, x.fcNeg, x.wk[1]);
@@ -133,27 +124,19 @@ export function registrarViga(mem: Registrador, x: CtxMemoriaViga) {
     P('dimensionamento', tf, { descricao: `Flechas imediatas do vão ${f.balanco ? 'em balanço' : 'apoiado'} (ℓ = ${fm(f.L, 3)} m): integração da curvatura M/(Ecs·Ie) com Ie de Branson em cada seção`, formula: 'Ie = (Mr/Ma)³·Ic + [1 − (Mr/Ma)³]·III ≤ Ic; f = ∫ M·m̄/(Ecs·Ie) dx', expressao: `f(G) = ${fm(f.dG * 1000)} mm; f(Q) = ${fm(f.dQ * 1000)} mm; f(ψ2·Q) = ${fm(f.dQqp * 1000)} mm`, resultado: f.dG + f.dQqp, unidade: 'm', norma: `${NBR}, 17.3.2.1.1`, entradas: { dG: f.dG, dQ: f.dQ, dQqp: f.dQqp, homogeneizada: f.homogeneizada ? 1 : 0 }, observacao: 'Integração numérica (estações a cada 0,10 m) com os esforços do pórtico na combinação quase permanente.' });
     P('dimensionamento', tf, { descricao: 'Coeficiente de fluência', formula: 'αf = Δξ/(1 + 50·ρ′), Δξ = ξ(∞) − ξ(t0)', expressao: `αf = ${fm(f.af)}/(1 + 50·${fm(f.rho)}) = ${fm(f.afR)}`, resultado: f.afR, unidade: '', norma: `${NBR}, 17.3.2.1.2`, entradas: { dxi: f.af, rho: f.rho } });
     if (f.metodo === 'fator') P('dimensionamento', tf, { descricao: 'Flecha total (quase permanente com fluência)', formula: 'f∞ = (fG + fψ2Q)·(1 + αf) ≤ limite', expressao: `f∞ = (${fm(f.dG * 1000)} + ${fm(f.dQqp * 1000)})·(1 + ${fm(f.afR)}) = ${fm(f.total * 1000)} mm ${f.total <= f.limite ? '≤' : '>'} ${f.limiteTxt} = ${fm(f.limite * 1000)} mm`, resultado: f.total, unidade: 'm', norma: `${NBR}, 13.3 (Tabela 13.3) e 17.3.2.1.2`, entradas: { dG: f.dG, dQqp: f.dQqp, afR: f.afR, limite: f.limite } });
-    else {
-      const k = f.comp, den = 1 + 50 * Math.max(0, f.rho);
-      P('dimensionamento', tf, { descricao: 'Flechas instantâneas por categoria (frações das cargas permanentes do grupo)', formula: 'f = fpp + falv + frev; fQ; fψ2Q', expressao: `fpp = ${fm(f.inst.pp * 1000)} mm; falv = ${fm(f.inst.alvenaria * 1000)} mm; frev = ${fm(f.inst.revestimento * 1000)} mm; fQ = ${fm(f.inst.q * 1000)} mm; fψ2Q = ${fm(f.inst.qqp * 1000)} mm`, resultado: f.inst.pp + f.inst.alvenaria + f.inst.revestimento, unidade: 'm', norma: `${NBR}, 17.3.2.1.1`, entradas: { pp: f.inst.pp, alvenaria: f.inst.alvenaria, revestimento: f.inst.revestimento, q: f.inst.q, qqp: f.inst.qqp } });
-      k.porEtapa.forEach((e, i) => P('dimensionamento', tf, { descricao: `Etapa ${i + 1} "${e.nome}" aos ${fm(e.dias)} dias: flecha instantânea da carga aplicada e fluência a partir dessa idade`, formula: 'Δξ = ξ(∞) − ξ(t), ξ(t) = 0,68·0,996^t·t^0,32 (t em meses) ', expressao: `Pi = ${fm(e.carga * 1000)} mm; Δξ = 2 − ξ(${fm(e.dias / 30)}) = ${fm(e.dXi)}`, resultado: e.dXi, unidade: '', norma: `${NBR}, 17.3.2.1.2 (Tabela 17.1)`, entradas: { dias: e.dias, carga: e.carga, dXi: e.dXi } }));
-      P('dimensionamento', tf, { descricao: `Flecha instantânea (variável ${f.qInst === 'total' ? 'inteira' : 'quase permanente'})`, formula: 'fi = Σ G das etapas + fQ', expressao: `fi = ${fm(k.instantanea * 1000)} mm`, resultado: k.instantanea, unidade: 'm', norma: `${NBR}, 17.3.2.1.2`, entradas: { G: k.instantanea - (f.qInst === 'total' ? f.inst.q : f.inst.qqp), Q: f.qInst === 'total' ? f.inst.q : f.inst.qqp } });
-      const soma = k.porEtapa.reduce((t, e) => t + e.carga * e.dXi, 0);
-      P('dimensionamento', tf, { descricao: 'Flecha diferida (cada parcela de longa duração desde a sua idade)', formula: 'fd = Σ Pi·Δξi/(1 + 50·ρ′)', expressao: `fd = ${fm(soma * 1000)}/(1 + 50·${fm(f.rho)}) = ${fm(k.diferida * 1000)} mm`, resultado: k.diferida, unidade: 'm', norma: `${NBR}, 17.3.2.1.2`, entradas: { soma, den, rho: f.rho } });
-      P('dimensionamento', tf, { descricao: 'Flecha total por etapas de carga', formula: 'f∞ = fi + fd ≤ limite', expressao: `f∞ = ${fm(k.instantanea * 1000)} + ${fm(k.diferida * 1000)} = ${fm(f.total * 1000)} mm ${f.total <= f.limite ? '≤' : '>'} ${f.limiteTxt} = ${fm(f.limite * 1000)} mm`, resultado: f.total, unidade: 'm', norma: `${NBR}, 13.3 (Tabela 13.3) e 17.3.2.1.2`, entradas: { fi: k.instantanea, fd: k.diferida, limite: f.limite } });
-    }
+    else passosEtapasFlecha(mem, el, tf, f);
     P('dimensionamento', tf, { descricao: 'Flecha das cargas variáveis', formula: 'fQ ≤ limite', expressao: `fQ = ${fm(f.flechaQ * 1000)} mm ${f.flechaQ <= f.limiteQ ? '≤' : '>'} ${f.limiteQTxt} = ${fm(f.limiteQ * 1000)} mm`, resultado: f.flechaQ, unidade: 'm', norma: `${NBR}, 13.3 (Tabela 13.3)`, entradas: { limiteQ: f.limiteQ } });
   }
 }
 
 /** Flexão simples (17.2): linha neutra, domínio, As, As,mín e As de cálculo. */
-function flexao(mem: Registrador, el: string, topico: string, x: CtxMemoriaViga, Md: number, d: number, d2: number, fyd: number, fc: boolean, AsCalc: number, inferior: boolean) {
+export function flexao(mem: Registrador, el: string, topico: string, x: Pick<CtxMemoriaViga, 'c' | 'sec' | 'taxaMin' | 'b' | 'h'>, Md: number, d: number, d2: number, fyd: number, fc: boolean, AsCalc: number, inferior: boolean, opt: { un?: string; semMinimo?: boolean } = {}) {
   const c = x.c, sec = x.sec, P = (p: Omit<Parameters<Registrador['passo']>[0], 'elemento' | 'etapa' | 'topico'>) => mem.passo({ etapa: 'dimensionamento', elemento: el, topico, ...p });
   const r = beamFlexure(sec, fc, Md, d, d2, c, fyd);
   const tee = sec.kind === 'tee' && fc && !!sec.bf && !!sec.hf;
   const wComp = tee ? sec.bf! : sec.bw;
   const norma = `${NBR}, 17.2.2`;
-  P({ descricao: `Momento de cálculo (${inferior ? 'tração embaixo' : 'tração em cima'})`, formula: 'Md', expressao: `Md = ${fm(Md)}`, resultado: Md, unidade: 'kN·m', norma: `${NBR}, 17.2`, entradas: {} });
+  P({ descricao: `Momento de cálculo (${inferior ? 'tração embaixo' : 'tração em cima'})`, formula: 'Md', expressao: `Md = ${fm(Md)}`, resultado: Md, unidade: opt.un ?? 'kN·m', norma: `${NBR}, 17.2`, entradas: {} });
   const xlim = c.xLimRatio * d;
   P({ descricao: 'Limite da linha neutra para a ductilidade', formula: c.fck > 50 ? 'x,lim = 0,35·d' : 'x,lim = 0,45·d', expressao: `x,lim = ${fm(c.xLimRatio)}·${fm(d)} = ${fm(xlim)}`, resultado: xlim, unidade: 'm', norma: `${NBR}, 14.6.4.3`, entradas: { d, razao: c.xLimRatio } });
   if (r.Md === 0 && Md <= 1e-9) return;
@@ -170,6 +153,7 @@ function flexao(mem: Registrador, el: string, topico: string, x: CtxMemoriaViga,
     P({ descricao: 'Armadura dupla: tração', formula: 'As = C/fyd + ΔM/[fyd·(d − d′)]', expressao: `As = ${fm(f.C)}/${fm(fyd)} + ${fm(dM)}/[${fm(fyd)}·(${fm(d)} − ${fm(d2)})] = ${cm2(r.As)}`, resultado: r.As, unidade: 'm²', norma, entradas: { C: f.C, fyd, dM, d, d2 } });
     P({ descricao: 'Armadura dupla: compressão', formula: "As′ = ΔM/[σs′·(d − d′)], σs′ = mín(Es·εcu·(x − d′)/x; fyd)", expressao: `As′ = ${cm2(r.As2)}`, resultado: r.As2, unidade: 'm²', norma, entradas: { dM, d, d2, x: r.x } });
   }
+  if (opt.semMinimo) return;
   if (x.taxaMin > 0) {
     const m = (x.taxaMin / 100) * x.b * x.h;
     P({ descricao: 'Armadura mínima pela taxa das opções', formula: 'As,mín = ρmín·b·h', expressao: `As,mín = ${fm(x.taxaMin / 100)}·${fm(x.b)}·${fm(x.h)} = ${cm2(m)}`, resultado: m, unidade: 'm²', norma: `${NBR}, 17.3.5.2.1`, entradas: { taxa: x.taxaMin, b: x.b, h: x.h } });
@@ -180,4 +164,36 @@ function flexao(mem: Registrador, el: string, topico: string, x: CtxMemoriaViga,
     P({ descricao: 'Armadura mínima', formula: 'As,mín = máx[As(Md,mín); 0,15 %·Ac]', expressao: `As,mín = máx(${cm2(rm.As)}; 0,0015·${fm(g.A)} = ${cm2(0.0015 * g.A)}) = ${cm2(m)}`, resultado: m, unidade: 'm²', norma: `${NBR}, 17.3.5.2.1 (Tabela 17.3)`, entradas: { AsMd: rm.As, Ac: g.A } });
   }
   P({ descricao: 'Armadura de cálculo', formula: 'As,calc = máx(As; As,mín)', expressao: `As,calc = ${cm2(AsCalc)}`, resultado: AsCalc, unidade: 'm²', norma: `${NBR}, 17.3.5.2`, entradas: { As: r.As } });
+}
+
+
+export interface ParamFissuracao { sec: BeamSection; fc: boolean; As: number; phi: number; d: number; Mk: number; c: Concrete; caa: 1 | 2 | 3 | 4; h: number; b: number; wkLim: number; wk: number }
+/** Abertura de fissuras (17.3.3.2) passo a passo: estádio II, σs, ρr, w1, w2 e wk. */
+export function passosFissuracao(mem: Registrador, el: string, topico: string, p: ParamFissuracao) {
+  const { sec, fc, As, phi, d, Mk, c, caa, h, b, wkLim, wk } = p;
+  const P = (etapa: 'esforcos' | 'dimensionamento' | 'detalhamento', tp: string, q: Omit<Parameters<Registrador['passo']>[0], 'elemento' | 'etapa' | 'topico'>) => mem.passo({ etapa, elemento: el, topico: tp, ...q });
+    const r = crackWidth(sec, fc, As, phi, d, Mk, c, caa);
+    const tf = topico;
+    P('dimensionamento', tf, { descricao: 'Momento da combinação frequente', formula: 'Md,ser = Σ Gk + ψ1·Q1k + Σ ψ2·Qjk', expressao: `Md,ser = ${fm(Mk)}`, resultado: Mk, unidade: 'kN·m', norma: `${NBR}, 11.8.3.2`, entradas: {} });
+    P('dimensionamento', tf, { descricao: 'Linha neutra no estádio II (αe = 15)', formula: 'b·x²/2 = αe·As·(d − x)', expressao: `x = ${fm(r.x)}`, resultado: r.x, unidade: 'm', norma: `${NBR}, 17.3.3.2`, entradas: { As: As, d: d, ae: 15 } });
+    P('dimensionamento', tf, { descricao: 'Tensão na armadura no estádio II', formula: 'σs = αe·M·(d − x)/III', expressao: `σs = ${fm(r.sigmaS)}`, resultado: r.sigmaS, unidade: 'MPa', norma: `${NBR}, 17.3.3.2`, entradas: { M: Mk / 1000, d: d, x: r.x } });
+    const hcr = Math.min(h - d + 7.5 * (phi / 1000), h / 2);
+    P('dimensionamento', tf, { descricao: 'Taxa na área de envolvimento (Acr = bw·mín(h − d + 7,5φ; h/2))', formula: 'ρr = As/Acr', expressao: `ρr = ${fm(As)}/(${fm(b)}·${fm(hcr)}) = ${fm(r.rhoR)}`, resultado: r.rhoR, unidade: '', norma: `${NBR}, 17.3.3.2`, aConfirmar: true, entradas: { As: As, bw: b, hcr } });
+    P('dimensionamento', tf, { descricao: 'Abertura w1', formula: 'w1 = φ/(12,5·η1)·(σs/Es)·(3·σs/fct,m), η1 = 2,25', expressao: `w1 = ${fm(phi)}/(12,5·2,25)·(${fm(r.sigmaS)}/${ES})·(3·${fm(r.sigmaS)}/${fm(c.fctm)}) = ${fm(r.w1)}`, resultado: r.w1, unidade: 'mm', norma: `${NBR}, 17.3.3.2`, entradas: { phi: phi, sigmaS: r.sigmaS, Es: ES, fctm: c.fctm, eta1: 2.25 } });
+    P('dimensionamento', tf, { descricao: 'Abertura w2', formula: 'w2 = φ/(12,5·η1)·(σs/Es)·(4/ρr + 45)', expressao: `w2 = ${fm(phi)}/(12,5·2,25)·(${fm(r.sigmaS)}/${ES})·(4/${fm(r.rhoR)} + 45) = ${fm(r.w2)}`, resultado: r.w2, unidade: 'mm', norma: `${NBR}, 17.3.3.2`, entradas: { phi: phi, sigmaS: r.sigmaS, Es: ES, rhoR: r.rhoR, eta1: 2.25 } });
+    P('dimensionamento', tf, { descricao: 'Abertura característica', formula: 'wk = mín(w1; w2) ≤ wk,lim', expressao: `wk = mín(${fm(r.w1)}; ${fm(r.w2)}) = ${fm(wk)} ${wk <= wkLim + 1e-9 ? '≤' : '>'} ${fm(wkLim)}`, resultado: wk, unidade: 'mm', norma: `${NBR}, 13.4.2 (Tabela 13.4)`, entradas: { w1: r.w1, w2: r.w2, wkLim: wkLim } });
+}
+
+
+export interface ParamEtapasFlecha { comp: ComposicaoEtapas; inst: FlechasInstantaneas; rho: number; qInst: 'total' | 'qp'; total: number; limite: number; limiteTxt: string }
+/** Flecha por etapas de carga (17.3.2.1.2): instantâneas por categoria, fluência por etapa, diferida e total. */
+export function passosEtapasFlecha(mem: Registrador, el: string, tf: string, f: ParamEtapasFlecha) {
+  const P = (etapa: 'esforcos' | 'dimensionamento' | 'detalhamento', tp: string, q: Omit<Parameters<Registrador['passo']>[0], 'elemento' | 'etapa' | 'topico'>) => mem.passo({ etapa, elemento: el, topico: tp, ...q });
+    const k = f.comp, den = 1 + 50 * Math.max(0, f.rho);
+    P('dimensionamento', tf, { descricao: 'Flechas instantâneas por categoria (frações das cargas permanentes do grupo)', formula: 'f = fpp + falv + frev; fQ; fψ2Q', expressao: `fpp = ${fm(f.inst.pp * 1000)} mm; falv = ${fm(f.inst.alvenaria * 1000)} mm; frev = ${fm(f.inst.revestimento * 1000)} mm; fQ = ${fm(f.inst.q * 1000)} mm; fψ2Q = ${fm(f.inst.qqp * 1000)} mm`, resultado: f.inst.pp + f.inst.alvenaria + f.inst.revestimento, unidade: 'm', norma: `${NBR}, 17.3.2.1.1`, entradas: { pp: f.inst.pp, alvenaria: f.inst.alvenaria, revestimento: f.inst.revestimento, q: f.inst.q, qqp: f.inst.qqp } });
+    k.porEtapa.forEach((e, i) => P('dimensionamento', tf, { descricao: `Etapa ${i + 1} "${e.nome}" aos ${fm(e.dias)} dias: flecha instantânea da carga aplicada e fluência a partir dessa idade`, formula: 'Δξ = ξ(∞) − ξ(t), ξ(t) = 0,68·0,996^t·t^0,32 (t em meses) ', expressao: `Pi = ${fm(e.carga * 1000)} mm; Δξ = 2 − ξ(${fm(e.dias / 30)}) = ${fm(e.dXi)}`, resultado: e.dXi, unidade: '', norma: `${NBR}, 17.3.2.1.2 (Tabela 17.1)`, entradas: { dias: e.dias, carga: e.carga, dXi: e.dXi } }));
+    P('dimensionamento', tf, { descricao: `Flecha instantânea (variável ${f.qInst === 'total' ? 'inteira' : 'quase permanente'})`, formula: 'fi = Σ G das etapas + fQ', expressao: `fi = ${fm(k.instantanea * 1000)} mm`, resultado: k.instantanea, unidade: 'm', norma: `${NBR}, 17.3.2.1.2`, entradas: { G: k.instantanea - (f.qInst === 'total' ? f.inst.q : f.inst.qqp), Q: f.qInst === 'total' ? f.inst.q : f.inst.qqp } });
+    const soma = k.porEtapa.reduce((t, e) => t + e.carga * e.dXi, 0);
+    P('dimensionamento', tf, { descricao: 'Flecha diferida (cada parcela de longa duração desde a sua idade)', formula: 'fd = Σ Pi·Δξi/(1 + 50·ρ′)', expressao: `fd = ${fm(soma * 1000)}/(1 + 50·${fm(f.rho)}) = ${fm(k.diferida * 1000)} mm`, resultado: k.diferida, unidade: 'm', norma: `${NBR}, 17.3.2.1.2`, entradas: { soma, den, rho: f.rho } });
+    P('dimensionamento', tf, { descricao: 'Flecha total por etapas de carga', formula: 'f∞ = fi + fd ≤ limite', expressao: `f∞ = ${fm(k.instantanea * 1000)} + ${fm(k.diferida * 1000)} = ${fm(f.total * 1000)} mm ${f.total <= f.limite ? '≤' : '>'} ${f.limiteTxt} = ${fm(f.limite * 1000)} mm`, resultado: f.total, unidade: 'm', norma: `${NBR}, 13.3 (Tabela 13.3) e 17.3.2.1.2`, entradas: { fi: k.instantanea, fd: k.diferida, limite: f.limite } });
 }

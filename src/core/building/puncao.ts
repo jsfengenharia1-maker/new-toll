@@ -428,6 +428,8 @@ export function vcLaje(c: Concrete, h: number, d: number, rho: number): number {
 
 // ---------------------------------------------------------------- cortante das lajes apoiadas em vigas
 
+/** Barra, nó e ponta que dão o maior cortante da direção, com o cortante característico por caso (kN/m), para a memória detalhada. */
+export interface DetCortanteBruto { barra: number; no: number; ponta: 1 | 7; larg: number; Vk: number[] }
 export interface CortanteLaje {
   /** Maior cortante de cálculo por metro nas direções 0 e 1 da malha (kN/m), VRd1 (kN/m) e VRd2 (kN/m). */
   VSd: [number, number]; VRd1: [number, number]; VRd2: number;
@@ -441,7 +443,7 @@ export interface CortanteLaje {
  * pontas junto a pilares sem viga (punção), contra VRd1 (19.4.1); acima de VRd1, armadura transversal (19.4.2) se
  * h ≥ 15 cm; acima de VRd2, erro.
  */
-export function cortanteLaje(g: GrelhaPavimento, lajeId: string, fat: number[], c: Concrete, h: number, d: number, rho: [number, number], fywd: number, excluir: { p: P; r: number }[]): CortanteLaje | null {
+export function cortanteLaje(g: GrelhaPavimento, lajeId: string, fat: number[], c: Concrete, h: number, d: number, rho: [number, number], fywd: number, excluir: { p: P; r: number }[], det?: (DetCortanteBruto | undefined)[]): CortanteLaje | null {
   const m = g.modelo, res = g.res as Resultado3 | null;
   if (!res) return null;
   const VSd: [number, number] = [0, 0];
@@ -458,6 +460,7 @@ export function cortanteLaje(g: GrelhaPavimento, lajeId: string, fat: number[], 
       const q: P = [m.nos[no][0], m.nos[no][1]];
       if (excluir.some((x) => Math.hypot(q[0] - x.p[0], q[1] - x.p[1]) < x.r)) continue;
       const v = Math.abs(fat.reduce((s, f, ic) => s + f * res.esforcos[ic][i][k], 0)) / t.largura;
+      if (det && v > VSd[t.dir]) det[t.dir] = { barra: i, no, ponta: k, larg: t.largura, Vk: fat.map((_, ic) => res.esforcos[ic][i][k] / t.largura!) }; // memória detalhada (MD)
       VSd[t.dir] = Math.max(VSd[t.dir], v);
     }
   });

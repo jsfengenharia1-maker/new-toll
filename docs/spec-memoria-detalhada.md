@@ -25,6 +25,15 @@ Núcleo do registrador; cadeia piloto completa no módulo Edifícios:
 - **Pilar** (por lance): Ac, raios de giração, ℓe, λ, γn, método local por direção, e_cc; Nd com Σ γ·Nk por caso; momentos de 1ª ordem; pilar-padrão por direção (M1d,mín, αb, λ1, ν, 1/r, M2d, Md,tot; método geral); flexão oblíqua por fibras (MRd na direção do momento, utilização S1/S2); As,mín, As,máx, armadura adotada; cortante (VRd2, Vc) e estribo.
 - Exportação dos dados da análise e do script OpenSees, comparado no teste (`src/core/memoria/memoria.test.ts`) com o Statikos (deslocamentos e reações, erro relativo < 1e-6) quando o openseespy existe.
 
+## Fase 2 (feita)
+
+Lajes maciças (`src/core/memoria/lajeMacica.ts`), um elemento por laje ("Laje L1"; se a grelha do pavimento difere, "Laje L1 · Tipo 2"):
+- **Cargas** por pano (pp = γc·h, revestimento, q, pd) e geometria (vãos); materiais e alturas úteis.
+- **Esforços**: fatores ELU por caso; momentos por metro da grelha: com Wood-Armer, nó que dá cada extremo (mx, my e |mxy| = média das barras na faixa de 1 m, cada um com a decomposição por caso, e m* pelas fórmulas de Wood-Armer); sem Wood-Armer, barra e ponta. Momento mínimo p·ℓ²/x (opção) e momento de dimensionamento.
+- **Dimensionamento**: flexão por face e direção (linha neutra, domínio, C, As), As,mín (ρmín·h), armadura necessária; fissuração (momento frequente refeito com a mesma decomposição, barras da verificação, aumento de 10 % por passo, estádio II, σs, ρr, w1, w2, wk); cortante sem armadura (VSd por caso, ρ1, VRd1, VRd2) e com armadura (Vc, Asw); flecha (elástica da grelha, Branson da barra mais fissurada, κ = δ fissurada/δ elástica, inércia média do vão, fluência, etapas de carga ou fator simplificado, ativa e variável com limites).
+- **Detalhamento**: barras pela tabela de armadura, positivas adotadas por direção e negativos sobre as bordas (armadura, ancoragem lb,nec, comprimento de cada lado: cap, % do vão, bw/2 + 10φ, diagrama decalado + ancoragem; comprimento desenvolvido da barra).
+- Teste `lajes.test.ts` (exatidão a 1e-9 contra o dimensionamento, `toEqual` com a memória ligada, cobertura dos ramos) e e2e `MD2`. Fora do escopo desta fase: lajes inclinadas (aviso na primeira cargas), nervuradas/vigotas/alveolares (MD3), punção (MD4); os esforços das cargas lineares e paredes sobre a laje entram na grelha como casos (decomposição por caso).
+
 ## Rollout (fases seguintes)
 
 Uma fatia por frente, mesmo padrão (contexto de registro + teste de exatidão a 1e-9 + seção no HTML). Estimativas de esforço por fatia (agente Sonnet alto; Haiku só para a seção do HTML quando seguir o padrão):
