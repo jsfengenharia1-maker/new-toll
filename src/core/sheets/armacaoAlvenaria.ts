@@ -2,17 +2,18 @@
 // paredes de blocos e de alvenaria em planta — contorno, aberturas, esquema das duas primeiras fiadas (peças inteiras, meios blocos,
 // canaletas e peças de canto; fiada 1 contínua, fiada 2 tracejada), barras verticais nas células grauteadas das paredes armadas
 // e cotas (comprimento do trecho e posição das aberturas) —, quadro de blocos por parede e quadro da armadura por pano.
-// As peças vêm da mesma regra do quantitativo (`quantitativoParede`); o aço da alvenaria armada não tem tabela própria na prancha.
+// As peças vêm da mesma regra do quantitativo (`quantitativoParede`); a tabela e o resumo de aço (E6a) vêm de res.aco (alvenariaAco.ts), a mesma lista do resumo do dimensionamento.
 import type { AnaliseEdificio } from '../building/analitico';
 import { blocoDe, moduloDoBloco, precisaCanto, tipoAlvenariaDe, TOL_MODULO, ehAlvenaria } from '../building/alvenaria';
+import { posicoesBarrasVerticais, type TipoBarraAlv } from '../building/alvenariaAco';
 import type { ResultadoAlvenariaParede } from '../building/alvenariaDim';
 import type { Dimensionamento } from '../building/dimensionamento';
 import { opcoesEmUso, perfilDe, type OpcoesCalculo } from '../building/opcoes';
 import { acumulados, furosDaParede, niveisDaParede, ppDaParede } from '../building/paredesBase';
 import { contornoDoLado, ladosDoPP, type LadoGeo } from '../building/pilarParede';
 import { ARMACAO_PADRAO, pavimentosOrdenados, type BuildingModel, type Parede, type TipoBloco } from '../building/types';
-import { caixa, txt, type P, type Prancha, type Prim } from './prancha';
-import { cmInt, montarFolha, nf, notas, plantaNaFolha, type BlocoTabela, type OpcoesCarimbo } from './armacao';
+import { caixa, txt, type AcoPrancha, type LinhaTabelaAco, type P, type Prancha, type Prim } from './prancha';
+import { acoDaFolha, cmInt, COLS_TABELA_ACO, montarFolha, nf, notas, perdasDe, plantaNaFolha, resumoAco, type BlocoTabela, type OpcoesCarimbo } from './armacao';
 
 export interface OpcoesAlvenariaPranchas { carimbo?: OpcoesCarimbo }
 
@@ -58,12 +59,9 @@ export function pecasDaFiada(b: BuildingModel, w: Parede, bl: TipoBloco, op: Opc
   return out;
 }
 
-/** Posições (m, a partir do início do pano) das barras verticais nas células grauteadas: meio módulo da extremidade e depois a cada `s`. */
-export function posicoesBarrasVerticais(s0: number, s1: number, s: number, mod: number): number[] {
-  if (s1 - s0 < mod - 1e-9 || s <= 0) return [];
-  const n = Math.floor((s1 - s0 - mod) / s + 1e-6) + 1;
-  return Array.from({ length: n }, (_, j) => +(s0 + mod / 2 + j * s).toFixed(4));
-}
+export { posicoesBarrasVerticais };
+
+const ROTULO_TIPO: Record<TipoBarraAlv, string> = { vertical: 'Barra vertical', horizontal: 'Junta (horizontal)', verga: 'Verga', contraverga: 'Contraverga', estribo: 'Estribo de verga' };
 
 const ptLado = (g: LadoGeo, s: number, off: number): P => [g.a[0] + g.u[0] * s + g.n[0] * off, g.a[1] + g.u[1] * s + g.n[1] * off];
 
@@ -140,9 +138,24 @@ export function montarPranchasAlvenaria(b: BuildingModel, _an: AnaliseEdificio |
     ])];
     if (quadroBlocos.length) tabelas.push({ titulo: `BLOCOS — ${pav.nome.toUpperCase()}`, cols: [{ w: 16, rot: 'PAREDE' }, { w: 40, rot: 'BLOCO' }, { w: 16, rot: 'FIADAS' }, { w: 18, rot: 'INTEIROS' }, { w: 14, rot: 'MEIOS' }, { w: 14, rot: 'CANTO' }, { w: 18, rot: 'CANALETAS' }, { w: 14, rot: 'TOTAL' }, { w: 18, rot: 'ÁREA (m²)' }], linhas: quadroBlocos });
     if (quadroArm.length) tabelas.push({ titulo: `ARMADURA POR PANO — ${pav.nome.toUpperCase()}`, cols: [{ w: 16, rot: 'PAREDE' }, { w: 20, rot: 'TRECHO' }, { w: 14, rot: 'PANO' }, { w: 34, rot: 'VERTICAL' }, { w: 34, rot: 'HORIZONTAL' }, { w: 24, rot: 'Nº BARRAS V.' }], linhas: quadroArm });
+    // tabela e resumo de aço: as barras vêm do dimensionamento (res.aco), as mesmas do resumo do memorial
+    const grupos = new Map<string, LinhaTabelaAco & { tipo: string }>();
+    for (const { res } of doLance) for (const x of res?.aco?.barras.filter((y) => y.pavimento === pav.id) ?? []) {
+      const c = cmInt(x.comprimento), k = `${x.tipo}|${x.aco}|${x.phi}|${c}`;
+      const g = grupos.get(k) ?? { pos: `N${grupos.size + 1}`, tipo: ROTULO_TIPO[x.tipo], aco: x.aco, phi: x.phi, quant: 0, cUnit: c, cTotal: 0 };
+      g.quant += x.quant; g.cTotal = (g.quant * g.cUnit) / 100; grupos.set(k, g);
+    }
+    let aco: AcoPrancha | undefined;
+    if (grupos.size) {
+      const lin = [...grupos.values()];
+      aco = acoDaFolha(lin.map(({ tipo: _t, ...l }) => l), perdasDe(b), 0, 0);
+      tabelas.push({ titulo: `TABELA DE AÇO — ${pav.nome.toUpperCase()}`, cols: [COLS_TABELA_ACO[0], { w: 36, rot: 'ELEMENTO' }, ...COLS_TABELA_ACO.slice(1)], linhas: lin.map((l) => [l.pos, l.tipo, l.aco, nf(l.phi, 1), String(l.quant), String(l.cUnit), nf(l.cTotal)]) });
+      const rs = resumoAco(aco, b.norma.fck);
+      tabelas.push({ ...rs, rodape: rs.rodape?.slice(0, -1) });
+    }
     out.push(montarFolha({
       b, formato: pl.formato, tipo: 'paredes', titulo: `Alvenaria — planta de blocos · ${pav.nome}`, conteudo: `ALVENARIA ESTRUTURAL — ESQUEMA DOS BLOCOS E DAS ARMADURAS (${pav.nome.toUpperCase()})`, escala: `1:${pl.escala}`, escalaNum: pl.escala, carimbo: o.carimbo,
-      desenho: [], tabelas, legenda: `ESCALA 1:${pl.escala} · duas primeiras fiadas`, avisos: [...pl.avisos], modelo, janela: pl.janela, elementos: doLance.map(({ w }) => w.nome),
+      desenho: [], tabelas, ...(aco ? { aco } : {}), legenda: `ESCALA 1:${pl.escala} · duas primeiras fiadas`, avisos: [...pl.avisos], modelo, janela: pl.janela, elementos: doLance.map(({ w }) => w.nome),
     }));
   }
   return out;

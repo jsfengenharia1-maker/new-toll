@@ -116,3 +116,57 @@ describe('prancha de planta de blocos', () => {
     expect(todas.pranchas.map((x) => x.tipo)).toContain('paredes');
   });
 });
+
+describe('tabela e resumo de aço da alvenaria armada (E6a, C5.6)', () => {
+  it('parede armada sem abertura: barras verticais e de junta conferem com o cálculo à mão', () => {
+    const arm = dim.alvenaria!.paredes.find((w) => w.nome === 'M3')!;
+    expect(arm.aco).toBeDefined();
+    const op = opcoesEmUso(s.modelo.opcoes);
+    expect(op.alvenariaTranspasse).toBe(50);
+    let esperado = 0;
+    for (const p of arm.panos) {
+      const v = p.armadura!.vert!, h = p.armadura!.hor!, H = p.z1 - p.z0;
+      // verticais: floor((L − 0,20)/s) + 1 barras de H + 50φ; junta: floor(H/s) barras do comprimento do pano
+      const nV = Math.floor((p.s1 - p.s0 - 0.2) / v.s + 1e-6) + 1, cV = Math.round((H + (50 * v.phi) / 1000) * 100) / 100;
+      const nH = Math.floor(H / h.s + 1e-6), cH = Math.round((p.s1 - p.s0) * 100) / 100;
+      esperado += nV * cV * Math.PI * (v.phi / 1000) ** 2 / 4 * 7850 + nH * cH * Math.PI * (h.phi / 1000) ** 2 / 4 * 7850;
+    }
+    expect(arm.aco!.peso).toBeCloseTo(esperado, 6);
+    expect(arm.aco!.peso).toBeGreaterThan(0);
+  });
+  it('a soma da tabela de aço da prancha = resumo do dimensionamento (por bitola e total)', () => {
+    const p = montarPranchasAlvenaria(s.modelo, an, dim)[0];
+    expect(p.aco).toBeDefined();
+    const tot = dim.alvenaria!.resumoAco.reduce((a, r) => a + r.peso, 0);
+    expect(tot).toBeGreaterThan(0);
+    expect(p.aco!.peso).toBeCloseTo(tot, 6);
+    for (const r of dim.alvenaria!.resumoAco) {
+      const l = p.aco!.resumo.find((x) => x.aco === r.aco && x.phi === r.phi)!;
+      expect(l.peso).toBeCloseTo(r.peso, 6);
+      expect(l.comprimento).toBeCloseTo(r.comprimento, 6);
+    }
+    expect(p.aco!.resumo).toHaveLength(dim.alvenaria!.resumoAco.length);
+    expect(p.aco!.pesoComPerdas).toBeCloseTo(tot * (1 + p.aco!.perdas / 100), 6);
+    const soma = p.aco!.tabela.reduce((a, l) => a + l.cTotal * Math.PI * (l.phi / 1000) ** 2 / 4 * 7850, 0);
+    expect(soma).toBeCloseTo(tot, 6);
+    const t = textos(p);
+    expect(t.some((x) => /^TABELA DE AÇO — /.test(x))).toBe(true);
+    expect(t.some((x) => /PESO TOTAL \(kg\)/.test(x))).toBe(true);
+    expect(t).toContain('Verga');
+  });
+  it('verga da porta: n barras de (vão + 2 apoios)', () => {
+    const w = dim.alvenaria!.paredes.find((x) => x.nome === 'M1')!, v = w.vergas[0];
+    const b = w.aco!.barras.find((x) => x.tipo === 'verga')!;
+    expect(b.quant).toBe(v.armadura.n);
+    expect(b.comprimento).toBeCloseTo(Math.round((v.largura + 2 * v.apoio) * 100) / 100, 9);
+  });
+  it('transpasse maior aumenta só o peso das verticais (opção nova; padrão fixado em 50 φ)', () => {
+    const m = structuredClone(s.modelo);
+    m.opcoes = { ...(m.opcoes ?? {}), alvenariaTranspasse: 0 };
+    const d0 = dimensionarEdificio(m, analisarEdificio(m));
+    const a0 = d0.alvenaria!.paredes.find((x) => x.nome === 'M3')!.aco!, a1 = dim.alvenaria!.paredes.find((x) => x.nome === 'M3')!.aco!;
+    expect(a1.peso).toBeGreaterThan(a0.peso);
+    const h = (a: typeof a0) => a.barras.filter((x) => x.tipo !== 'vertical').reduce((n, x) => n + x.peso, 0);
+    expect(h(a1)).toBeCloseTo(h(a0), 9);
+  });
+});

@@ -531,6 +531,8 @@ export interface OpcoesCalculo {
   /** Verga da alvenaria de blocos (E1e): apoio em cada lado (cm) e fiadas de canaleta. */
   alvenariaVergaApoio: number;
   alvenariaVergaFiadas: number;
+  /** Alvenaria armada (E6a): transpasse das barras verticais no quantitativo de aço, em diâmetros. */
+  alvenariaTranspasse: number;
   /** Vigas sobre muros de alvenaria (E1e, C6.59): 1 = armar (dimensionar) sempre; 0 = armadura opcional dispensada nas de alvenaria genérica e de coroamento em blocos. */
   alvenariaVigaArmar: number;
   /** Vigas sobre muros (E1e): largura e altura mínimas (cm). */
@@ -1177,6 +1179,8 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Comprimento de apoio da verga e da contraverga além de cada lado da abertura, arredondado para cima ao módulo do bloco.' },
   { chave: 'alvenariaVergaFiadas', rotulo: 'Verga de blocos: fiadas de canaleta', min: 1, max: 4, passo: 1, padrao: 1, fonte: 'Prática de projeto (uma fiada de canaleta grauteada); a confirmar', aConfirmar: true,
     descricao: 'Altura da verga em fiadas de canaleta (cada fiada = altura modular do bloco).' },
+  { chave: 'alvenariaTranspasse', rotulo: 'Alvenaria armada: transpasse das barras verticais', unidade: 'φ', min: 0, max: 100, passo: 5, padrao: 50, fonte: 'Prática de projeto de alvenaria estrutural (comprimento de emenda no quantitativo de aço da prancha); NBR 16868-1 não consultada [a confirmar]', aConfirmar: true,
+    descricao: 'Comprimento somado a cada barra vertical da parede armada (por lance) para a emenda ou o arranque do lance seguinte, em diâmetros da barra. Só afeta o quantitativo de aço (tabela da prancha e memorial).' },
   { chave: 'fundParedeK', rotulo: 'Base de parede sobre sapata corrida: coeficiente de reação do solo (k)', unidade: 'kN/m³', min: 0, max: 1000000, passo: 1000, padrao: 100000, padraoNBR: 0, fonteNBR: 'NBR 6118 e NBR 6122 não fixam o coeficiente: sem mola, base da parede engastada (comportamento anterior)', fonte: 'Programa de referência (padrão alto, 100 000 kN/m³, evita recalque diferencial entre a parede e os pilares de vinculação externa); 0 = engaste; a confirmar', aConfirmar: true,
     descricao: 'Molas de Winkler na base da casca da parede de concreto que nasce na fundação com sapata corrida: vertical k·B por metro e giro em torno do eixo da parede k·B³/12 por metro; deslocamentos horizontais e giro em planta presos. 0 liga o engaste rígido (comportamento anterior). Vale para a parede com base em sapata corrida; a base em viga de fundação usa o k da base elástica.' },
   { chave: 'fundParedeAba', rotulo: 'Base de parede sobre sapata corrida: balanço de cada lado para as molas', unidade: 'cm', min: 0, max: 200, passo: 5, padrao: 30, fonte: 'Estimativa do Statikos (a largura B só é conhecida depois do cálculo); informar B na base da parede substitui', aConfirmar: true,
@@ -1298,7 +1302,7 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   'paredeHorFracVert', 'paredeEspMax', 'paredeEspMin', 'paredeBitolaMax', 'paredeFlambagem', 'paredeEmendaProp', 'paredeEmendaAmpliar', 'paredeAberturaCanto',
   // E1e: verificação, verga e vigas da alvenaria estrutural (só o dimensionamento sobre a análise vigente)
   'alvenariaCumprimento', 'alvenariaTracao', 'alvenariaGamaM', 'alvenariaFkPrisma', 'alvenariaPrisma', 'alvenariaFlambagem', 'alvenariaLambdaMax', 'alvenariaLambdaMaxArmada',
-  'alvenariaExcMin', 'alvenariaCisalhInicial', 'alvenariaCisalhMax', 'alvenariaTaxaVertMin', 'alvenariaTaxaHorMin', 'alvenariaVergaApoio', 'alvenariaVergaFiadas',
+  'alvenariaExcMin', 'alvenariaCisalhInicial', 'alvenariaCisalhMax', 'alvenariaTaxaVertMin', 'alvenariaTaxaHorMin', 'alvenariaVergaApoio', 'alvenariaVergaFiadas', 'alvenariaTranspasse',
   'alvenariaVigaArmar', 'alvenariaVigaBMin', 'alvenariaVigaHMin', 'paredeVigaEmbutida',
   // E2a: seções T/L (flexão na seção T e barras de canto da mesa)
   'mesaDimensionamento', 'mesaBarrasCanto',

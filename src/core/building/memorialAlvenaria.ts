@@ -56,6 +56,17 @@ export function memorialAlvenaria(b: BuildingModel, dim: Dimensionamento): Tabel
     id: 'alv-resumo-blocos', titulo: 'Resumo de blocos por tipo', colunas: ['Bloco', 'Inteiros', 'Meios blocos', 'Peças de canto', 'Canaletas', 'Total', 'Área líquida (m²)'],
     linhas: al.resumoBlocos.map((r) => [r.nome, String(r.inteiros), String(r.meios), String(r.cantos), String(r.canaletas), String(r.total), n(r.area)]),
   });
+  if (al.resumoAco.length) {
+    const ROT = { vertical: 'barra vertical', horizontal: 'junta (horizontal)', verga: 'verga', contraverga: 'contraverga', estribo: 'estribo de verga' } as const;
+    out.push({
+      id: 'alv-aco', titulo: 'Aço da alvenaria armada por parede e lance (mesma lista da tabela de aço das pranchas)', colunas: ['Parede', 'Lance', 'Elemento', 'Aço', 'φ (mm)', 'Quantidade', 'Comprimento unitário (m)', 'Comprimento total (m)', 'Peso (kg)'],
+      linhas: al.paredes.flatMap((w) => (w.aco?.barras ?? []).map((x) => [w.nome, x.nomePav, ROT[x.tipo], x.aco, n(x.phi, 1), String(x.quant), n(x.comprimento), n(x.quant * x.comprimento), n(x.peso)])),
+    });
+    out.push({
+      id: 'alv-resumo-aco', titulo: 'Resumo de aço da alvenaria armada (sem perdas)', colunas: ['Aço', 'φ (mm)', 'Comprimento total (m)', 'Peso (kg)'],
+      linhas: [...al.resumoAco.map((r) => [r.aco, n(r.phi, 1), n(r.comprimento), n(r.peso)]), ['Total', '', n(al.resumoAco.reduce((s, r) => s + r.comprimento, 0)), n(al.resumoAco.reduce((s, r) => s + r.peso, 0))]],
+    });
+  }
   out.push({
     id: 'alv-desligamentos', titulo: 'Pilares em contato com muros de alvenaria', colunas: ['Muro', 'Pilar', 'Pavimento', 'Laje junto ao pilar', 'Desligado do muro'],
     linhas: al.desligamentos.map((d) => [d.nomeParede, d.nomePilar, d.nomePav, d.laje === 'vigotas' ? 'vigotas' : d.laje === 'macica' ? 'maciça' : 'sem laje', d.desligado ? 'sim' : 'não (aviso MURO_PILAR_MACICA)']),

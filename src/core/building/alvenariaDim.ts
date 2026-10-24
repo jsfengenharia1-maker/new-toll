@@ -7,6 +7,7 @@
 // Premissas em `premissas.ts` (ids e1e-*).
 import { barArea } from '../concrete';
 import type { AnaliseEdificio } from './analitico';
+import { acoAlvenariaParede, type AcoAlvParede } from './alvenariaAco';
 import {
   aberturaModular, BITOLAS_HORIZONTAL, BITOLAS_VERTICAL, blocoDe, desligamentosMuroPilar, ehAlvenaria, ESP_HORIZONTAL_MAX, ESP_VERTICAL_MAX, esbeltezAlvenaria, escolherMalhaBlocos,
   flexaoArmadaFaixa, fvdDe, moduloDoBloco, quantitativoAlvenaria, resistenciaAlvenaria, tipoAlvenariaDe, trechoDaAbertura, utilizacaoElemento,
@@ -95,6 +96,8 @@ export interface ResultadoAlvenariaParede {
   resistencia: ResistenciaAlv;
   panos: ResultadoPanoAlv[]; lados: ResultadoLadoAlv[]; vergas: ResultadoVerga[];
   quantitativo?: QuantParede;
+  /** Aço da alvenaria armada (barras verticais, juntas, vergas e estribos) e peso (E6a). */
+  aco?: AcoAlvParede;
   status: 'ok' | 'fail'; mensagens: string[];
 }
 
@@ -104,6 +107,8 @@ export interface ResultadoAlvenaria {
   vigasMuro: ResultadoVigaMuro[];
   /** Blocos por tipo de bloco, somando as paredes de blocos. */
   resumoBlocos: { bloco: string; nome: string; inteiros: number; meios: number; cantos: number; canaletas: number; total: number; area: number }[];
+  /** Resumo do aço da alvenaria armada por aço e bitola (m, kg; sem perdas), somando as paredes (E6a). */
+  resumoAco: { aco: string; phi: number; comprimento: number; peso: number }[];
 }
 
 // ---------------------------------------------------------------- pano
@@ -335,6 +340,7 @@ export function dimensionarAlvenaria(b: BuildingModel, an: AnaliseEdificio, elu:
       }
     }
     // utilização do lado = a pior dos panos e das utilizações; mensagens do lado curto sobem para a parede
+    if (bl && (r.panos.some((p) => p.armadura) || r.vergas.length)) { const m = moduloDoBloco(bl); r.aco = acoAlvenariaParede(r, m.mod, m.alt, aV.aco, op); }
     r.status = [...r.panos, ...r.lados, ...r.vergas].some((x) => x.status === 'fail') ? 'fail' : 'ok';
     saida.push(r);
   }
@@ -345,7 +351,13 @@ export function dimensionarAlvenaria(b: BuildingModel, an: AnaliseEdificio, elu:
     x.inteiros += q.totais.inteiros; x.meios += q.totais.meios; x.cantos += q.totais.cantos; x.canaletas += q.totais.canaletas; x.total += q.totais.total; x.area = r4(x.area + q.totais.area);
     resumo.set(q.bloco, x);
   }
-  return { paredes: saida, desligamentos: desligamentosMuroPilar(b), vigasMuro: vigasSobreMuros(b, op), resumoBlocos: [...resumo.values()] };
+  const ac = new Map<string, { aco: string; phi: number; comprimento: number; peso: number }>();
+  for (const p of saida) for (const x of p.aco?.barras ?? []) {
+    const e = ac.get(`${x.aco}|${x.phi}`) ?? { aco: x.aco, phi: x.phi, comprimento: 0, peso: 0 };
+    e.comprimento += x.quant * x.comprimento; e.peso += x.peso; ac.set(`${x.aco}|${x.phi}`, e);
+  }
+  const resumoAco = [...ac.values()].sort((a, z) => a.aco.localeCompare(z.aco) || a.phi - z.phi);
+  return { paredes: saida, desligamentos: desligamentosMuroPilar(b), vigasMuro: vigasSobreMuros(b, op), resumoBlocos: [...resumo.values()], resumoAco };
 }
 
 /**
