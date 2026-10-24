@@ -1,7 +1,7 @@
 // Fluxos de interface — V (parte 1/1).
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { grupoEdif, tab, telaDe } from './helpers.mjs';
+import { faixaAba, grupoEdif, tab, telaDe } from './helpers.mjs';
 
 export const f_V1 = {
     webgl: true,
@@ -468,5 +468,97 @@ export const f_V4 = {
       await page.getByRole('button', { name: 'Fechar janela 2', exact: true }).click();
       assert.equal(await page.locator('[data-isov-janelas]').getAttribute('data-isov-janelas'), '1');
       assert.equal((await dados(1)).grandeza, 'AsInfX');
+    },
+  };
+
+export const f_V5 = {
+    webgl: true,
+    name: 'V5: esforços por hipótese (envoltória, combinação, caso) em viga e pilar, estado da seção, janelas independentes, símbolos dos pilares e estilo de desenho nas pranchas',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+
+      // ---- a vista aparece nas abas, no Navegador e na faixa (Análise)
+      const vistas = page.locator('.edif-tabs');
+      await vistas.getByRole('tab', { name: 'Esforços', exact: true }).click();
+      await page.getByText('Calcule a estrutura (aba Dimensionamento) para ver os diagramas por hipótese.').waitFor();
+      await vistas.getByRole('tab', { name: 'Planta', exact: true }).click();
+      const arvore = page.getByRole('tree', { name: 'Navegador da obra' });
+      const nv = arvore.getByRole('treeitem', { name: /^Vistas/ });
+      if ((await nv.getAttribute('aria-expanded')) !== 'true') await nv.click();
+      await arvore.getByRole('treeitem', { name: 'Esforços', exact: true }).click();
+      assert.equal(await vistas.getByRole('tab', { name: 'Esforços', exact: true }).getAttribute('aria-selected'), 'true');
+      await vistas.getByRole('tab', { name: 'Planta', exact: true }).click();
+      await faixaAba(page, 'Análise');
+      await page.getByRole('toolbar', { name: /^Comandos: Análise/ }).getByRole('button', { name: 'Ver Esforços', exact: true }).click();
+      assert.equal(await vistas.getByRole('tab', { name: 'Esforços', exact: true }).getAttribute('aria-selected'), 'true');
+
+      // ---- calcula e volta aos esforços
+      await vistas.getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 60000 });
+      await vistas.getByRole('tab', { name: 'Esforços', exact: true }).click();
+
+      const dados = async (n) => JSON.parse(await page.locator(`[data-esf-janela="${n}"]`).getAttribute('data-esf'));
+      // ---- janela 1: viga, envoltória ELU (a primeira hipótese), momento no plano
+      await page.locator('[data-esf-janela="1"]').waitFor();
+      const d1 = await dados(1);
+      assert.equal(d1.tipo, 'viga');
+      assert.equal(d1.envoltoria, true);
+      assert.equal(d1.hipotese, 'env:ELU');
+      assert.ok(d1.max > 5 && d1.min < d1.max && d1.pontos > 20, JSON.stringify(d1));
+      assert.equal(await page.locator('[data-esf-janela="1"] polyline.esf-curva').count(), 1);
+      assert.equal(await page.locator('[data-esf-janela="1"] polyline.esf-curva-min').count(), 1);
+      // caso G: um só valor por ponto, sem a curva do mínimo
+      await page.getByLabel(/^Hipótese \(janela 1\)/).selectOption({ label: 'Caso G' });
+      await page.waitForFunction(() => JSON.parse(document.querySelector('[data-esf-janela="1"]').getAttribute('data-esf')).hipotese === 'caso:G');
+      const dG = await dados(1);
+      assert.equal(dG.envoltoria, false);
+      assert.ok(dG.max > 0 && dG.max < d1.max, JSON.stringify(dG));
+      assert.equal(await page.locator('[data-esf-janela="1"] polyline.esf-curva-min').count(), 0);
+      // a envoltória ELU contém o caso G majorado por 1,4
+      assert.ok(dG.max * 1.4 <= d1.max + 1e-6);
+      // estado da seção da viga: domínio, desenho e barras
+      const sec = page.locator('[data-esf-janela="1"] [data-esf-secao]');
+      await sec.waitFor();
+      assert.match(await sec.getAttribute('data-esf-secao'), /^(2|3|4)$/);
+      assert.ok((await sec.locator('svg.esf-svg circle').count()) >= 2);
+      assert.match(await sec.innerText(), /linha neutra x =/);
+
+      // ---- janela 2 independente: pilar, normal
+      await page.getByRole('button', { name: 'Nova janela de esforços', exact: true }).click();
+      await page.locator('[data-esf-janela="2"]').waitFor();
+      await page.getByLabel(/^Tipo de elemento \(janela 2\)/).selectOption({ label: 'Pilar' });
+      await page.getByLabel(/^Grandeza \(janela 2\)/).selectOption({ label: 'Normal (N)' });
+      await page.getByLabel(/^Hipótese \(janela 2\)/).selectOption({ label: 'Caso G' });
+      await page.waitForFunction(() => { const e = document.querySelector('[data-esf-janela="2"]'); const d = e && JSON.parse(e.getAttribute('data-esf') ?? 'null'); return d && d.tipo === 'pilar' && d.grandeza === 'N' && d.hipotese === 'caso:G'; });
+      const dP = await dados(2);
+      assert.ok(dP.max > 50, JSON.stringify(dP)); // compressão positiva: carga acumulada dos pavimentos
+      assert.equal((await dados(1)).tipo, 'viga'); // a janela 1 não mudou
+      assert.equal((await dados(1)).hipotese, 'caso:G');
+      await page.locator('[data-esf-janela="2"] [data-esf-secao]').waitFor();
+      // fechar a janela 2 mantém a 1
+      await page.getByRole('button', { name: 'Fechar janela 2', exact: true }).click();
+      assert.equal(await page.locator('[data-esf-janela]').count(), 1);
+
+      // ---- pranchas: símbolos dos pilares e estilo de desenho (pela faixa Pranchas)
+      await faixaAba(page, 'Pranchas');
+      await page.getByRole('toolbar', { name: /^Comandos: Pranchas/ }).getByRole('button', { name: 'Estilo de desenho e símbolos…', exact: true }).click();
+      await page.locator('[data-estilo-pranchas]').waitFor();
+      await page.getByLabel(/^Símbolo do pilar que passa/).selectOption({ label: 'Cruz (X)' });
+      assert.equal(await page.getByLabel(/^Símbolo do pilar que passa/).inputValue(), 'cruz');
+      await page.getByLabel(/^Camada do estilo/).selectOption('PILAR');
+      await page.getByLabel(/^Cor ACI da camada/).fill('30');
+      await page.getByLabel(/^Cor ACI da camada/).press('Enter');
+      await page.getByRole('button', { name: 'Voltar ao estilo padrão', exact: true }).click();
+      await page.getByRole('button', { name: 'Símbolos padrão', exact: true }).click();
+      assert.equal(await page.getByLabel(/^Símbolo do pilar que passa/).inputValue(), 'hachura');
+      // folha de perspectiva axonométrica na lista de tipos
+      await page.getByLabel(/^Tipo de prancha/).selectOption({ label: 'Perspectiva axonométrica' });
+      await page.locator('[data-lista-folhas="1"]').waitFor({ timeout: 30000 });
     },
   };
