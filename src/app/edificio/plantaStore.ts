@@ -75,6 +75,8 @@ interface PState {
   detMostrar: { inf: boolean; sup: boolean; pele: boolean; estribos: boolean; secao: boolean };
   /** Camada "Nervuras e cubetas" (E3c): cubetas inteiras das lajes nervuradas bidirecionais do pavimento (não vai para o arquivo). */
   camadaNervuras: boolean;
+  /** Camada "Ábacos" (E3d): zona efetiva dos ábacos das lajes nervuradas bidirecionais do pavimento (não vai para o arquivo). */
+  camadaAbacos: boolean;
   /** Camada "Punção e cortante" (N2d): contornos críticos dos pilares do pavimento e a armadura de punção (não vai para o arquivo). */
   camadaPuncao: boolean;
   /** Ferramenta Armadura de punção: adicionar ou apagar grupos ao clicar num pilar, e o grupo lançado (linhas radiais, barras por linha, φ em mm, espaçamento em m). */
@@ -191,6 +193,7 @@ export const usePlanta = create<PState>((set) => ({
   detMostrar: { inf: true, sup: true, pele: true, estribos: true, secao: true },
   vigotasTodas: false,
   camadaNervuras: false,
+  camadaAbacos: false,
   camadaPuncao: false,
   puncaoModo: 'adicionar',
   puncaoGrupo: { linhas: 8, barras: 3, phi: 6.3, s: 0.12 },

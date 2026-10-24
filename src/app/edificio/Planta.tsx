@@ -341,6 +341,8 @@ export function Planta() {
   const puncaoPlanta = useMemo(() => (pl.camadaPuncao && dimPuncao && pav ? dimPuncao.filter((r) => r.pavimentoId === pav.id) : []), [dimPuncao, pav?.id, pl.camadaPuncao]);
   // nervuradas bidirecionais (E3c): cubetas inteiras do arranjo (camada opcional)
   const cubetasPlanta = useMemo(() => (pl.camadaNervuras ? lajes.flatMap(({ l }) => (arranjoDaLaje(b, l)?.arr.cubetas ?? []).map((cb) => cb.poligono)) : []), [b, lajes, pl.camadaNervuras]);
+  // ábacos das nervuradas bidirecionais (E3d): zona efetiva de cada ábaco (camada opcional)
+  const abacosPlanta = useMemo(() => (pl.camadaAbacos ? lajes.flatMap(({ l }) => (arranjoDaLaje(b, l)?.abacos ?? []).map((e) => e.poligono)) : []), [b, lajes, pl.camadaAbacos]);
   const bloqueados = useMemo(() => idsBloqueados({ vigas: b.vigas, pilares: b.pilares } as BuildingModel), [b.vigas, b.pilares]);
   const comAviso = useMemo(() => new Set(pl.mostrarErros ? [...niveisRev.a].filter((i) => !comErro.has(i)) : []), [niveisRev, comErro, pl.mostrarErros]);
 
@@ -542,6 +544,16 @@ export function Planta() {
         ctx.closePath(); ctx.stroke();
       }
       ctx.globalAlpha = 1;
+    }
+    // ábacos das nervuradas bidirecionais (E3d): zona efetiva sombreada com contorno (camada opcional)
+    if (abacosPlanta.length) {
+      ctx.fillStyle = cores.laje; ctx.strokeStyle = cores.laje; ctx.lineWidth = 1.4;
+      for (const poli of abacosPlanta) {
+        ctx.beginPath();
+        poli.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
+        ctx.closePath();
+        ctx.globalAlpha = 0.22; ctx.fill(); ctx.globalAlpha = 1; ctx.stroke();
+      }
     }
     // painéis de tela soldada da base detalhada (retângulo com diagonais e designação)
     if (painelLajes.length) {
