@@ -5,6 +5,10 @@ import type { Escada } from '../../core/building/escadas';
 import { resumoCalculoEscadas } from '../../core/building/escadasResumo';
 import { useBuilding } from './store';
 import { useEscadaCalculoUI } from './EscadaCalculoUI';
+import { useEscadaArmaduraUI } from './EscadaArmaduraUI';
+import { useMemo } from 'react';
+import { armarEscadas } from '../../core/building/escadasArmadura';
+import { opcoesEmUso, perfilDe } from '../../core/building/opcoes';
 
 export function EscadaPropriedades({ e }: { e: Escada }) {
   const { exec } = useBuilding();
@@ -13,6 +17,9 @@ export function EscadaPropriedades({ e }: { e: Escada }) {
   const lances = res ? resumoCalculoEscadas(res).filter((l) => l.escada === e.nome) : [];
   const soma = (c: 'G' | 'Q') => lances.reduce((t, l) => t + l.reacoes.reduce((u, r) => u + r[c], 0), 0);
   const fmt = (v: number) => v.toFixed(2).replace('.', ',');
+  const b = useBuilding((s) => s.sessao.modelo);
+  const arm = useMemo(() => (res ? armarEscadas(b, res, opcoesEmUso(b.opcoes, perfilDe(b))).lances.filter((l) => l.nome === e.nome) : []), [b, res, e.nome]);
+  const kg = arm.reduce((t, l) => t + l.peso, 0);
   return (
     <div data-escada-propriedades>
       <Group title="Posição">
@@ -35,6 +42,10 @@ export function EscadaPropriedades({ e }: { e: Escada }) {
       <Group title="Cálculo" open={false}>
         <KV rows={[['Reações (G / Q)', lances.length ? `${fmt(soma('G'))} / ${fmt(soma('Q'))} kN` : '—']]} />
         <Button variant="mini" onClick={() => useEscadaCalculoUI.getState().abrir()}>Calcular escada…</Button>
+      </Group>
+      <Group title="Armadura" open={false}>
+        <KV rows={[['Aço (sem perdas)', arm.length ? `${fmt(kg)} kg` : '—'], ['Bloqueada', e.armadura?.bloqueadas?.length ? `${e.armadura.bloqueadas.length} família(s)` : 'não']]} />
+        <Button variant="mini" onClick={() => useEscadaArmaduraUI.getState().abrir(e.id)}>Armadura da escada…</Button>
       </Group>
       <Group title="Cargas" open={false}>
         <div className="row wrap u-items-end">
