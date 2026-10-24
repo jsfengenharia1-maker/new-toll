@@ -25,6 +25,7 @@ import { MemorialEdificio } from './MemorialEdificio';
 import { PaletaComandos } from './PaletaComandos';
 import { DiagonaisHost } from './DiagonaisUI';
 import { ConsolosHost } from './ConsolosUI';
+import { TipoPanoGrupo } from './TipoPano';
 import { PlanosGrupo, PlanosHost } from './PlanosUI';
 import { InclinadasHost } from './InclinadasUI';
 import { EscadaHost } from './EscadaUI';
@@ -224,6 +225,7 @@ export function Edificio() {
           <VigasGrupo b={b} />
           <LancamentoL5Grupo b={b} onPlanta={() => setAba('planta')} />
           <LajesGrupo b={b} />
+          <TipoPanoGrupo b={b} />
           <PlanosGrupo b={b} />
           <AlveolaresGrupo b={b} />
           <NervuradasGrupo b={b} />

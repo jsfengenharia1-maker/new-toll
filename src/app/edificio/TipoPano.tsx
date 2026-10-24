@@ -1,0 +1,78 @@
+// Seletor único de tipo de pano e pano a definir (frente E3f, C7.1, C7.15, C7.16): troca o tipo dos panos selecionados entre vigotas,
+// alveolar, nervurada bidirecional e maciça, ou os transforma em pano a definir (espessura, desnível e plano; o cálculo recusa
+// panos a definir). Radier e laje mista aparecem indisponíveis, com a nota. Comandos: `laje.atribuir` e `laje.aDefinir`.
+import { useState } from 'react';
+import { fichasAlveolaresDisponiveis } from '../../core/building/alveolares';
+import { formasDisponiveis } from '../../core/building/nervuradas';
+import { TIPOS_PANO } from '../../core/building/planos';
+import type { BuildingModel, Laje, TipoLaje } from '../../core/building/types';
+import { Button, Group, Hint, NumField, Select } from '../ui';
+import { useStore } from '../store';
+import { usePlanta } from './plantaStore';
+import { useBuilding } from './store';
+
+type TipoPanoId = (typeof TIPOS_PANO)[number]['id'];
+const idDoTipo = (l: Laje): TipoPanoId => (l.definir ? 'definir' : l.tipo.tipo === 'macica' ? 'macica' : l.tipo.tipo === 'nervurada' ? 'nervurada' : l.tipo.tipo === 'alveolar' ? 'alveolar' : 'vigotas');
+
+/** Tipo de laje inicial ao escolher o tipo de pano: o do lançamento (grupo "Lajes") se for do mesmo tipo; senão um padrão do tipo. */
+function tipoPadrao(b: BuildingModel, id: TipoPanoId, tl: TipoLaje, espessura: number): TipoLaje {
+  if (id === 'macica') return tl.tipo === 'macica' ? tl : { tipo: 'macica', h: espessura };
+  if (id === 'nervurada') return tl.tipo === 'nervurada' ? tl : { tipo: 'nervurada', forma: formasDisponiveis(b)[0]?.id ?? 'cat:rec-60-30', hTotal: 0.35, capa: 0.05 };
+  if (id === 'alveolar') {
+    if (tl.tipo === 'alveolar') return tl;
+    const f = fichasAlveolaresDisponiveis(b)[0]?.ficha;
+    return { tipo: 'alveolar', ficha: f?.id ?? 'ex:alveolar', placa: f?.placas[0]?.id ?? '' };
+  }
+  return tl.tipo === 'vigotas' || tl.tipo === 'trelicada' || tl.tipo === 'moldada' ? tl : { tipo: 'vigotas', ficha: 'cat:trelicadas', serie: 'H12' };
+}
+
+function Corpo({ b, ls }: { b: BuildingModel; ls: Laje[] }) {
+  const { exec } = useBuilding();
+  const pl = usePlanta();
+  const l0 = ls[0], ids = ls.map((l) => l.id);
+  const [escolha, setEscolha] = useState<TipoPanoId>(idDoTipo(l0));
+  const [dica, setDica] = useState('');
+  const [espessura, setEspessura] = useState(l0.espessuraDefinir ?? 0.1);
+  const [nivel, setNivel] = useState(l0.nivel ?? 0);
+  const [plano, setPlano] = useState(l0.plano ?? '');
+  const planos = (b.planos ?? []).filter((p) => p.grupo === l0.grupo);
+  const aviso = (r: { ok: boolean; erros: { mensagem: string }[] }) => { if (!r.ok) useStore.getState().set({ message: r.erros[0]?.mensagem ?? 'Recusado.' }); };
+  const escolher = (id: TipoPanoId) => {
+    const t = TIPOS_PANO.find((x) => x.id === id)!;
+    if (!t.disponivel) { setDica(`${t.rotulo}: ${t.nota ?? 'indisponível'}.`); return; }
+    setDica(''); setEscolha(id);
+    if (id !== 'definir') aviso(exec('laje.atribuir', { ids, tipo: tipoPadrao(b, id, pl.tipoLaje, espessura) }));
+  };
+  return (
+    <div data-tipo-pano>
+      <p className="small"><b>{ls.length > 1 ? `${ls.length} panos` : l0.nome}</b></p>
+      <div className="row wrap">
+        <Select label="Tipo de pano" value={escolha} options={TIPOS_PANO.map((t) => ({ v: t.id, label: t.disponivel ? t.rotulo : `${t.rotulo} (indisponível)` }))} onChange={escolher} />
+      </div>
+      {dica && <Hint>{dica}</Hint>}
+      {escolha === 'definir' && (
+        <div className="row wrap" data-pano-a-definir>
+          <NumField label="Espessura do pano a definir" unit="m" width={120} value={espessura} onChange={(v) => v >= 0.05 && v <= 1.5 && setEspessura(v)} />
+          <NumField label="Desnível do pano a definir" unit="m" width={120} value={nivel} onChange={(v) => v >= -10 && v <= 10 && setNivel(v)} />
+          <Select label="Plano do pano a definir" value={plano} options={[{ v: '', label: 'Horizontal' }, ...planos.map((p) => ({ v: p.id, label: p.nome }))]} onChange={setPlano} />
+          <Button variant="primary" onClick={() => aviso(exec('laje.aDefinir', { ids, espessura, nivel, ...(plano ? { plano } : {}) }))}>Aplicar</Button>
+        </div>
+      )}
+      <Hint>Pano a definir (?): a espessura passa às vigas chatas do contorno; o cálculo recusa panos a definir (erro DEFINIR_PANO) até atribuir o tipo da laje. Radier fecha com a base elástica das fundações; laje mista (aço) fica fora do escopo.</Hint>
+    </div>
+  );
+}
+
+/** Grupo "Tipo de pano" da doca Propriedades: aparece com panos selecionados. */
+export function TipoPanoGrupo({ b }: { b: BuildingModel }) {
+  const pl = usePlanta();
+  const sel = b.lajes.filter((l) => pl.selecao.has(l.id));
+  if (!sel.length) return null;
+  return (
+    <div data-grupo-tipo-pano>
+      <Group title={`Tipo de pano (${sel.length})`} open={false}>
+        <Corpo key={sel.map((l) => l.id).join(',')} b={b} ls={sel} />
+      </Group>
+    </div>
+  );
+}
