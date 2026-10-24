@@ -478,8 +478,8 @@ export const f_E6d = {
     const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
     await cmd('parede.criar {"pontos": [[0, 0], [6, 0]], "espessura": 0.2}');
     await page.waitForFunction(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.paredes?.length === 1, null, { timeout: 20000 });
-    const gp = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Paredes/ }) });
-    await gp.locator(':scope > summary').click();
+    const gp = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Paredes \(/ }) });
+    if (!(await gp.evaluate((d) => d.open))) await gp.locator(':scope > summary').click();
     await gp.getByRole('button', { name: 'Selecionar M1' }).click();
     await gp.locator('table[data-pw-recortes]').waitFor();
     const campo = gp.getByLabel(/^Recorte no fim em/).last();
