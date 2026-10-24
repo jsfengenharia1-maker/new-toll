@@ -11,6 +11,7 @@ import { revisarEdificio } from './revisao';
 import { opcoesEmUso } from './opcoes';
 import { concrete } from '../concrete';
 import { ANTES_N2E } from './antesN2e';
+import { ANTES_N4C } from './antesN4c';
 
 function viga3(vaos: number[], perfil: 'sistema' | 'nbr' = 'sistema', h = 0.45, vao_y = 5) {
   const s = new Sessao();
@@ -38,11 +39,11 @@ describe('R7b: perfil NBR reproduz o detalhamento das vigas anterior', () => {
     for (const [vaos, ref] of [[[5, 5], base.v2], [[5, 5, 5], base.v3]] as const) {
       const t = viga3([...vaos]);
       // baselines gerados com o modelo separado (anterior à N2b): o modelo integrado muda os esforços de todos os edifícios
-      t.ok('opcoes.definir', { valores: { ...NBR_DET, ...ANTES_N2E, modeloGlobal: 0, cortanteBarrasLaje: 0 } });
+      t.ok('opcoes.definir', { valores: { ...NBR_DET, ...ANTES_N2E, ...ANTES_N4C, modeloGlobal: 0, cortanteBarrasLaje: 0 } });
       expect(digest(t.calc())).toEqual(ref);
     }
     const s = edificioExemplo();
-    s.executar('opcoes.definir', { valores: { ...NBR_DET, ...ANTES_N2E, modeloGlobal: 0, cortanteBarrasLaje: 0 } });
+    s.executar('opcoes.definir', { valores: { ...NBR_DET, ...ANTES_N2E, ...ANTES_N4C, modeloGlobal: 0, cortanteBarrasLaje: 0 } });
     expect(digest(dimensionarEdificio(s.modelo, analisarEdificio(s.modelo)))).toEqual(base.ex);
   }, 60000);
   it('o perfil NBR traz esses valores e o do sistema muda o detalhamento', () => {

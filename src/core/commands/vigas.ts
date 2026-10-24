@@ -2,7 +2,7 @@
 // remover, renumerar e ajustar às faces dos pilares.
 import { alturaVigaChata } from '../building/secaoViga';
 import { cortarPoligonal, ehCurva, juntarPoligonais, inverterPoligonal, montarPoligonal } from '../building/curvas';
-import { opcoesEmUso, perfilDe } from '../building/opcoes';
+import { OPCOES_INFO, OPCOES_POR_VIGA, opcoesEmUso, perfilDe, type OpcoesVigaPropria } from '../building/opcoes';
 import type { Draft } from 'immer';
 import { centroPilar, comprimentoPolilinha, deslocarPolilinha, geometriaViga, pavimentosDoGrupo, secaoNoLance, type Alinhamento, type BuildingModel, type FichaPremoldada, type Pilar, type Viga, type Vinculo } from '../building/types';
 import type { Diagnostico } from '../building/verify';
@@ -112,14 +112,14 @@ registrar<{ grupo: string; pontos: P[]; passagens?: Passagens; secao: { b: numbe
 });
 
 registrar<{ id: string; nome?: string; pontos?: P[]; passagens?: Passagens; secao?: { b: number; h: number }; alinhamento?: Alinhamento; invertida?: boolean; nivel?: number; vinculoIni?: Vinculo; vinculoFim?: Vinculo;
-  engasteIni?: number; engasteFim?: number; articulacoes?: string[]; torcaoEquilibrio?: boolean; engasteLajes?: number; foraDiafragma?: boolean; cobrimento?: number; tabela?: string; tabelaEstribo?: string;
+  engasteIni?: number; engasteFim?: number; articulacoes?: string[]; torcaoEquilibrio?: boolean; engasteLajes?: number; foraDiafragma?: boolean; cobrimento?: number; tabela?: string; tabelaEstribo?: string; opcoes?: OpcoesVigaPropria;
   mesa?: { tipo: 'ret' | 'T' | 'L'; bf?: number; hf?: number; a?: number }; chata?: boolean; estrutural?: boolean; amarracao?: boolean;
   vinculoExterno?: 'nenhum' | 'engaste' | 'articulacao' | 'deslizante'; premoldada?: { tipo: 'nenhuma' | 'armada' | 'ficha'; icamento?: number; ficha?: FichaPremoldada } }>({
   nome: 'viga.editar',
-  descricao: 'Altera nome, pontos, seção, alinhamento, invertida, desnível do topo (m), vínculos das extremidades, coeficientes de engaste das pontas (0 = rótula, 1 = engaste), pilares intermediários articulados, torção de equilíbrio (seção bruta), coeficiente de engaste das lajes apoiadas na viga, viga fora do diafragma rígido, cobrimento próprio (cm), seção com mesa (mesa: T, L ou ret; bf, hf e a ausentes = mesa colaborante da NBR 6118 14.6.2.2), viga chata (altura da laje que contorna), viga não estrutural (estrutural: false, só fecha o contorno do pano) ou de amarração (sem rigidez à flexão vertical).',
+  descricao: 'Altera nome, pontos, seção, alinhamento, invertida, desnível do topo (m), vínculos das extremidades, coeficientes de engaste das pontas (0 = rótula, 1 = engaste), pilares intermediários articulados, torção de equilíbrio (seção bruta), coeficiente de engaste das lajes apoiadas na viga, viga fora do diafragma rígido, cobrimento próprio (cm), seção com mesa (mesa: T, L ou ret; bf, hf e a ausentes = mesa colaborante da NBR 6118 14.6.2.2), viga chata (altura da laje que contorna), viga não estrutural (estrutural: false, só fecha o contorno do pano) ou de amarração (sem rigidez à flexão vertical); opcoes = opções de cálculo só desta viga (redistribuição, redistribuição nas faces, arredondamento no apoio, momentos mínimos, estribos), {} volta às da obra.',
   risco: 'escrita',
   // tabela, cobrimento e nome só mudam o dimensionamento; a seção muda rigidez e peso (rearmar com os esforços guardados)
-  calculo: (p) => nivelEdicao(p, ['tabela', 'tabelaEstribo', 'cobrimento'], 'secao'),
+  calculo: (p) => nivelEdicao(p, ['tabela', 'tabelaEstribo', 'cobrimento', 'opcoes'], 'secao'),
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
     id: { type: 'string' }, nome: { type: 'string', minLength: 1 }, pontos: { type: 'array', items: ponto, minItems: 2 }, passagens: passagensSchema, secao: secaoSchema,
     alinhamento: alinSchema, invertida: { type: 'boolean' }, nivel: { type: 'number', minimum: -5, maximum: 5 }, vinculoIni: vincSchema, vinculoFim: vincSchema,
@@ -128,6 +128,8 @@ registrar<{ id: string; nome?: string; pontos?: P[]; passagens?: Passagens; seca
     tabela: { type: 'string', description: 'id da tabela de barras longitudinais (R7a); "padrao" ou vazio volta à padrão da obra' },
     tabelaEstribo: { type: 'string', description: 'id da tabela de estribos (R7a); "padrao" ou vazio volta à padrão da obra' },
     articulacoes: { type: 'array', items: { type: 'string' }, description: 'ids dos pilares intermediários, ou das vigas cruzadas, em que a viga tem rótula' },
+    opcoes: { type: 'object', additionalProperties: false, description: 'opções de cálculo só desta viga (K1.4.1), no lugar das anteriores; {} volta às opções da obra. Chaves e faixas como em opcoes.definir',
+      properties: Object.fromEntries(OPCOES_POR_VIGA.map((k) => { const i = OPCOES_INFO.find((x) => x.chave === k)!; return [k, { type: 'number', minimum: i.min, maximum: i.max, description: i.rotulo }]; })) },
     mesa: { type: 'object', additionalProperties: false, required: ['tipo'], properties: {
       tipo: { type: 'string', enum: ['ret', 'T', 'L'], description: 'ret = retangular (sem mesa)' },
       bf: { type: 'number', exclusiveMinimum: 0, maximum: 10, description: 'largura da mesa (m); ausente = colaborante pela norma' },
@@ -210,6 +212,7 @@ registrar<{ id: string; nome?: string; pontos?: P[]; passagens?: Passagens; seca
         v.premoldada = { tipo: p.premoldada.tipo, ...(p.premoldada.icamento !== undefined ? { icamento: p.premoldada.icamento } : {}), ...(ficha ? { ficha: { ...ficha } } : {}) };
       }
     }
+    if (p.opcoes) { if (Object.keys(p.opcoes).length) v.opcoes = { ...p.opcoes }; else delete v.opcoes; }
     if (p.articulacoes) { if (p.articulacoes.length) v.articulacoes = [...new Set(p.articulacoes)]; else delete v.articulacoes; }
     return `${v.nome} alterada.${aviso}`;
   },

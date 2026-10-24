@@ -13,7 +13,7 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.1 Problema a resolver e escopo (pág. 4) | 8 | 7 | 0 | 0 | 1 |
 | 1.2 Análise realizada (págs. 4–5) | 10 | 9 | 0 | 0 | 1 |
 | 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 47 | 2 | 0 | 10 |
-| 1.4 Opções de cálculo (págs. 15–27) | 92 | 74 | 5 | 0 | 13 |
+| 1.4 Opções de cálculo (págs. 15–27) | 92 | 75 | 4 | 0 | 13 |
 | 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 42 | 3 | 0 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 8 | 0 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
@@ -24,20 +24,20 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 93 | 4 | 0 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 40 | 1 | 0 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
-| 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 22 | 2 | 0 | 19 |
-| **Total** | **661** | **525** | **25** | **0** | **111** |
+| 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 23 | 1 | 0 | 19 |
+| **Total** | **661** | **527** | **23** | **0** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 9 | 0 | 9 |
+| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 7 | 0 | 7 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 4 | 0 | 4 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 3 | 0 | 3 |
 | FU — Fundações | 1 | 0 | 1 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 0 | 0 | 0 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 8 | 0 | 8 |
-| **Total** | **25** | **0** | **25** |
+| **Total** | **23** | **0** | **23** |
 
 ## Divergências de premissa
 
@@ -168,14 +168,14 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 
 | Item | Critério / funcionalidade | Situação | Frente | Statikos |
 |---|---|---|---|---|
-| K1.4.1 | Grande conjunto de parâmetros configuráveis que afetam esforços e dimensionamento; opções gerais, de vigas, de lajes, de ligações; tabelas de armadura e opções por elemento. | Parcial | N | opções de cálculo editáveis com dois perfis de padrão (opcoes.ts) e opções por elemento; N2e acrescentou taxas, espaçamentos, arredondamento, suspensão e barra curta; fecha com as tabelas de armadura da R7a [N2e] — Resíduo [N4c]: redistribuição nas faces, opções por elemento e reprodução do exemplo de flecha ativa. |
+| K1.4.1 | Grande conjunto de parâmetros configuráveis que afetam esforços e dimensionamento; opções gerais, de vigas, de lajes, de ligações; tabelas de armadura e opções por elemento. | Parcial | N | opções de cálculo editáveis com dois perfis de padrão (opcoes.ts); N2e acrescentou taxas, espaçamentos, arredondamento, suspensão e barra curta e fechou as tabelas de armadura da R7a; N4c: opções por viga no núcleo (`Viga.opcoes`, `OPCOES_POR_VIGA`, comando `viga.editar { opcoes }`, mensagem e memória) e redistribuição nas faces (`redistribuicaoFaces`) — Resíduo [V7f]: interface das opções próprias da viga e opções próprias de lajes e pilares |
 | | **1.4.1 Redistribuições (págs. 15–18)** | | | |
 | K1.4.2 | Redistribuição de momentos negativos em vigas e vigotas até 30 % (configurável). | Feito | — | redistribuição dos negativos das vigas (15 %, NBR 0) e, nas vigotas, a mesma opção com `vigotaRedistribuir`, limitada pela NBR 6118 14.6.4.3 em δ ≥ 0,75 (0,90 em nós móveis): o limite de 30 % do programa de referência não é adotado, a NBR prevalece [E3b] |
 | K1.4.3 | Valores recomendados/padrão: 15 % para vigas e 25 % para vigotas (padrão). | Feito | — | redistribuição padrão 15 % nas vigas (opção 0 a 25 %, limites da NBR 14.6.4.3); vigotas fora (N1e) |
 | K1.4.4 | Redistribuição feita após o cálculo (pós-processamento). | Feito | — | aplicada depois da análise, sobre as envoltórias das cargas verticais (N1e) |
 | K1.4.5 | Alerta: redistribuição excessiva gera flechas e fissuração grandes, inadequadas com paredes divisórias. | Fora | — | alerta do manual |
 | K1.4.6 | 25 % nas lajes ≈ igualar momentos negativos e positivos. | Fora | — | comentário do manual |
-| K1.4.7 | Redistribuição aplicada aos momentos negativos nas bordas dos apoios (faces dos pilares), afetando o vão livre; momentos dentro do apoio recalculados a partir da face com o arredondamento de 1.3.2. | Parcial | N | redistribuição nos negativos de apoio atua sobre o diagrama já arredondado (N2e), e não nas faces com recálculo do trecho do apoio como no programa de referência; a confirmar [N2e] — Resíduo [N4c]: redistribuição nas faces, opções por elemento e reprodução do exemplo de flecha ativa. |
+| K1.4.7 | Redistribuição aplicada aos momentos negativos nas bordas dos apoios (faces dos pilares), afetando o vão livre; momentos dentro do apoio recalculados a partir da face com o arredondamento de 1.3.2. | Feito | — | N4c: opção `redistribuicaoFaces` (padrão do sistema 1; NBR 0): ΔM = (1 − δ) × módulo do M na face do pilar, por combinação, linear no vão livre entre as faces, cortante −(ΔMB − ΔMA)/ℓ e, com arredondamento 1, o apoio refeito pela cúbica das faces redistribuídas (`redistribuicao.ts`: `perfisRedistribuicao`; usado na envoltória, em `facesPilar`, na envoltória do desenho e na memória detalhada, exatidão 1e-9 mantida); critério anterior (eixo) fixado nos baselines por `ANTES_N4C`; testes à mão em `redistribuicaoN4c.test.ts`; momento mínimo da face fora do acréscimo do apoio [a confirmar] |
 | K1.4.8 | Em vigas e lajes de vigotas, além da redistribuição, pode-se impor momentos mínimos positivos e negativos de norma. | Feito | — | momentos mínimos p·ℓ²/x positivo e negativo nas vigas (N1e) e nas vigotas (R6), além da redistribuição |
 | K1.4.9 | Coeficiente de engaste no topo do último lance de pilar (ligação com a viga): 0 (rótula) a 1 (engaste); padrão 0,3. | Feito | — | opções de cálculo: engaste no topo do último lance 0–1, padrão 0,3 (N1a) |
 | K1.4.10 | Implementação: interpolação linear das matrizes de rigidez engaste-engaste e engaste-rótula: K = α·Kee + (1−α)·Ker, afetando os termos EI/L do último lance. | Feito | — | fe3d: engaste parcial por interpolação K = α·Kee + (1 − α)·Ker (N1a) |
@@ -853,7 +853,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.15.4-19 | ξ por duração: ≥ 5 anos 2,0; 1 ano 1,4; 6 meses 1,2; 1 mês 0,7; 2 semanas 0,5 (o exemplo usa também 0,8 aos 60 dias e 1,0 aos 120 dias). | Feito | — | ξ(t) da NBR 6118 (Tabela 17.1) com t0 editável no edifício (t0Flecha, N1d) e no Pórtico 2D |
 | K1.15.4-20 | Processo: peso próprio 6,5 kN/m² desformado aos 28 dias (ξ = 2 − 0,7 = 1,3); paredes 1,0 aos 60 dias (1,2); revestimento 1,0 aos 120 dias (1,0); uso só a parcela quase permanente, ψ2 = 0,3 (residencial) → 0,6 kN/m², após 1 ano (ξ = 0,6). | Feito | — | N2f: etapas padrão 28/60/120/365 dias com pp, alvenaria, revestimento e ψ2·Q; ξ(t) da Tabela 17.1 (`ETAPAS_PADRAO`, `xiDias`) |
 | K1.15.4-21 | ξ médio ponderado pelas cargas = 11,01/10,5 ≈ 1,05 → λ ≈ 1,00; δinst = Ke·δi = 1,5·δi; δdif = 1,00·δinst; δtotal = 3,00·δi (valor do fator a usar). | Feito | — | N2f: ξ médio ponderado (Σ Pi·Δξi / P) e fator total (`ComposicaoEtapas.xiMedio`, `fatorTotal`); exemplo registrado reproduzido (3,00·δi) em `flechasEtapas.test.ts` |
-| K1.15.4-22 | Flecha ativa (após as paredes): exclui a instantânea do peso próprio e a diferida dele até 60 dias (ξ = 2 − 0,8 = 1,2); ξ médio 0,987 → λ = 0,93; fração instantânea sem peso próprio 4/10,5 = 0,38; δativa = (0,38·1,5 + 0,93·1,5)·δi = 1,965·δi. | Parcial | N | N2f: ativa sem a instantânea do peso próprio e com a diferida após as paredes; exemplo dá 1,98·δi (registrado 1,965 com λ arredondado) em `flechasEtapas.test.ts`. Parcial: o exemplo do manual registra 1,965·δi (λ 0,93) e a função dá 1,981·δi (λ 0,940): diferença de 0,8 % não reproduzida, tolerância mantida em 0,02 — Resíduo [N4c]: redistribuição nas faces, opções por elemento e reprodução do exemplo de flecha ativa. |
+| K1.15.4-22 | Flecha ativa (após as paredes): exclui a instantânea do peso próprio e a diferida dele até 60 dias (ξ = 2 − 0,8 = 1,2); ξ médio 0,987 → λ = 0,93; fração instantânea sem peso próprio 4/10,5 = 0,38; δativa = (0,38·1,5 + 0,93·1,5)·δi = 1,965·δi. | Feito | — | N2f: ativa sem a instantânea do peso próprio e com a diferida após as paredes (`composicaoEtapas`); N4c: a diferença 1,965 × 1,981 vem de o manual truncar a duas casas a fração instantânea (4/10,5 = 0,381 → 0,38) e o λ (0,987/1,05 = 0,940 ou 0,95·0,987 = 0,937 → 0,93); opção `flechaAtivaTruncada` (padrão 0) reproduz 1,965·δi exato (`flechasEtapas`/`redistribuicaoN4c.test.ts`), sem ela o valor exato é 1,981·δi; a hipótese do truncamento é nossa [a confirmar] |
 | K1.15.4-23 | Conclusão maciça: ativa ≈ 2,0× e total ≈ 3,0× a flecha elástica com seção bruta. | Fora | — | conclusão do exemplo (ver divergências) |
 | K1.15.4-24 | Caso 2, nervurada com caixões perdidos: Ig da zona aliviada 61 567 cm⁴; do ábaco (maciça 30 cm × 82 cm) 184 500 cm⁴; média ao longo do vão 123 033,5 cm⁴. | Fora | — | exemplo numérico |
 | K1.15.4-25 | Hipótese de modelagem: a malha de todo o pano nervurado (zona aliviada e ábaco) usa uma inércia única, igual à metade da zona maciça (no exemplo 92 250 cm⁴), para os deslocamentos elásticos. | Feito | — | inércia única por pano: padrão do sistema = 0,5 × a da faixa maciça, igual nas zonas aliviada e maciça (`nervuradaInercia`); perfil NBR usa a seção T real [E3c] |
@@ -1027,3 +1027,6 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **24/10/2026 — fatia E5m (pilar com vigas em desnível).** K1.12.4-19 passa a Feito: nós intermediários do pilar nas cotas das vigas em desnível (`desnivel.ts`), vigas ligadas neles no pórtico (modelo separado e integrado) e cada trecho verificado com a metodologia do lance (`dimensionarPilares`, `ResultadoPilar.trechos`).
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E diminui (1 item a Feito).
+- **24/10/2026 — fatia N4c (redistribuição nas faces, opções por viga, flecha ativa).** K1.4.7 e K1.15.4-22 passam a Feito: `redistribuicao.ts` (ΔM nas faces, linear no vão livre, apoio refeito pela cúbica; opção `redistribuicaoFaces`, critério do eixo fixado nos baselines por `antesN4c.ts`) e `flechaAtivaTruncada` (1,965 do manual = truncamento a duas casas de 0,381 e 0,94; exato 1,981). K1.4.1 segue Parcial: opções por viga no núcleo (`Viga.opcoes`, `viga.editar { opcoes }`), interface e opções de lajes e pilares na V7f.
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: N diminui (2 itens a Feito); V ganha a V7f.

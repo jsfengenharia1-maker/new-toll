@@ -6,6 +6,7 @@ export const SUGESTOES: Record<string, string> = {
   PLANO_SEPARADO: 'Ligue o modelo integrado (opção “Modelo integrado”) para os panos inclinados saírem do diafragma, com esforços normais e o empuxo passado às vigas e aos pilares; no modelo separado só o peso por área inclinada muda.',
   PLANO_COTAS: 'Corrija as vigas em vermelho copiando a inclinação do pano (plano.corrigirVigas) ou atribua o mesmo plano à viga e ao pano: no nó vale a primeira cota encontrada.',
   // vigas e pilares: dimensionamento
+  OPCOES_VIGA: 'Informativo: esta viga tem opções de cálculo próprias (redistribuição, arredondamento, mínimos ou estribos) que sobrepõem as da obra; remova-as em viga.editar (opcoes vazio).',
   ARREDONDAMENTO: 'Informativo: o diagrama dentro dos apoios internos foi arredondado; mude a opção “arredondamento do diagrama no apoio” (0, 1 ou 2) se o critério do projeto for outro.',
   VIGA_MESA: 'Informativo: largura colaborante da NBR 6118 (14.6.2.2) na rigidez; ligue “Vigas T/L: flexão na seção T” para dimensionar a flexão com a mesa comprimida, ou informe bf e hf na viga.',
   VIGA_AMARRACAO: 'Informativo: viga de amarração sem flexão vertical; se ela deve receber laje ou parede, desligue “amarração” na viga.',

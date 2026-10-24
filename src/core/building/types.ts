@@ -1,6 +1,6 @@
 // Modelo físico do edifício (lançamento por pavimentos). Editado só por comandos (src/core/commands).
 // Unidades: m, kN, graus. Ids são strings curtas estáveis; o nome visível é campo separado e renumerável.
-import { opcoesEmUso, type OpcoesCalculo } from './opcoes';
+import { opcoesEmUso, type OpcoesCalculo, type OpcoesVigaPropria } from './opcoes';
 import type { Boring, FoundationParams, PileType } from '../piles';
 import type { TabelasArmadura } from './tabelasArmadura';
 import type { NormasModelo } from '../normas/tipos';
@@ -553,6 +553,8 @@ export interface Viga {
   tabela?: string;
   /** Tabela de estribos (R7a); ausente = a padrão da obra. */
   tabelaEstribo?: string;
+  /** Opções de cálculo só desta viga (N4c, K1.4.1): redistribuição, arredondamento no apoio, mínimos e estribos; as ausentes seguem as da obra. */
+  opcoes?: OpcoesVigaPropria;
   /** Detalhamento editado (comprimentos, ganchos, posições, zonas de estribos; R7b). */
   detalhe?: DetalheEditado;
   /** Origem do lançamento automático (`dxf:<máscara>:<hash>`), para reimportar sem duplicar (L2). */

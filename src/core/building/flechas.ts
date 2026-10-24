@@ -102,7 +102,7 @@ export interface ComposicaoEtapas {
  * (Δξ = ξ(∞) − ξ(máx(ti, tp))). A variável instantânea entra inteira (`qInstantanea` = 'total', critério do programa
  * de referência) ou só a parcela quase permanente ('qp', combinação quase permanente da NBR 6118, 11.8.3.1).
  */
-export function composicaoEtapas(etapas: EtapaCarga[], d: FlechasInstantaneas, o: { rho?: number; xi?: (dias: number) => number; qInstantanea?: 'total' | 'qp' } = {}): ComposicaoEtapas {
+export function composicaoEtapas(etapas: EtapaCarga[], d: FlechasInstantaneas, o: { rho?: number; xi?: (dias: number) => number; qInstantanea?: 'total' | 'qp'; ativaTruncada?: boolean } = {}): ComposicaoEtapas {
   const xi = o.xi ?? xiDias, xiInf = xi(Infinity), den = 1 + 50 * Math.max(0, o.rho ?? 0);
   const qInst = o.qInstantanea === 'qp' ? d.qqp : d.q;
   const comAlv = etapas.filter((e) => e.alvenaria > 0);
@@ -120,7 +120,14 @@ export function composicaoEtapas(etapas: EtapaCarga[], d: FlechasInstantaneas, o
   }
   const instantanea = instG + qInst, diferida = (difG + difQ) / den, total = instantanea + diferida;
   const qAtiva = tQ >= tp ? qInst : 0;
-  const ativaG = instGAtiva + difGA / den, ativaQ = qAtiva + difQA / den, ativa = ativaG + ativaQ;
+  let ativaG = instGAtiva + difGA / den, ativaQ = qAtiva + difQA / den, ativa = ativaG + ativaQ;
+  // N4c (K1.15.4-22): ativa = (f + λ)·instantânea com f = fração instantânea após as paredes e λ = ξ médio ativo/(1 + 50ρ′),
+  // truncados a duas casas como no exemplo do manual (0,38 e 0,93 → 1,965·δi); αg e αq acompanham a mesma proporção
+  if (o.ativaTruncada && instG + qInst > 0 && ativa > 0) {
+    const tr2 = (x: number) => Math.floor(x * 100 + 1e-9) / 100, inst = instG + qInst;
+    const f = (instGAtiva + qAtiva) / inst, lam = (difGA + difQA) / inst / den, nova = (tr2(f) + tr2(lam)) * inst;
+    ativaG *= nova / ativa; ativaQ *= nova / ativa; ativa = nova;
+  }
   const gTot = d.pp + d.alvenaria + d.revestimento;
   const xiMedio = instantanea > 0 ? (difG + difQ) / instantanea : 0, xiMedioAtiva = instantanea > 0 ? (difGA + difQA) / instantanea : 0;
   return {
@@ -291,7 +298,7 @@ export function mensagensFlechasNovas(f: FlechasElemento): string[] {
 export function memorialFlechas(b: BuildingModel, op: OpcoesCalculo) {
   return TIPOS_ELEMENTO_FLECHA.map(({ v, rotulo }) => {
     const etapas = etapasDe(b, v);
-    const unit = composicaoEtapas(etapas, { pp: 1, alvenaria: 1, revestimento: 1, q: 1, qqp: 1 }, { qInstantanea: op.flechaQInstantanea ? 'total' : 'qp' });
+    const unit = composicaoEtapas(etapas, { pp: 1, alvenaria: 1, revestimento: 1, q: 1, qqp: 1 }, { qInstantanea: op.flechaQInstantanea ? 'total' : 'qp', ativaTruncada: !!op.flechaAtivaTruncada });
     return {
       tipo: v, rotulo, proprias: !!b.flechas?.etapas?.[v],
       etapas: etapas.map((e, i) => ({ ...e, xi: xiDias(e.dias), dXi: unit.porEtapa[i].dXi, dXiAtiva: unit.porEtapa[i].dXiAtiva })),

@@ -54,12 +54,13 @@ import { registrarLajeBarras, registrarLajeBase, registrarLajeCortante, registra
 import { detalharRadier, dimensionarBaseElastica, resumoAcoRadiers, type ResultadoRadier, type ResultadoVigaElastica } from './baseElastica';
 import { calcularCorridas, type ResultadoCorrida } from './sapataCorrida';
 import { temCorridas } from './corridaParede';
-import { opcoesEmUso, perfilDe } from './opcoes';
+import { OPCOES_INFO, opcoesEmUso, perfilDe } from './opcoes';
 import { alturaVigaChata, secaoParaFlexao } from './secaoViga';
 import { calcularBasesMuros, type ResultadoBaseMuro } from './baseMuro';
 import { COMB_ELU_LAJE, COMB_FREQ, COMB_QP, origem, type Origem } from './origem';
 import { bransonFlecha, composicaoEtapas, inerciaMediaVao, etapasDe, fracoesGGrupo, fracoesGLaje, instantaneasPorCategoria, limiteFlecha, limitesEmUso, mensagensFlechasNovas, resolverGrelhaFissurada, resumoFlechas, textoLimite, tipoFlechaLaje, type ComposicaoEtapas, type FlechasElemento, type FlechasInstantaneas, type FracoesG, type TipoFlecha } from './flechas';
 import { dadosDosArcos, ehCurva } from './curvas';
+import { acrescimoEm, acrescimoEst, cortanteRedist, perfisRedistribuicao, tRedist, type PerfilRedist } from './redistribuicao';
 import { armaduraSuspensao, avisoPilarCurto, avisosDoVao, cubicaNoApoio, deltaMApoio, estribosSuspensao, fatorCargaProxima, larguraSuspensao, parcelaAoApoio, reduzirNegativo } from './apoios';
 import { verificarFogo, type ResultadoFogo } from './fogo';
 import { memoriaAtiva } from '../memoria/registrador';
@@ -250,14 +251,13 @@ function abscissa(pts: [number, number][], P: number[], livre = false): number {
 }
 
 /** Envoltória ELU de uma viga (com a redistribuição δ aplicada nos apoios internos), por faixas de 0,25 m. */
-function envoltoriaViga(vaos: { L: number; xs: number[]; s: number[]; M: Float64Array[]; Mv: Float64Array[]; V: Float64Array[]; T: Float64Array[]; ini: number; fim: number }[], elu: CombinacaoEd[], delta: number, interno: (n: number) => boolean, zonas = false): EnvoltoriaViga {
+function envoltoriaViga(vaos: { L: number; xs: number[]; s: number[]; M: Float64Array[]; V: Float64Array[]; T: Float64Array[] }[], elu: CombinacaoEd[], perfis: PerfilRedist[][], zonas = false): EnvoltoriaViga {
   const faixas = new Map<number, EnvoltoriaViga['pontos'][number]>();
   const det = { Mmax: '', Mmin: '', V: '', T: '' }, ext = { Mmax: -Infinity, Mmin: Infinity, V: -Infinity, T: -Infinity };
-  for (const vo of vaos) for (let k = 0; k < elu.length; k++) {
-    const M = vo.M[k], Mv = vo.Mv[k], n = M.length;
-    const dA = delta < 1 && interno(vo.ini) && Mv[0] < 0 ? (1 - delta) * -Mv[0] : 0, dZ = delta < 1 && interno(vo.fim) && Mv[n - 1] < 0 ? (1 - delta) * -Mv[n - 1] : 0;
+  for (const [iv, vo] of vaos.entries()) for (let k = 0; k < elu.length; k++) {
+    const M = vo.M[k], n = M.length, pr = perfis[iv][k];
     for (let i = 0; i < n; i++) {
-      const t = vo.xs[i] / vo.L, m = M[i] + dA * (1 - t) + dZ * t, vv = vo.V[k][i] - (dZ - dA) / vo.L, tt = Math.abs(vo.T[k][i]);
+      const m = acrescimoEst(pr, M[i], i), vv = cortanteRedist(pr, vo.V[k][i]), tt = Math.abs(vo.T[k][i]);
       const key = Math.round(vo.s[i] / 0.25);
       const f = faixas.get(key) ?? { s: key * 0.25, Mmax: -Infinity, Mmin: Infinity, Vmax: -Infinity, Vmin: Infinity, T: 0 };
       f.Mmax = Math.max(f.Mmax, m); f.Mmin = Math.min(f.Mmin, m); f.Vmax = Math.max(f.Vmax, vv); f.Vmin = Math.min(f.Vmin, vv); f.T = Math.max(f.T, tt);
@@ -346,8 +346,8 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
   // vigas pré-moldadas armadas (E2e): γc do controle pré-moldado (NBR 9062) [a confirmar o item]
   const c0 = concretoDe(b, 'viga'), cPM = concretoDe({ ...b, norma: { ...b.norma, controle: 'premoldado' } }, 'viga'), aPos = acoDe(b, 'vigaPos'), aNeg = acoDe(b, 'vigaNeg'), aEst = acoDe(b, 'vigaEstribo'), gs = gamas(b).s;
   const fywd = Math.min(aEst.fyk / gs, 435), fydL = Math.min(aPos.fyd, aNeg.fyd);
-  const op = an.opcoes, af = deltaXi(op.t0Flecha), mem = memoriaAtiva();
-  const caa = CAA_NUM[b.norma.caa], wkLim = op.limiteFissura || crackLimit(caa);
+  const opG = an.opcoes, af = deltaXi(opG.t0Flecha), mem = memoriaAtiva();
+  const caa = CAA_NUM[b.norma.caa], wkLim = opG.limiteFissura || crackLimit(caa);
   const obra = casosDaObra(b), natureza = (id: string) => obra.find((x) => x.id === id)?.natureza ?? 'G';
   const psi2 = (id: string) => obra.find((x) => x.id === id)?.psi?.[2] ?? b.norma.psiQ?.[2] ?? 0.3;
   const fQP: Record<string, number> = Object.fromEntries(an.casos.map((id) => [id, natureza(id) === 'G' || natureza(id) === 'H' ? 1 : natureza(id) === 'Q' ? psi2(id) : 0]));
@@ -379,6 +379,8 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
   for (const v of b.vigas) {
     const membros = pm.barras.map((t, i) => [t, i] as const).filter(([t]) => t.tipo === 'viga' && t.ref === v.id).map(([, i]) => i);
     if (!membros.length) continue;
+    // N4c: opções próprias da viga (K1.4.1) sobrepõem as da obra só nela
+    const op: typeof opG = v.opcoes ? { ...opG, ...v.opcoes } : opG;
     const c = v.premoldada?.tipo === 'armada' ? cPM : c0;
     // E2a: seção T/L na flexão (opção mesaDimensionamento); fissuração e flecha seguem a mesma seção
     const { sec, fcPos, fcNeg, mesa } = secaoParaFlexao(b, v, op);
@@ -530,21 +532,21 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
     }
     // envoltória ELU: momentos mínimos (p·ℓ²/x, p = (V1 + V2)/ℓ das cargas verticais) e depois a
     // redistribuição δ nos apoios internos, que também reduz o negativo mínimo ali
+    const perfisDe = (delta: number) => perfisRedistribuicao(vaos, elu.length, delta, interno, !!op.redistribuicaoFaces, op.arredondamentoApoio);
     const envoltoria = (delta: number) => {
       let Mpos = 0, Mneg = 0, V = 0, T = 0, biela = 0, asw = 0, Asl = 0;
-      for (const vo of vaos) for (let k = 0; k < elu.length; k++) {
-        const M = vo.M[k], Mv = vo.Mv[k], n = M.length, L = vo.L;
-        const dA = delta < 1 && interno(vo.ini) && Mv[0] < 0 ? (1 - delta) * -Mv[0] : 0;
-        const dZ = delta < 1 && interno(vo.fim) && Mv[n - 1] < 0 ? (1 - delta) * -Mv[n - 1] : 0;
+      const perfis = perfisDe(delta);
+      for (const [iv, vo] of vaos.entries()) for (let k = 0; k < elu.length; k++) {
+        const M = vo.M[k], n = M.length, L = vo.L, pr = perfis[iv][k];
         const pl2 = vo.balanco ? 0 : (Math.abs(vo.Vv[k][0]) + Math.abs(vo.Vv[k][n - 1])) * (vo.Lc ?? L);
         if (op.momentoMinPositivo && pl2 > 0) Mpos = Math.max(Mpos, pl2 / op.momentoMinPositivo);
         if (op.momentoMinNegativo && pl2 > 0) for (const no of [vo.ini, vo.fim]) if (noPilar.has(no)) Mneg = Math.min(Mneg, (-pl2 / op.momentoMinNegativo) * (interno(no) ? delta : 1));
         for (let i = 0; i < n; i++) {
-          const t = vo.xs[i] / L, m = M[i] + dA * (1 - t) + dZ * t;
+          const m = acrescimoEst(pr, M[i], i);
           Mpos = Math.max(Mpos, m); Mneg = Math.min(Mneg, m);
           if (!vo.corte[i]) continue;
           // dM/dx = −Vy: o acréscimo linear de momento muda o cortante em −(dZ − dA)/ℓ
-          const vv = Math.abs(vo.V[k][i] - (dZ - dA) / L), tt = tor ? Math.abs(vo.T[k][i]) : 0;
+          const vv = Math.abs(cortanteRedist(pr, vo.V[k][i])), tt = tor ? Math.abs(vo.T[k][i]) : 0;
           V = Math.max(V, vv); T = Math.max(T, tt);
           // torsionRect por estação sem alocar: geometria fixa (tor) e as mesmas expressões de A90/s e Asl
           const T1 = tt ? Math.abs(tt) / 1000 : 0, a90S = tt ? T1 / (2 * tor!.Ae * fywd) : 0;
@@ -554,7 +556,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
           if (tt) Asl = Math.max(Asl, (T1 * tor!.ue) / (2 * tor!.Ae * fydL));
         }
         // com arredondamento, o dimensionamento não fica abaixo do momento nas faces do apoio (já com a redistribuição)
-        if (op.arredondamentoApoio) for (const f of vo.faces) { const t = f.x / L, m = f.M[k] + dA * (1 - t) + dZ * t; Mpos = Math.max(Mpos, m); Mneg = Math.min(Mneg, m); }
+        if (op.arredondamentoApoio) for (const f of vo.faces) { const m = acrescimoEm(pr, f.M[k], f.x); Mpos = Math.max(Mpos, m); Mneg = Math.min(Mneg, m); }
       }
       return { Mpos, Mneg, V, T, biela, asw, Asl };
     };
@@ -569,16 +571,15 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
       delta = Math.min(1, req + 0.005); env = envoltoria(delta);
     }
     const { Mpos, Mneg, V } = env;
-    const envolt = envoltoriaViga(vaos, elu, delta, interno, op.envoltoriaCortante === 1);
+    const perfisFinal = perfisDe(delta);
+    const envolt = envoltoriaViga(vaos, elu, perfisFinal, op.envoltoriaCortante === 1);
     prolongarSobreParede(b, an, v, vaos, envolt, op.vigaApoioLongProlong);
     // momento na face dos pilares: mesma redistribuição linear δ do vão (envoltória ELU)
     const facesPilar: ResultadoViga['facesPilar'] = [];
-    for (const vo of vaos) for (const f of vo.faces) {
+    for (const [iv, vo] of vaos.entries()) for (const f of vo.faces) {
       let Mmax = -Infinity, Mmin = Infinity, cMax = '', cMin = '';
       for (let k = 0; k < elu.length; k++) {
-        const Mv = vo.Mv[k], n = Mv.length;
-        const dA = delta < 1 && interno(vo.ini) && Mv[0] < 0 ? (1 - delta) * -Mv[0] : 0, dZ = delta < 1 && interno(vo.fim) && Mv[n - 1] < 0 ? (1 - delta) * -Mv[n - 1] : 0;
-        const t = f.x / vo.L, m = f.M[k] + dA * (1 - t) + dZ * t;
+        const m = acrescimoEm(perfisFinal[iv][k], f.M[k], f.x);
         if (m > Mmax) { Mmax = m; cMax = elu[k].nome; }
         if (m < Mmin) { Mmin = m; cMin = elu[k].nome; }
       }
@@ -612,7 +613,8 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
       if (q.a <= d + 1e-9) msgs.push(`Carga próxima ao apoio: carga concentrada a ${f2(q.a)} m da face (≤ d = ${f2(d)} m) forma biela e tirante direto ao apoio (consolo curto): verificação e armadura horizontal manuais (NBR 6118, 17.4.1.2.1 e 22.3).`);
       else msgs.push(`Carga próxima ao apoio: carga concentrada a ${f2(q.a)} m da face (d < a < 2d): cortante da carga multiplicado por a/2d = ${f2(q.a / (2 * d))} (NBR 6118, 17.4.1.2.1).`);
     }
-    if (op.redistribuicao > 0 && vaos.some((vo) => interno(vo.ini) || interno(vo.fim))) msgs.push(`Redistribuição nos apoios internos: δ = ${delta.toFixed(2).replace('.', ',')}${delta > 1 - op.redistribuicao / 100 + 1e-6 ? ` (limitado: ${deltaMin === 0.9 ? 'nós móveis, δ ≥ 0,90' : 'δ ≥ 0,75'} e δ ≥ ${deltaX.toFixed(2).replace('.', ',')} + 1,25·x/d)` : ''}.`);
+    if (op.redistribuicao > 0 && vaos.some((vo) => interno(vo.ini) || interno(vo.fim))) msgs.push(`Redistribuição nos apoios internos: δ = ${delta.toFixed(2).replace('.', ',')}${delta > 1 - op.redistribuicao / 100 + 1e-6 ? ` (limitado: ${deltaMin === 0.9 ? 'nós móveis, δ ≥ 0,90' : 'δ ≥ 0,75'} e δ ≥ ${deltaX.toFixed(2).replace('.', ',')} + 1,25·x/d)` : ''}${op.redistribuicaoFaces ? '; aplicada nas faces dos pilares, com o trecho do apoio recalculado' : ''}.`);
+    if (v.opcoes && Object.keys(v.opcoes).length) msgs.push(`Opções próprias da viga: ${Object.entries(v.opcoes).map(([k, x]) => `${OPCOES_INFO.find((i) => i.chave === k)?.rotulo ?? k} = ${String(x).replace('.', ',')}`).join('; ')}.`);
     let AsInf = Math.max(flx(Mpos, dI, d2I, aPos.fyd, fcPos), asMinViga(dI, aPos.fyd, fcPos)), AsSup = Mneg < 0 ? flx(-Mneg, dS, d2S, aNeg.fyd, fcNeg) : 0;
     const AsFlex: [number, number] = [AsInf, AsSup];
     const fi = beamFlexure(sec, fcPos, Mpos, dI, d2I, c, aPos.fyd), fs = beamFlexure(sec, fcNeg, -Mneg, dS, d2S, c, aNeg.fyd);
@@ -707,7 +709,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
     type Cand = { L: number; balanco: boolean; inst: FlechasInstantaneas; comp: ComposicaoEtapas; total: number };
     const cands: Cand[] = cadF.map((x) => {
       const inst = instantaneasPorCategoria(x.d[0], frV, x.d[1], x.d[2]);
-      const comp = composicaoEtapas(etV, inst, { rho: rhoL, qInstantanea: qInst });
+      const comp = composicaoEtapas(etV, inst, { rho: rhoL, qInstantanea: qInst, ativaTruncada: !!op.flechaAtivaTruncada });
       return { L: x.L, balanco: x.balanco, inst, comp, total: op.flechaEtapas ? comp.total : (x.d[0] + x.d[2]) * (1 + afR) };
     });
     const pior = (val: (k: Cand) => number, t: TipoFlecha) => cands.reduce<{ k: Cand | null; r: number }>((m, k) => { const lim = limiteFlecha(k.L, limsV[t], k.balanco), r = Number.isFinite(lim) ? val(k) / lim : val(k) / (k.balanco ? 2 * k.L : k.L); return r > m.r ? { k, r } : m; }, { k: null, r: 0 }).k;
@@ -752,22 +754,24 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
     if (mem) {
       // memória detalhada (MD): estação e combinação que dão cada extremo, com os valores por caso refeitos na mesma ordem da soma
       const compor = (alvo: number, campo: 'M' | 'V'): ComposicaoEsforco | undefined => {
-        for (const vo of vaos) for (let k = 0; k < elu.length; k++) {
-          const Mv = vo.Mv[k], n = Mv.length;
-          const dA = delta < 1 && interno(vo.ini) && Mv[0] < 0 ? (1 - delta) * -Mv[0] : 0, dZ = delta < 1 && interno(vo.fim) && Mv[n - 1] < 0 ? (1 - delta) * -Mv[n - 1] : 0;
+        for (const [iv, vo] of vaos.entries()) for (let k = 0; k < elu.length; k++) {
+          const n = vo.Mv[k].length, pr = perfisFinal[iv][k];
           for (let i = 0; i < n; i++) {
-            const t = vo.xs[i] / vo.L, val = campo === 'M' ? vo.M[k][i] + dA * (1 - t) + dZ * t : vo.corte[i] ? Math.abs(vo.V[k][i] - (dZ - dA) / vo.L) : NaN;
+            const val = campo === 'M' ? acrescimoEst(pr, vo.M[k][i], i) : vo.corte[i] ? Math.abs(cortanteRedist(pr, vo.V[k][i])) : NaN;
             if (val !== alvo || !vo.org) continue;
             const o = vo.org[i], pc = porCaso(an, o.bi, [o.x]), parcelas: [string, number, number][] = [];
             for (const nome in elu[k].fatores) { const e = pc[nome]; if (e) parcelas.push([nome, elu[k].fatores[nome], e[0][campo === 'M' ? 'Mz' : 'Vy']]); }
-            return { combinacao: elu[k].nome, s: vo.s[i], parcelas, combinado: campo === 'M' ? vo.M[k][i] : vo.V[k][i], dA, dZ, t, L: vo.L, total: val };
+            // estação dentro do apoio recalculado (critério das faces): o acréscimo vem da cúbica refeita, informado inteiro em dA
+            const apoio = campo === 'M' && pr.ex !== null && !Number.isNaN(pr.ex[i]);
+            const tt = tRedist(pr, vo.xs[i]);
+            return { combinacao: elu[k].nome, s: vo.s[i], parcelas, combinado: campo === 'M' ? vo.M[k][i] : vo.V[k][i], dA: apoio ? pr.ex![i] : pr.dA, dZ: apoio ? 0 : pr.dZ, t: apoio ? 0 : tt, L: pr.Lref, total: val, ...(apoio ? { apoio: true } : {}) };
           }
         }
         return undefined;
       };
       registrarViga(mem, {
         elemento: `Viga ${v.nome}`, b: v.secao.b, h: v.secao.h, c, fyk: aPos.fyk, fydPos: aPos.fyd, fydNeg: aNeg.fyd, fywk: aEst.fyk, fywd, gs, cob, dI, dS, d2I, d2S, d,
-        sec, fcPos, fcNeg, taxaMin: op.vigaTaxaMin, Mpos, Mneg, V, delta, redistribuicao: op.redistribuicao, deltaMin, deltaX, det: envolt.determinantes,
+        sec, fcPos, fcNeg, taxaMin: op.vigaTaxaMin, Mpos, Mneg, V, delta, redistFaces: !!op.redistribuicaoFaces, redistribuicao: op.redistribuicao, deltaMin, deltaX, det: envolt.determinantes,
         comp: { Mpos: compor(Mpos, 'M'), ...(Mneg < 0 ? { Mneg: compor(Mneg, 'M') } : {}), V: compor(V, 'V') },
         env: { asw: env.asw, T: env.T, biela: env.biela, Asl: env.Asl }, AsNec: AsFlex, AsInf, AsSup, bi, bs, bloq,
         VRd2, Vc0, aswMin, aswS, smax, est, al, MkPos, MkNeg, wk: [wkI, wkS], wkLim, caa,
@@ -1751,7 +1755,7 @@ function finalizarFlechaLaje(b: BuildingModel, op: AnaliseEdificio['opcoes'], x:
 function flechasDaLaje(b: BuildingModel, op: AnaliseEdificio['opcoes'], l: BuildingModel['lajes'][number], x: Pick<PendenteFlecha, 'flQP' | 'dG' | 'dQ' | 'dQqp' | 'vao'>, kappa: number, af: number) {
   const mac = l.tipo.tipo === 'macica' || l.tipo.tipo === 'nervurada', tipoL = tipoFlechaLaje(l), lims = limitesEmUso(b, op, tipoL);
   const inst = instantaneasPorCategoria(x.dG * kappa, fracoesGLaje(b, l), x.dQ * kappa, x.dQqp * kappa);
-  const comp = composicaoEtapas(etapasDe(b, tipoL), inst, { rho: 0, qInstantanea: op.flechaQInstantanea ? 'total' : 'qp' });
+  const comp = composicaoEtapas(etapasDe(b, tipoL), inst, { rho: 0, qInstantanea: op.flechaQInstantanea ? 'total' : 'qp', ativaTruncada: !!op.flechaAtivaTruncada });
   const fatA = mac ? op.fatorFlechaAtiva : op.fatorFlechaAtivaTrelicada, fatC = mac ? op.fatorFlechaConforto : op.fatorFlechaConfortoTrelicada;
   const total = op.fatorFlechaLaje > 0 ? x.flQP * op.fatorFlechaLaje : op.flechaEtapas ? comp.total : x.flQP * kappa * (1 + af);
   const ativa = fatA > 0 ? (x.dG + x.dQ) * fatA : comp.ativa;

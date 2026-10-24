@@ -399,6 +399,8 @@ export interface OpcoesCalculo {
   pilarTaxaMin: number;
   /** Arredondamento do diagrama no apoio (N2e): 0 = sem; 1 = parábola cúbica entre as faces (M e V das faces); 2 = ΔM = R·t/8 (NBR 6118, 14.6.3). */
   arredondamentoApoio: number;
+  /** Redistribuição nas faces dos pilares (N4c, K1.4.7): 1 = ΔM = (1 − δ)·|M na face|, linear no vão livre e apoio recalculado; 0 = no eixo (primeiro ponto da parte flexível), linear no vão todo. */
+  redistribuicaoFaces: number;
   /** Momento negativo mínimo na face do apoio, em % do momento no eixo (0 = sem mínimo; critério do EC2: 65). */
   momentoFaceMin: number;
   /** 1 = viga apoiada em viga com trecho rígido até a face da viga de apoio (K1.3.46). */
@@ -438,6 +440,8 @@ export interface OpcoesCalculo {
   flechaEtapas: number;
   /** 1 = a variável entra inteira na instantânea (critério da referência); 0 = só ψ2·Q (combinação quase permanente). */
   flechaQInstantanea: number;
+  /** Flecha ativa com os fatores arredondados (truncados) a duas casas, como o exemplo do manual (N4c, K1.15.4-22): 1 = sim. */
+  flechaAtivaTruncada: number;
   /** 1 = ρ′ das barras de compressão (porta-estribos) na fluência das vigas, αf = Δξ/(1 + 50ρ′); 0 = ρ′ = 0. */
   flechaRhoLinha: number;
   /** 1 = estádio I com a seção homogeneizada (αe = Es/Ecs) no Branson; 0 = seção bruta (NBR 6118, 17.3.2.1.1). */
@@ -1041,7 +1045,9 @@ export const OPCOES_INFO: OpcaoInfo[] = [
   { chave: 'vigaApoioLongEixos', rotulo: 'Viga em parede: vão de cálculo limitado à distância entre eixos', min: 0, max: 1, passo: 1, padrao: 1, fonte: 'Programa de referência (vão de cálculo = menor entre a distância entre eixos e o vão livre + 2 alturas); NBR 6118, 14.6.2.4: cada ai ≤ t/2; a confirmar', aConfirmar: true,
     descricao: 'Ligado, o vão de cálculo da viga sobre parede ou pilar-parede é o menor entre vão livre + acréscimo e a distância entre os eixos dos apoios (centro do contato; para a viga cruzada, o ponto onde o eixo a cruza).' },
   { chave: 'arredondamentoApoio', rotulo: 'Arredondamento do diagrama no apoio', min: 0, max: 2, passo: 1, padrao: 1, padraoNBR: 2, fonteNBR: 'NBR 6118, 14.6.3 e Figura 14.7: ΔM = R·t/8 no apoio', fonte: 'Critério do programa de referência: parábola cúbica entre as faces do apoio com M e V das faces (manual de cálculo)', aConfirmar: false,
-    descricao: '0 = sem arredondamento (diagrama do modelo); 1 = dentro do apoio, M(x) = a·x³ + b·x² + c·x + d com M e V das duas faces (Q = 3a·x² + 2b·x + c); 2 = reduz o momento negativo do apoio de ΔM = R·t/8 (R reação, t largura do apoio). A redistribuição atua sobre o diagrama já arredondado [a confirmar: no programa de referência atua nas faces e o trecho do apoio é recalculado depois].' },
+    descricao: '0 = sem arredondamento (diagrama do modelo); 1 = dentro do apoio, M(x) = a·x³ + b·x² + c·x + d com M e V das duas faces (Q = 3a·x² + 2b·x + c); 2 = reduz o momento negativo do apoio de ΔM = R·t/8 (R reação, t largura do apoio). Com “Redistribuição nas faces” ligada, o trecho do apoio é recalculado a partir das faces já redistribuídas; desligada, a redistribuição atua sobre o diagrama já arredondado.' },
+  { chave: 'redistribuicaoFaces', rotulo: 'Redistribuição nas faces dos pilares', min: 0, max: 1, passo: 1, padrao: 1, padraoNBR: 0, booleana: true, fonteNBR: 'NBR 6118, 14.6.4.3: redistribuição do momento do eixo (diagrama do modelo), sem recálculo do trecho do apoio', fonte: 'Critério do programa de referência (K1.4.7): redistribuição aplicada aos negativos nas bordas dos apoios, afetando o vão livre, e momentos dentro do apoio recalculados a partir da face', aConfirmar: false,
+    descricao: '1 = ΔM = (1 − δ)·|M| lido na face de cada pilar, somado linearmente ao longo do vão livre entre as faces (cortante muda de −(ΔMB − ΔMA)/ℓ); dentro do apoio o diagrama é refeito pela cúbica do arredondamento com os momentos e cortantes redistribuídos das faces (só com arredondamento = 1; nos outros casos vale o ΔM da face). 0 = ΔM = (1 − δ)·|M| do primeiro/último ponto da parte flexível, linear no vão todo. Os limites de δ não mudam.' },
   { chave: 'momentoFaceMin', rotulo: 'Momento mínimo na face do apoio', unidade: '% do M no eixo', min: 0, max: 100, passo: 5, padrao: 0, fonte: 'EC2 (65 % do momento no eixo) citado pelo manual do programa de referência; padrão 0 nos dois perfis. O momento no eixo é o da estação mais próxima do eixo (a parte flexível começa em face − 0,3h) [a confirmar]', aConfirmar: true,
     descricao: 'Limite inferior do módulo do momento negativo dentro do apoio após o arredondamento, em % do momento do modelo na estação mais próxima do eixo. 0 = sem mínimo.' },
   { chave: 'vigaApoiadaRigida', rotulo: 'Viga apoiada em viga: trecho rígido até a face da viga de apoio', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Critério do programa de referência (dimensão da viga de apoio considerada como a dos pilares); sem o recuo da NBR 6118 (face − 0,3h), usa-se a face inteira [a confirmar]', aConfirmar: true,
@@ -1081,6 +1087,8 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Flecha diferida de cada parcela de carga desde a idade em que é aplicada (etapas: desforma, alvenaria, revestimento, uso), com ξ médio ponderado. 0 = uma só idade t0 para toda a carga (1 + αf).' },
   { chave: 'flechaQInstantanea', rotulo: 'Variável inteira na flecha instantânea', min: 0, max: 1, passo: 1, padrao: 1, padraoNBR: 0, booleana: true, fonteNBR: 'NBR 6118, 11.8.3.1 e 17.3.2.1: combinação quase permanente (ψ2·Q)', fonte: 'Exemplo do manual de cálculo do programa de referência (instantânea com a carga total, fluência só da parcela quase permanente)', aConfirmar: false,
     descricao: '1 = a flecha instantânea inclui toda a carga variável e a diferida só ψ2·Q; 0 = só ψ2·Q nas duas (combinação quase permanente).' },
+  { chave: 'flechaAtivaTruncada', rotulo: 'Flecha ativa com fatores truncados a duas casas', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Exemplo do manual de cálculo do programa de referência (K1.15.4-22): fração instantânea 4/10,5 = 0,38 e λ = 0,987/1,05 = 0,93, truncados em duas casas, dão 1,965·δi (sem truncar: 1,981·δi); a confirmar', aConfirmar: true,
+    descricao: '1 = a flecha ativa é (f + λ)·instantânea com a fração instantânea f das cargas após as paredes e o λ da diferida após elas truncados a duas casas decimais, reproduzindo o exemplo do manual. 0 = valores exatos (padrão nos dois perfis).' },
   { chave: 'flechaRhoLinha', rotulo: 'Armadura de compressão na fluência (ρ′)', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6118, 17.3.2.1.2: αf = Δξ/(1 + 50ρ′); ρ′ das vigas = 2 barras de montagem no vão [a confirmar]; lajes sem armadura superior no vão (ρ′ = 0)', aConfirmar: true,
     descricao: 'Vigas: ρ′ = As′/(b·d) com as duas barras de montagem (porta-estribos) da bitola de montagem. 0 = ρ′ = 0.' },
   { chave: 'inerciaHomogeneizada', rotulo: 'Branson com a seção homogeneizada', min: 0, max: 1, passo: 1, padrao: 1, padraoNBR: 0, booleana: true, fonteNBR: 'NBR 6118, 17.3.2.1.1: Ic da seção bruta', fonte: 'Manual de cálculo do programa de referência (inércia bruta, homogeneizada e fissurada); αe = Es/Ecs', aConfirmar: false,
@@ -1286,10 +1294,10 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   'puncaoVerificar', 'puncaoTipoArmadura', 'puncaoS0', 'puncaoSr', 'puncaoFuroDist', 'puncaoVigaChata', 'cortanteLajes', 'cortanteVarredura',
   'cortanteVarreduraPasso', 'puncaoNervCortante', 'pilarLancesDesligados', 'pilarFluencia', 'pilarTaxaMin', 'rearmarLimiteRigidez',
   'vigaApoioLongProlong', 'vigaApoioLongBarras', 'vigaApoioLongVao', 'vigaApoioLongEixos',
-  'arredondamentoApoio', 'momentoFaceMin', 'envoltoriaCortante', 'vigaTaxaMin', 'lajeTaxaMin', 'vigaEstriboSmax', 'vigaEstriboSmin',
+  'arredondamentoApoio', 'redistribuicaoFaces', 'momentoFaceMin', 'envoltoriaCortante', 'vigaTaxaMin', 'lajeTaxaMin', 'vigaEstriboSmax', 'vigaEstriboSmin',
   'lajeMomentoMinPositivo', 'lajeMomentoMinNegativo', 'vigaSuspensao', 'vigaSuspensaoFator', 'criterioLinear', 'cargaProximaApoio', 'vigaEstriboComprimida',
   // N2f: flechas por etapas (só o dimensionamento)
-  'flechaEtapas', 'flechaQInstantanea', 'flechaRhoLinha', 'inerciaHomogeneizada', 'flechaRotacaoBalanco', 'fissuracaoLajes', 'inerciaMediaVao',
+  'flechaEtapas', 'flechaQInstantanea', 'flechaAtivaTruncada', 'flechaRhoLinha', 'inerciaHomogeneizada', 'flechaRotacaoBalanco', 'fissuracaoLajes', 'inerciaMediaVao',
   'limiteFlechaAtiva', 'limiteFlechaAtivaAbs', 'limiteFlechaInst', 'fatorFlechaAtiva', 'fatorFlechaAtivaTrelicada', 'fatorFlechaConforto', 'fatorFlechaConfortoTrelicada',
   // N2g: resistência ao fogo (só o dimensionamento)
   'fogoTRRF', 'fogoPilarMetodo', 'fogoMuFi', 'fogoFacesPilar', 'fogoLefReducao', 'fogoLajeCompartimentadora',
@@ -1340,6 +1348,17 @@ export const OPCOES_DIFERENTES_NBR = OPCOES_INFO.filter((o) => o.padraoNBR !== u
 export function opcoesEmUso(o?: Partial<OpcoesCalculo>, perfil: PerfilOpcoes = 'sistema'): OpcoesCalculo {
   return { ...(perfil === 'nbr' ? OPCOES_PADRAO_NBR : OPCOES_PADRAO_CALCULO), ...o };
 }
+
+/**
+ * Opções que uma viga pode ter só para ela (N4c, K1.4.1: opções por elemento). Só as que atuam no dimensionamento da viga
+ * (estão em OPCOES_DETALHE): mudar uma refaz o dimensionamento sem nova análise.
+ */
+export const OPCOES_POR_VIGA = [
+  'redistribuicao', 'redistribuicaoFaces', 'arredondamentoApoio', 'momentoFaceMin', 'momentoMinPositivo', 'momentoMinNegativo',
+  'vigaTaxaMin', 'vigaEstriboSmax', 'vigaEstriboSmin', 'envoltoriaCortante', 'cargaProximaApoio',
+] as const satisfies readonly (keyof OpcoesCalculo)[];
+/** Opções próprias de uma viga (sobrepõem as gerais da obra só nessa viga). */
+export type OpcoesVigaPropria = Partial<Pick<OpcoesCalculo, (typeof OPCOES_POR_VIGA)[number]>>;
 
 /** Opções que diferem do padrão do perfil. */
 export function opcoesAlteradas(o?: Partial<OpcoesCalculo>, perfil: PerfilOpcoes = 'sistema'): OpcaoInfo[] {

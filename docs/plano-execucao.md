@@ -25,7 +25,7 @@ No máximo 3 lanes de código ao mesmo tempo, mais 1 agente de documentação (s
 | Onda 4 | E2 → E3a–E3f | L1 → L5 | V1 → V2 | auditoria N |
 | Onda 5 | E4a–E4e (a E4e depois de V1, V4 e V5); E5a–E5m (resíduos da frente E, após a auditoria E) | — | V3 → V4 → V5 | auditoria E, L e V |
 | Onda 5 | E4a–E4e (a E4e depois de V1, V4 e V5); E5a–E5l (resíduos da frente E, após a auditoria E) | — | V3 → V4 → V5 | auditoria E, L e V |
-| Onda 6 (resíduos, 25/10/2026) | E6a → E6c → E6b | R8a → R8b | V7a–V7e; N4c; N4a e N4b quando o usuário enviar o material | auditoria dos resíduos |
+| Onda 6 (resíduos, 25/10/2026) | E6a → E6c → E6b | R8a → R8b | V7a–V7f; N4c; N4a e N4b quando o usuário enviar o material | auditoria dos resíduos |
 | Fechamento | revisão numérica (Wp de borda/canto da punção, queda de momentos das vigas no modelo integrado, bloco multi-pilar com sinal do momento), desempenho (13 pavimentos ≤ 3 s, teste no CI), pacote (divisão em partes sob demanda), republicação do artifact, revisão final dos "a confirmar" | | | |
 
 Dependências que definem a ordem: FU7b depende de E1 (muros); E3 aproveita as vigotas da R6/R7; V usa os resultados de N2 e E; L (lançamento por DXF/IFC) não depende de nada e fica depois da R7 por dividir arquivos da planta com a R7-0.
@@ -107,6 +107,7 @@ Escalonamento: se um agente S falhar a verificação duas vezes ou relatar dúvi
 | V7c estado da seção circular/poligonal, diagramas de alveolares e mistas, esforços do pilar-parede por hipótese, distorção e vento por direção, vento na malha (4 itens) | S3 | — |
 | V7d planta e editor de símbolos, estilo de pranchas, formato e margens livres, folha de resultados (4 itens) | S2 | S2 |
 | V7e radier por hipótese/combinação, limite por diâmetro e deslocamento por pano (3 itens) | S2 | S1 |
+| V7f interface das opções próprias da viga; opções próprias de lajes e pilares (1 item) | — | S1 |
 | N4a tabelas de fogo (NBR 15200:2012, 180 min, NBR 14432) e e ≤ 0,15·b; depende de `pendencias-usuario.md` (4 itens) | S3 | — |
 | N4b ábacos da NBR 6123 e Wp/K da punção (Tabela 19.2); depende de `pendencias-usuario.md` (3 itens) | S3 | — |
 | N4c redistribuição nas faces, opções por elemento e flecha ativa 1,965 × 1,981 (3 itens) | S3 | — |

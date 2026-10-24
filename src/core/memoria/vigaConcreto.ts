@@ -15,6 +15,8 @@ export interface ComposicaoEsforco {
   /** Acréscimo linear da redistribuição: dA·(1 − t) + dZ·t (momento) ou −(dZ − dA)/ℓ (cortante). */
   dA: number; dZ: number; t: number; L: number;
   total: number;
+  /** Estação dentro do apoio recalculado a partir das faces (redistribuição nas faces): dA traz o acréscimo inteiro. */
+  apoio?: boolean;
 }
 
 export interface CtxMemoriaViga {
@@ -23,6 +25,8 @@ export interface CtxMemoriaViga {
   c: Concrete; fyk: number; fydPos: number; fydNeg: number; fywk: number; fywd: number; gs: number;
   cob: { inf: number; sup: number; lat: number }; dI: number; dS: number; d2I: number; d2S: number; d: number;
   sec: BeamSection; fcPos: boolean; fcNeg: boolean; taxaMin: number;
+  /** Redistribuição nas faces dos pilares (N4c): muda o texto dos passos. */
+  redistFaces?: boolean;
   Mpos: number; Mneg: number; V: number; delta: number; redistribuicao: number; deltaMin: number; deltaX: number;
   det: { Mmax: string; Mmin: string; V: string; T: string };
   comp: { Mpos?: ComposicaoEsforco; Mneg?: ComposicaoEsforco; V?: ComposicaoEsforco };
@@ -68,7 +72,13 @@ export function registrarViga(mem: Registrador, x: CtxMemoriaViga) {
     cp.parcelas.forEach(([n, f, v]) => { ent[`γ_${n}`] = f; ent[`${momento ? 'M' : 'V'}k_${n}`] = v; });
     P('esforcos', 'Envoltória ELU', { descricao: `${rot}: combinação determinante ${cp.combinacao} na abscissa s = ${fm(cp.s, 3)} m`, formula: momento ? 'Md = Σ γi·Mk,i' : 'Vd = Σ γi·Vk,i', expressao: `${momento ? 'Md' : 'Vd'} = ${soma} = ${fm(cp.combinado)}`, resultado: cp.combinado, unidade: un, norma: 'NBR 8681:2003, 5.1.3; NBR 6118:2023, 11.8.2', entradas: ent, ...(Math.abs(cp.combinado - cp.parcelas.reduce((t, [, f, v]) => t + f * v, 0)) > 1e-9 * Math.max(1, Math.abs(cp.combinado)) ? { observacao: 'Valor do diagrama arredondado no apoio (opção): difere da soma das parcelas.' } : {}) });
     if (cp.dA || cp.dZ) {
-      P('esforcos', 'Envoltória ELU', { descricao: `${rot}: acréscimo da redistribuição δ = ${fm(x.delta, 3)} nos apoios internos (linear entre os apoios)`, formula: momento ? 'Md,red = Md + ΔMA·(1 − x/ℓ) + ΔMB·x/ℓ, ΔM = (1 − δ)·|M,apoio|' : 'Vd,red = |Vd − (ΔMB − ΔMA)/ℓ|', expressao: momento ? `Md = ${fm(cp.combinado)} + ${fm(cp.dA)}·(1 − ${fm(cp.t)}) + ${fm(cp.dZ)}·${fm(cp.t)} = ${fm(cp.total)}` : `Vd = |${fm(cp.combinado)} − (${fm(cp.dZ)} − ${fm(cp.dA)})/${fm(cp.L)}| = ${fm(cp.total)}`, resultado: cp.total, unidade: un, norma: `${NBR}, 14.6.4.3`, entradas: { Md: cp.combinado, dA: cp.dA, dZ: cp.dZ, t: cp.t, L: cp.L, delta: x.delta } });
+      const faces = !!x.redistFaces;
+      const desc = cp.apoio ? `${rot}: acréscimo da redistribuição δ = ${fm(x.delta, 3)} dentro do apoio, refeito a partir das faces redistribuídas (cúbica do arredondamento)`
+        : `${rot}: acréscimo da redistribuição δ = ${fm(x.delta, 3)} nos apoios internos (linear ${faces ? 'entre as faces dos pilares' : 'entre os apoios'})`;
+      const formula = !momento ? 'Vd,red = |Vd − (ΔMB − ΔMA)/ℓ|'
+        : cp.apoio ? 'Md,red = Md + ΔM_apoio, ΔM_apoio = cúbica(M,V das faces redistribuídas) − cúbica(M,V das faces)'
+        : faces ? 'Md,red = Md + ΔMA·(1 − t) + ΔMB·t, t = (x − x_face)/ℓ_livre, ΔM = (1 − δ)·|M,face|' : 'Md,red = Md + ΔMA·(1 − x/ℓ) + ΔMB·x/ℓ, ΔM = (1 − δ)·|M,apoio|';
+      P('esforcos', 'Envoltória ELU', { descricao: desc, formula, expressao: momento ? (cp.apoio ? `Md = ${fm(cp.combinado)} + ${fm(cp.dA)} = ${fm(cp.total)}` : `Md = ${fm(cp.combinado)} + ${fm(cp.dA)}·(1 − ${fm(cp.t)}) + ${fm(cp.dZ)}·${fm(cp.t)} = ${fm(cp.total)}`) : `Vd = |${fm(cp.combinado)} − (${fm(cp.dZ)} − ${fm(cp.dA)})/${fm(cp.L)}| = ${fm(cp.total)}`, resultado: cp.total, unidade: un, norma: `${NBR}, 14.6.4.3`, entradas: { Md: cp.combinado, dA: cp.dA, dZ: cp.dZ, t: cp.t, L: cp.L, delta: x.delta } });
     }
   };
   regComp('Momento positivo máximo', x.comp.Mpos, x.Mpos, 'kN·m', true);

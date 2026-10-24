@@ -110,6 +110,7 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'TORCAO', nivel: 'aviso', re: /^Torção Td/, descricao: 'Torção: armadura longitudinal adicional' },
   { codigo: 'ESTRIBO_V', nivel: 'aviso', re: /^Estribos pelo cortante/, descricao: 'Estribo do pilar pelo cortante' },
   { codigo: 'REDISTRIB', nivel: 'info', re: /^Redistribuição/, descricao: 'Redistribuição aplicada' },
+  { codigo: 'OPCOES_VIGA', nivel: 'info', re: /^Opções próprias da viga/, descricao: 'Viga com opções de cálculo próprias (N4c)' },
   // vigas e pilares: apoios, limites e avisos de modelagem (N2e)
   { codigo: 'ARREDONDAMENTO', nivel: 'info', re: /^Arredondamento do diagrama/, descricao: 'Diagrama arredondado dentro dos apoios internos (cúbica entre as faces ou ΔM = R·t/8)' },
   { codigo: 'VIGA_PAREDE', nivel: 'aviso', re: /^Viga-parede/, descricao: 'Viga-parede (ℓ/h < 2 biapoiada ou < 3 contínua): bielas e tirantes e armadura manuais' },

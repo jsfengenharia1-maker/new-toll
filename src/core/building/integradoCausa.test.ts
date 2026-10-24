@@ -23,6 +23,7 @@ import { comandosEdificioPadrao, Sessao } from '../commands';
 import { analisarEdificio } from './analitico';
 import { dimensionarEdificio } from './dimensionamento';
 import { ANTES_N2E } from './antesN2e';
+import { ANTES_N4C } from './antesN4c';
 
 function predio(vezes: number, laje: Record<string, unknown>) {
   const s = new Sessao();
@@ -40,7 +41,7 @@ function predio(vezes: number, laje: Record<string, unknown>) {
 /** Calcula o edifício com o modelo `mg` (0 separado, 1 integrado), com ou sem vento, e opções extras. */
 function calc(vezes: number, laje: Record<string, unknown>, mg: number, vento: boolean, extra: Record<string, number> = {}) {
   const { s, ok } = predio(vezes, laje);
-  ok('opcoes.definir', { valores: { modeloGlobal: mg, cortanteBarrasLaje: mg ? 1 : 0, pilarLancesDesligados: 0, ...ANTES_N2E, ...extra } });
+  ok('opcoes.definir', { valores: { modeloGlobal: mg, cortanteBarrasLaje: mg ? 1 : 0, pilarLancesDesligados: 0, ...ANTES_N2E, ...ANTES_N4C, ...extra } });
   if (!vento) ok('vento.definir', { ativo: false });
   const an = analisarEdificio(s.modelo), d = dimensionarEdificio(s.modelo, an);
   const viga = (n: string) => d.vigas.find((x) => x.nome === n)!;
