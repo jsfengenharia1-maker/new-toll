@@ -2,7 +2,7 @@
 import { create } from 'zustand';
 import type { DialogoGrupos } from './GruposL4';
 
-export type AbaEdificio = 'planta' | 'vista3d' | 'elevacao' | 'verificacao' | 'analise' | 'deslocamentos' | 'isovalores' | 'dimensionamento' | 'pranchas' | 'premissas';
+export type AbaEdificio = 'planta' | 'vista3d' | 'elevacao' | 'verificacao' | 'analise' | 'deslocamentos' | 'isovalores' | 'esforcos' | 'dimensionamento' | 'pranchas' | 'premissas';
 export type DialogoL1 = null | 'nova' | 'recentes' | 'texto' | 'gerais';
 export type DialogoL2 = null | { tipo: 'lancar'; inicial?: string } | { tipo: 'gabaritos' } | { tipo: 'vistas' };
 export type DialogoL4 = DialogoGrupos | 'guia';

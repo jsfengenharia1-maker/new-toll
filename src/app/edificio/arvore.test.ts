@@ -37,7 +37,7 @@ describe('árvore do navegador', () => {
     const v = montarArvore(obra()).filhos!.find((f) => f.id === 'vistas')!;
     expect(v.filhos!.map((f) => f.rotulo)).toEqual(VISTAS.map((x) => x[1]));
     expect(v.filhos![0].alvo).toEqual({ tipo: 'vista', id: 'planta' });
-    expect(VISTAS.length).toBe(10);
+    expect(VISTAS.length).toBe(11);
   });
 
   it('caminhoAte e idDoNo', () => {
