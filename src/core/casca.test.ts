@@ -2,7 +2,7 @@
 // balanço contra viga de Timoshenko), condensação estática e malha triangular.
 import { describe, expect, it } from 'vitest';
 import { resolver3, type Caso3, type Modelo3, type V3 } from './fe3d';
-import type { Casca3 } from './casca';
+import { rigidezCasca, type Casca3 } from './casca';
 import { condensar, forcaFronteira, recuperarInternos } from './condensacao';
 import { delaunay, malhaTriangular, paraT6, qualidadeMalha, type MalhaTri } from './geom/malhaTri';
 import type { P } from './geom/faces';
@@ -255,5 +255,29 @@ describe('malha triangular (Delaunay restrita)', () => {
     const lados = [...conta.keys()].map((kk) => kk.split(':').map(Number)).map(([a, b]) => ({ L: Math.hypot(m.pontos[a][0] - m.pontos[b][0], m.pontos[a][1] - m.pontos[b][1]), p: m.pontos[a] }));
     const perto = lados.filter((l) => Math.hypot(l.p[0], l.p[1]) < 0.4), longe = lados.filter((l) => Math.hypot(l.p[0] - 4.5, l.p[1] - 0.2) < 0.6 && Math.hypot(l.p[0] - 4.5, l.p[1] - 1.5) > 1);
     if (perto.length && longe.length) expect(Math.max(...perto.map((l) => l.L))).toBeLessThan(Math.max(...longe.map((l) => l.L)));
+  });
+});
+
+describe('casca: giro no plano acoplado à rotação da membrana (acoplarGiro, E4c)', () => {
+  const nos: V3[] = [[0, 0, 0], [1, 0, 0], [0, 1, 0], [0.5, 0, 0], [0.5, 0.5, 0], [0, 0.5, 0]];
+  const base: Casca3 = { nos: [0, 1, 2, 3, 4, 5], E: 3e7, nu: 0.2, h: 0.15 };
+  const forcas = (c: Casca3, campo: (p: V3) => number[]) => {
+    const e = rigidezCasca(nos, c), u = new Float64Array(36);
+    nos.forEach((p, i) => campo(p).forEach((v, g) => (u[6 * i + g] = v)));
+    return Array.from({ length: 36 }, (_, a) => Array.from({ length: 36 }, (_, b) => e.K[a * 36 + b] * u[b]).reduce((s, v) => s + v, 0));
+  };
+  const norma = (f: number[]) => Math.sqrt(f.reduce((s, v) => s + v * v, 0));
+  it('rotação de corpo rígido em torno da normal não gera força com o giro acoplado (e gera com o giro solto)', () => {
+    const rig = (p: V3) => [-0.01 * p[1], 0.01 * p[0], 0, 0, 0, 0.01];
+    expect(norma(forcas({ ...base, acoplarGiro: 1 }, rig))).toBeLessThan(1e-6);
+    expect(norma(forcas({ ...base }, rig))).toBeGreaterThan(1e-3);
+  });
+  it('estiramento puro e flexão com curvatura constante: mesmas forças com e sem o acoplamento', () => {
+    const esticar = (p: V3) => [0.001 * p[0], -0.0002 * p[1], 0, 0, 0, 0];
+    const f1 = forcas({ ...base, acoplarGiro: 1 }, esticar), f0 = forcas({ ...base }, esticar);
+    expect(norma(f1.map((v, i) => v - f0[i])) / norma(f0)).toBeLessThan(1e-9);
+    const fletir = (p: V3) => [0, 0, 0.5 * 0.002 * p[0] * p[0], 0, 0.002 * p[0], 0];
+    const g1 = forcas({ ...base, acoplarGiro: 1 }, fletir), g0 = forcas({ ...base }, fletir);
+    expect(norma(g1.map((v, i) => v - g0[i])) / norma(g0)).toBeLessThan(1e-9);
   });
 });

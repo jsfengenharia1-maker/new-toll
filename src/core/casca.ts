@@ -16,6 +16,12 @@ export interface Casca3 {
   kc?: number;
   /** Rigidez do giro no plano, por nó, como fração de E·h·A (padrão 1e-4). */
   kGiro?: number;
+  /**
+   * Giro no plano acoplado à rotação da membrana (escadas, E4c): penalização (η·G·h/2)·∫(θn − ω)² dA, com ω = ½(∂v/∂x − ∂u/∂y) a
+   * rotação do campo de deslocamentos da membrana e η esta fração (1 = valor de Hughes-Brezzi). Em dobras entre cascas não
+   * coplanares o giro "solto" de `kGiro` deixa a ligação mais mole que a casca contínua. Quando informado, substitui `kGiro`.
+   */
+  acoplarGiro?: number;
   /** Direção de referência do eixo local x (projetada no plano da casca). Padrão: X global (Y se a casca for normal a X). */
   ref?: V3;
   /** Material com rigidez própria (alvenaria, E1e): os fatores de rigidez do concreto (EA dos pilares, 0,8·Eci) não se aplicam. */
@@ -166,8 +172,20 @@ export function rigidezCasca(nos: V3[], c: Casca3): ElementoCasca {
     const x = N.reduce((t, v, i) => t + v * xy[i][0], 0), y = N.reduce((t, v, i) => t + v * xy[i][1], 0);
     addBtDB(Bcort(x, y), Ds, (pw * det) / 2, false);
   }
-  const kg = (c.kGiro ?? 1e-4) * c.E * c.h * area;
-  for (let i = 0; i < 6; i++) Kl[ix(i, 5) * 36 + ix(i, 5)] += kg;
+  if (c.acoplarGiro) {
+    // θn − ω ≈ 0 com o giro local interpolado (T6) e ω da membrana; (θn − ω)² tem grau 4 → regra de 6 pontos
+    const gamma = c.acoplarGiro * (c.E / (2 * (1 + c.nu))) * c.h;
+    for (const [L1, L2, L3, pw] of PG6) {
+      const { N, dx, dy, det } = derivadas(L1, L2, L3);
+      const B = new Array(36).fill(0);
+      for (let i = 0; i < 6; i++) { B[ix(i, 5)] += N[i]; B[ix(i, 1)] -= 0.5 * dx[i]; B[ix(i, 0)] += 0.5 * dy[i]; }
+      const w = gamma * ((pw * det) / 2);
+      for (let a = 0; a < 36; a++) { if (!B[a]) continue; for (let b2 = 0; b2 < 36; b2++) if (B[b2]) Kl[a * 36 + b2] += w * B[a] * B[b2]; }
+    }
+  } else {
+    const kg = (c.kGiro ?? 1e-4) * c.E * c.h * area;
+    for (let i = 0; i < 6; i++) Kl[ix(i, 5) * 36 + ix(i, 5)] += kg;
+  }
   // global: K = Tᵀ Kl T, T bloco-diagonal com R (linhas ex, ey, ez) em cada trio de gdl
   const K = new Float64Array(36 * 36);
   const tmp = new Float64Array(36 * 36);

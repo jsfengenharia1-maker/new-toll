@@ -37,6 +37,12 @@ export type CasoEscada = 'G' | 'Q';
 const CASOS: CasoEscada[] = ['G', 'Q'];
 const EPS = 1e-6;
 const NU = 0.2;
+/**
+ * Fração de Hughes-Brezzi do giro no plano acoplado à rotação da membrana (`Casca3.acoplarGiro`). Com o giro solto (`kGiro` pequeno)
+ * as dobras entre trechos e patamares ficam moles demais (reação do apoio do patamar 3,5 % abaixo do OpenSees, na escada em L);
+ * com 1 as reações e flechas ficam a 0,5 % do OpenSees (escada.py). 10 dá praticamente o mesmo.
+ */
+const ACOPLAR_GIRO = 1;
 
 export interface ApoioCalculado {
   /** 'inf' | 'sup' | 'p<patamar>-<borda>-<k>'. */
@@ -116,6 +122,8 @@ export interface ResultadoLance {
   elems: ElementoEscada[];
   cargas: CargaGerada[];
   descricao?: DescricaoLance;
+  /** Só com `calcularEscadas(b, { detalhe: true })` (validação externa e isovalores): coordenadas do modelo local e deslocamento vertical (m) de cada nó, nos casos G e Q. */
+  nosDetalhe?: { x: number; y: number; z: number; uz: [number, number] }[];
   avisos: string[];
   erro?: string;
   ms: number;
@@ -177,7 +185,7 @@ export function diagnosticoRecalcular(b: BuildingModel, assinaturaAplicada: stri
 }
 
 /** Calcula um lance: monta a malha, resolve G e Q e devolve reações, esforços e as cargas geradas. */
-function calcularLance(b: BuildingModel, g: GeometriaEscada, l: LanceGeo, ordem: number): ResultadoLance {
+function calcularLance(b: BuildingModel, g: GeometriaEscada, l: LanceGeo, ordem: number, detalhe = false): ResultadoLance {
   const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
   const e = g.escada, o = opcoesEmUso(b.opcoes, perfilDe(b)), gm = gamas(b);
   const pre = `Escada ${e.nome}, lance ${ordem}`;
@@ -249,7 +257,7 @@ function calcularLance(b: BuildingModel, g: GeometriaEscada, l: LanceGeo, ordem:
         const cx = (pa[0] + pb[0] + pc[0]) / 3, cy = (pa[1] + pb[1] + pc[1]) / 3;
         let permanente = r.tipo === 'lance' ? l.cargas.permanenteProjecao : l.cargas.permanentePatamar;
         r.faixas.forEach((f, k) => { if (dentro([cx, cy], f)) permanente += r.faixaPerm[k]; });
-        cascas.push({ nos: ids as Casca3['nos'], E, nu: NU, h, ref: refDir });
+        cascas.push({ nos: ids as Casca3['nos'], E, nu: NU, h, ref: refDir, acoplarGiro: ACOPLAR_GIRO });
         meta.push({ ret: ri, area, centro: [cx, cy, (nos[ids[0]][2] + nos[ids[1]][2] + nos[ids[2]][2]) / 3], permanente, sobrecarga: l.cargas.sobrecarga, midNos: ids.slice(3), tipo: r.tipo, trecho: r.trecho });
       }
     }
@@ -299,11 +307,18 @@ function calcularLance(b: BuildingModel, g: GeometriaEscada, l: LanceGeo, ordem:
   const noMeio = nInf.reduce((m, x) => (Math.hypot(nodePlan[x.no][0] - meio[0], nodePlan[x.no][1] - meio[1]) < Math.hypot(nodePlan[m.no][0] - meio[0], nodePlan[m.no][1] - meio[1]) ? x : m), nInf[0]);
   prender(noMeio.no, 1);
   const dirSup = rets.filter((r) => r.tipo === 'lance').slice(-1)[0].dir;
+  // Equilíbrio de momentos: com o apoio superior móvel só as reações verticais equilibram o momento em torno do eixo transversal,
+  // o que exige bordas de apoio em abscissas diferentes (x do modelo). Com as duas bordas na mesma abscissa (meia-volta, L) o
+  // equilíbrio pede o binário horizontal entre as duas bordas: a horizontal do apoio superior também é presa.
+  const meioX = (a: P, c: P) => (T(a)[0] + T(c)[0]) / 2;
+  const mesmaAbscissa = Math.abs(meioX(...lin[0]) - meioX(...lin[1])) < 0.05;
+  const fixoDois = !!o.escadaApoioFixoDois || mesmaAbscissa;
+  if (!o.escadaApoioFixoDois && mesmaAbscissa) avisos.push(`${pre}: as bordas de apoio estão na mesma abscissa (lance em volta); a translação horizontal do apoio superior foi presa para equilibrar o momento`);
+  const topoEmX = Math.abs(dirSup[0]) >= Math.abs(dirSup[1]);
   for (const x of nSup) {
     prender(x.no, 2);
-    if (o.escadaApoioFixoDois) prender(x.no, Math.abs(dirSup[0]) >= Math.abs(dirSup[1]) ? 0 : 1);
+    if (fixoDois) prender(x.no, topoEmX ? 0 : 1);
   }
-  if (o.escadaApoioFixoDois && Math.abs(dirSup[0]) >= Math.abs(dirSup[1]) && Math.abs(dirSup[0]) < 0.5) avisos.push(`${pre}: direção do último trecho oblíqua ao modelo`);
 
   // apoios do patamar
   const EAlv = o.escadaEAlvenaria * 1000;
@@ -425,22 +440,22 @@ function calcularLance(b: BuildingModel, g: GeometriaEscada, l: LanceGeo, ordem:
   if (Math.max(Math.abs(equilibrio.G), Math.abs(equilibrio.Q)) > 1e-6) avisos.push(`${pre}: equilíbrio vertical com erro de ${(Math.max(Math.abs(equilibrio.G), Math.abs(equilibrio.Q)) * 100).toExponential(1)} %`);
   const descricao: DescricaoLance = {
     rets: rets.map((r) => ({ tipo: r.tipo, trecho: r.trecho, c: r.c, z: r.z, permanente: r.tipo === 'lance' ? l.cargas.permanenteProjecao : l.cargas.permanentePatamar, sobrecarga: l.cargas.sobrecarga, faixas: r.faixas.map((f, k) => ({ poligono: f, permanente: r.faixaPerm[k] })) })),
-    linhas: apoios.map((ap) => ({ id: ap.id, a: T(ap.a), b: T(ap.b), rigido: ap.rigido, ...(ap.kLinha !== undefined ? { kLinha: ap.kLinha } : {}), fixaX: ap.id === 'inf' || (ap.id === 'sup' && !!o.escadaApoioFixoDois && Math.abs(dirSup[0]) >= Math.abs(dirSup[1])), fixaY: ap.id === 'sup' && !!o.escadaApoioFixoDois && Math.abs(dirSup[0]) < Math.abs(dirSup[1]) })),
+    linhas: apoios.map((ap) => ({ id: ap.id, a: T(ap.a), b: T(ap.b), rigido: ap.rigido, ...(ap.kLinha !== undefined ? { kLinha: ap.kLinha } : {}), fixaX: ap.id === 'inf' || (ap.id === 'sup' && fixoDois && topoEmX), fixaY: ap.id === 'sup' && fixoDois && !topoEmX })),
     FX, FY, corrimao: l.cargas.corrimao,
   };
   return {
-    ...base, descricao, nos: nos.length, elementos: cascas.length, gdl: res.neq, carga: total, apoios: apoios.map(({ nosLinha: _n, molaDe: _m, ...a }) => a), equilibrio, deslocamento, momentos, elems, cargas,
+    ...base, descricao, ...(detalhe ? { nosDetalhe: nos.map((n, i) => ({ x: n[0], y: n[1], z: n[2], uz: [res.desloc[0][i * 6 + 2], res.desloc[1][i * 6 + 2]] as [number, number] })) } : {}), nos: nos.length, elementos: cascas.length, gdl: res.neq, carga: total, apoios: apoios.map(({ nosLinha: _n, molaDe: _m, ...a }) => a), equilibrio, deslocamento, momentos, elems, cargas,
     avisos: avisos, ms: (typeof performance !== 'undefined' ? performance.now() : 0) - t0,
   };
 }
 
 /** Calcula todas as escadas da obra (um modelo de casca por lance). Obra sem escada: resultado vazio. */
-export function calcularEscadas(b: BuildingModel): ResultadoEscadas {
+export function calcularEscadas(b: BuildingModel, o: { detalhe?: boolean } = {}): ResultadoEscadas {
   const lances: ResultadoLance[] = [], avisos: string[] = [];
   for (const g of geometriaEscadas(b)) {
     for (const d of g.diagnosticos) if (d.severidade !== 'info') avisos.push(d.mensagem);
     for (const l of g.lances) {
-      const r = calcularLance(b, g, l, l.indice + 1);
+      const r = calcularLance(b, g, l, l.indice + 1, !!o.detalhe);
       lances.push(r); avisos.push(...r.avisos);
     }
   }
