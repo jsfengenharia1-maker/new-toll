@@ -370,6 +370,11 @@ export class RenderizadorCena {
 
   /** Objeto atingido pelo raio que passa por (x, y) em pixels do contêiner. */
   pick(x: number, y: number): Objeto3D | null {
+    return this.pickPonto(x, y)?.obj ?? null;
+  }
+
+  /** Objeto atingido e o ponto do modelo (m, eixos da obra) onde o raio o toca (V6d: consulta do nó pelo clique). */
+  pickPonto(x: number, y: number): { obj: Objeto3D; ponto: [number, number, number] } | null {
     const T = this.T;
     this.ray.setFromCamera(new T.Vector2((x / this.w) * 2 - 1, -(y / this.h) * 2 + 1), this.ativa);
     const meshes = this.blocos.filter((b) => b.mesh.visible).map((b) => b.mesh);
@@ -380,7 +385,8 @@ export class RenderizadorCena {
     const f = hit.faceIndex;
     let lo = 0, hi = bloco.faixas.length - 1;
     while (lo < hi) { const m = (lo + hi) >> 1; if (bloco.faixas[m].fim <= f) lo = m + 1; else hi = m; }
-    return bloco.faixas[lo]?.obj ?? null;
+    const obj = bloco.faixas[lo]?.obj;
+    return obj ? { obj, ponto: [hit.point.x, hit.point.y, hit.point.z] } : null;
   }
 
   renderizar(): number {

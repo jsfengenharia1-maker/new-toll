@@ -20,9 +20,9 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 21 | 2 | 0 | 3 |
 | 11. Fundações | 70 | 63 | 0 | 2 | 5 |
-| 12. Isovalores e deformada | 22 | 14 | 7 | 1 | 0 |
+| 12. Isovalores e deformada | 22 | 15 | 6 | 1 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **476** | **80** | **22** | **185** |
+| **Total** | **763** | **477** | **79** | **22** | **185** |
 
 ## Pendências por frente
 
@@ -33,7 +33,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 57 | 17 | 74 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 5 | 2 | 7 |
-| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 16 | 3 | 19 |
+| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 15 | 3 | 18 |
 
 ## 0. Apresentação do programa
 
@@ -905,7 +905,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C12.13 | Usos: ver onde a armadura base não basta, onde cabe certo diâmetro, e onde a tensão no solo passa da admissível (dando-a como mínimo). | Parcial | V | [V4]: limite mínimo = armadura adotada, ou σadm do radier, restringe o mapa à região insuficiente; "onde cabe certo diâmetro" fica por conta do usuário (limite = área do diâmetro) |
 | C12.14 | Menu de esforços em vigas, vigotas, alveolares e lajes mistas por hipótese, combinação ou envoltória. | Parcial | V | [V5] núcleo: `hipotesesDeEsforco` (envoltória, combinação e caso) para vigas, pilares, diagonais e vigotas; menu na aba Esforços (AbaEsforcos.tsx); o mapa de lajes está na aba Isovalores; alveolares e mistas: E/fora — V6f: menu único de esforços das lajes (alveolares e mistas seguem na E3e) |
 | C12.15 | Menu de lajes maciças/nervuradas igual ao da aba de resultados, com vista e edição da armadura. | Parcial | V | [V4]: clique no mapa abre a janela da laje (`elementoNoPonto` e `abrirJanela`, AbaIsovalores.tsx); menu de lajes igual ao da aba de resultados não incluído — V6f: menu de lajes igual ao da aba de resultados; V6 acrescentou os botões "Abrir a laje do valor máximo/mínimo" na AbaIsovalores.tsx |
-| C12.16 | Flecha entre dois pontos: secante ou tangente num ponto, com máxima relativa, máxima absoluta ou entre os dois pontos; por hipótese simples, combinação, combinação mais desfavorável e fator de amplificação (também acessível pelas envoltórias). | Parcial | V | [V3]: núcleo `flechaPontos.ts` (`flechaEntrePontos`: secante ou tangente; máxima relativa, absoluta ou entre os pontos; amplificação; `flechaMaisDesfavoravel`); aba Deslocamentos em AbaDeslocamentos.tsx e Vista3D.tsx; falta a ferramenta com cliques na planta e o acesso pelas envoltórias — V6d: ferramenta de dois pontos com cliques na planta e acesso pelas envoltórias; validação de limite ≤ 0 e amplificação inválida feita na V6 (`ResultadoFlecha.erro`) |
+| C12.16 | Flecha entre dois pontos: secante ou tangente num ponto, com máxima relativa, máxima absoluta ou entre os dois pontos; por hipótese simples, combinação, combinação mais desfavorável e fator de amplificação (também acessível pelas envoltórias). | Feito | — | [V3]: núcleo `flechaPontos.ts` (`flechaEntrePontos`: secante ou tangente; máxima relativa, absoluta ou entre os pontos; amplificação; `flechaMaisDesfavoravel`); aba Deslocamentos (AbaDeslocamentos.tsx) e Vista3D.tsx; validação de limite ≤ 0 e amplificação inválida na V6 (`ResultadoFlecha.erro`) — Feito 24/10/2026 [V6d]: ferramenta Flecha entre dois pontos na planta (`Ferramenta` 'flecha' em Planta.tsx, grupo Consultas da faixa Análise; `resultadosStore.ts`) e acesso pelas envoltórias (`flechaEnvoltoria`, opções 'env:RARA/FREQ/QP/ELU' da hipótese da flecha); e2e V6d |
 | C12.17 | Várias janelas simultâneas de isovalores/envoltórias (ex.: permanente e variável lado a lado, ou pavimentos diferentes); configuração mantida até fechar o programa. | Feito | — | [V4]: várias janelas independentes (`isovaloresStore`, AbaIsovalores.tsx), configuração mantida até fechar o programa — Feito 23/10/2026: interface: AbaIsovalores.tsx; e2e V4 [V4] |
 | | **12.2 Deformada** | | | |
 | C12.18 | Aba de deformada 3D após o cálculo, por hipótese simples ou combinação. | Feito | — | [V3]: núcleo `resultados/deformada.ts` e `deformadaCena.ts` (`hipotesesDisponiveis`, `deformarCena`); aba/controles na vista 3D em AbaDeslocamentos.tsx e Vista3D.tsx — Feito 23/10/2026: interface: Vista3D.tsx (deformada) e AbaDeslocamentos.tsx; e2e V3 [V3] |

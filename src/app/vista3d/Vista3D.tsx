@@ -20,6 +20,10 @@ import { carregarThree, temWebGL, type Three } from './carregarThree';
 import { ligarControles } from './controles';
 import { RenderizadorCena, type CoresCena } from './renderizador';
 import { opcoesDaVista, useVista3d } from './vista3dStore';
+import { consultaNo } from '../../core/resultados/consultas';
+import { TabelaConsultaNo } from '../edificio/ConsultaNoUI';
+import { useResultados, type PedidoNo } from '../edificio/resultadosStore';
+import { useEdifUI } from '../edificio/uiStore';
 
 type Status = 'carregando' | 'pronto' | 'sem-vendor' | 'sem-webgl';
 const graus = (r: number) => (r * 180) / Math.PI;
@@ -30,6 +34,13 @@ function lerCores(el: HTMLElement): CoresCena {
   const v = (n: string) => cssVar(`v3d-${n}`, el);
   const base = Object.fromEntries(CHAVES_COR.map((k) => [k, v(k)])) as Record<(typeof CHAVES_COR)[number], string>;
   return { ...base, tipos: Object.fromEntries(TIPOS_3D.map((t) => [t.v, v(t.v)])) as Record<TipoElemento3D, string> };
+}
+
+/** Centro dos vértices do objeto (m), para a consulta de nó quando o clique não traz o ponto de contato. */
+function centroDe(o: Objeto3D): [number, number, number] {
+  const n = o.pos.length / 3, c: [number, number, number] = [0, 0, 0];
+  for (let i = 0; i < o.pos.length; i++) c[i % 3] += o.pos[i] / n;
+  return c;
 }
 
 const TIPO_ALVO: Partial<Record<TipoElemento3D, 'pilar' | 'viga' | 'laje' | 'fundacao'>> = { pilar: 'pilar', viga: 'viga', laje: 'laje', fundacao: 'fundacao' };
@@ -59,6 +70,7 @@ export function Vista3D({ onPlanta }: { onPlanta: () => void }) {
   const [angulos, setAngulos] = useState({ az: -55, el: 28 });
   const [dica, setDica] = useState<{ x: number; y: number; texto: string } | null>(null);
   const [aviso, setAviso] = useState('');
+  const [noPedido, setNoPedido] = useState<PedidoNo | null>(null);
 
   // ---------------------------------------------------------------- cena (função pura do núcleo)
   const opcoes = useMemo(() => opcoesDaVista(b, st), [b, rev, st.escopo, st.grupo, st.de, st.ate, st.pavimento, st.tipos, st.detalhe]);
@@ -83,6 +95,7 @@ export function Vista3D({ onPlanta }: { onPlanta: () => void }) {
     () => (st.deformada && analiseAtual && hip && st.defEixos ? eixosDeformados(analiseAtual, hip).filter((e) => (e.pavimento in cena.contagens.porPavimento || e.tipo === 'fundacao') && (st.tipos[e.tipo as TipoElemento3D] ?? true)) : null),
     [st.deformada, st.defEixos, st.tipos, analiseAtual, hip, cena],
   );
+  const consulta = useMemo(() => (noPedido && analiseAtual ? consultaNo(b, analiseAtual, dim, noPedido) : null), [noPedido, analiseAtual, b, dim]);
   const defDmax = cd ? cd.dmax : eixos ? Math.max(0, ...eixos.flatMap((e) => e.delta)) : 0;
   const escalaDef = st.defAuto ? (cd ? cd.escalaAuto : escalaAutomatica(defDmax, Math.max(1e-6, cena.limites.max[2] - cena.limites.min[2]))) : st.defEscala;
   const chaveEscopo = `${st.escopo}|${st.grupo}|${st.de}|${st.ate}|${st.pavimento}`;
@@ -143,7 +156,7 @@ export function Vista3D({ onPlanta }: { onPlanta: () => void }) {
       definirOlhar: (e) => { olhoRef.current = e; },
       velocidade: () => stRef.current.velocidade,
       limites: () => cenaRef.current!.limites,
-      clique: (x, y, duplo) => tratarClique(r.pick(x, y), duplo),
+      clique: (x, y, duplo) => { const q = r.pickPonto(x, y); tratarClique(q?.obj ?? null, duplo, q?.ponto); },
       passar: (p) => {
         if (!p) { setDica(null); r.destacar(null); pedir(); return; }
         const t = performance.now();
@@ -253,8 +266,14 @@ export function Vista3D({ onPlanta }: { onPlanta: () => void }) {
   }
 
   // ---------------------------------------------------------------- seleção
-  function tratarClique(o: Objeto3D | null, duplo: boolean) {
+  function tratarClique(o: Objeto3D | null, duplo: boolean, ponto?: [number, number, number]) {
     const P = usePlanta.getState();
+    if (stRef.current.consultarNo && o && !duplo) {
+      // V6d (K1.11.18): o clique consulta o nó mais próximo; sem ponto exato (isométrico estático), vale o centro do objeto
+      const [x, y, z] = ponto ?? centroDe(o);
+      setNoPedido(o.tipo === 'laje' && o.pavimento !== PAV_FUNDACAO ? { x, y, pavimento: o.pavimento } : { x, y, z });
+      return;
+    }
     if (!o) { if (!duplo) P.set({ selecao: new Set() }); return; }
     const tipo = TIPO_ALVO[o.tipo];
     if (o.pendente || !tipo) { setAviso(o.pendente ? 'Pano ainda sem laje: escolha o tipo na planta (ferramenta Laje).' : ''); return; }
@@ -349,6 +368,7 @@ export function Vista3D({ onPlanta }: { onPlanta: () => void }) {
             {!fallback && st.armTubos && <Slider label="Espessura das barras" value={st.armEscala} min={1} max={20} unit="×" onChange={(v) => st.set({ armEscala: v })} />}
           </>
         )}
+        <Chip on={st.consultarNo} aria-pressed={st.consultarNo} title="Clique num elemento para ver os deslocamentos do nó mais próximo (por caso e combinação) e a armadura da laje" onClick={() => { st.set({ consultarNo: !st.consultarNo }); setNoPedido(null); }}>Consultar nó</Chip>
         <Check label="Deformada" checked={st.deformada} onChange={(v) => st.set({ deformada: v })} />
         {st.deformada && (
           <>
@@ -395,6 +415,21 @@ export function Vista3D({ onPlanta }: { onPlanta: () => void }) {
           <div className="v3d-def-rampa" role="img" aria-label="Legenda da deformada" />
           <span className="num">{(defDmax * 1000).toFixed(2).replace('.', ',')} mm</span>
           <span>{hip?.nome} · escala ×<span className="num">{escalaDef.toFixed(0)}</span>{cd?.avisos.length ? ` — ${cd.avisos.join(' ')}` : ''}</span>
+        </div>
+      )}
+      {st.consultarNo && (
+        <div className="v3d-consulta" data-consulta-3d={consulta ? consulta.no : ''}>
+          {!analiseAtual && <p className="hint">Calcule a estrutura (aba Dimensionamento) para consultar os deslocamentos do nó.</p>}
+          {analiseAtual && !consulta && <p className="hint">Clique num pilar, viga ou laje da vista para consultar o nó mais próximo do ponto clicado.</p>}
+          {consulta && (
+            <>
+              <div className="row">
+                <TabelaConsultaNo consulta={consulta} />
+                <Button variant="ghost" onClick={() => { useResultados.getState().set({ no: noPedido }); useEdifUI.getState().set({ aba: 'deslocamentos' }); }}>Abrir na aba Deslocamentos</Button>
+                <Button variant="ghost" onClick={() => setNoPedido(null)}>Fechar a consulta</Button>
+              </div>
+            </>
+          )}
         </div>
       )}
       <div className="v3d-st">

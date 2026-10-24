@@ -39,6 +39,8 @@ export interface V3State {
   defEixos: boolean;
   defAnimar: boolean;
   defPeriodo: number;
+  /** Consulta de nó (V6d): o clique na vista consulta os deslocamentos do nó mais próximo em vez de selecionar. */
+  consultarNo: boolean;
   set(p: Partial<Omit<V3State, 'set'>>): void;
 }
 
@@ -49,7 +51,7 @@ export const useVista3d = create<V3State>((set) => ({
   projecao: 'perspectiva', textura: false, detalhe: 'baixo',
   caminhar: false, velocidade: VELOCIDADE_INICIAL,
   armaduras: false, armPor: 'bitola', armTubos: false, armGhost: true, armSoSelecao: false, armEscala: 4,
-  deformada: false, defHipotese: '', defEscala: 50, defAuto: true, defEixos: false, defAnimar: false, defPeriodo: 2,
+  deformada: false, defHipotese: '', defEscala: 50, defAuto: true, defEixos: false, defAnimar: false, defPeriodo: 2, consultarNo: false,
   set: (p) => set(p),
 }));
 

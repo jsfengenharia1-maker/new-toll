@@ -192,6 +192,24 @@ export function diagramaPilar(an: AnaliseEdificio, pilarId: string, h: HipoteseE
   return { ...d, pilar: pilarId, altura: d.pontos.map((p) => p.pos[2] - z0), lance: d.pontos.map((p) => lanceDe.get(p.bar) ?? '') };
 }
 
+/**
+ * Esforços do pilar numa altura qualquer acima da base (V6d, K1.11.28): interpolação linear entre os pontos do diagrama.
+ * Alturas fora do pilar ficam no extremo mais próximo. Mesmas convenções de `diagramaPilar` (N com compressão positiva).
+ */
+export function esforcosPilarEmAltura(d: DiagramaPilar, altura: number): { altura: number; lance: string; max: Comp; min: Comp } {
+  const z = d.altura, n = z.length;
+  const h = Math.min(Math.max(altura, z[0] ?? 0), z[n - 1] ?? 0);
+  let i = 0;
+  while (i < n - 2 && z[i + 1] < h) i++;
+  const t = n < 2 || z[i + 1] === z[i] ? 0 : (h - z[i]) / (z[i + 1] - z[i]);
+  const mix = (k: 'max' | 'min'): Comp => {
+    const a = d.pontos[i][k], b = d.pontos[Math.min(i + 1, n - 1)][k], o = zero();
+    for (const c of Object.keys(o) as (keyof Comp)[]) o[c] = a[c] + t * (b[c] - a[c]);
+    return o;
+  };
+  return { altura: h, lance: d.lance[t > 0.5 ? Math.min(i + 1, n - 1) : i] ?? '', max: mix('max'), min: mix('min') };
+}
+
 // ---------------- vigas inclinadas e diagonais ----------------
 
 /** Diagrama da viga inclinada ou diagonal (todas as barras que a compõem, nos cruzamentos divididas). */

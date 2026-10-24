@@ -12,7 +12,7 @@ import { estadoDaViga, estadoDoPilar, type EstadoDoElemento } from '../../core/r
 import { Button, Check, Group, Hint, Select } from '../ui';
 import { useEsforcos, type JanelaEsforco, type TipoElementoEsforco } from './esforcosStore';
 
-const GRANDEZAS: { v: Componente; label: string; unidade: string }[] = [
+export const GRANDEZAS: { v: Componente; label: string; unidade: string }[] = [
   { v: 'Mz', label: 'Momento no plano (M)', unidade: 'kN·m' }, { v: 'Vy', label: 'Cortante (V no plano)', unidade: 'kN' }, { v: 'T', label: 'Torção (T)', unidade: 'kN·m' },
   { v: 'N', label: 'Normal (N)', unidade: 'kN' }, { v: 'My', label: 'Momento fora do plano', unidade: 'kN·m' }, { v: 'Vz', label: 'Cortante fora do plano', unidade: 'kN' },
 ];
@@ -40,7 +40,7 @@ export function AbaEsforcos({ b }: { b: BuildingModel }) {
 }
 
 /** Diagrama em SVG: abscissa horizontal, valor na vertical (o momento é desenhado para baixo, do lado tracionado). */
-function Diagrama({ n, d, g, us, unidade }: { n: number; d: DiagramaBarras; g: Componente; us: number[]; unidade: string }) {
+export function Diagrama({ n, d, g, us, unidade }: { n: number | string; d: DiagramaBarras; g: Componente; us: number[]; unidade: string }) {
   const u0 = Math.min(...us), u1 = Math.max(...us, u0 + 1e-6);
   const vmax = Math.max(1e-9, ...d.pontos.map((p) => Math.max(Math.abs(p.max[g]), Math.abs(p.min[g]))));
   const sinal = g === 'Mz' || g === 'My' ? 1 : -1, cy = ALT / 2;
@@ -49,7 +49,7 @@ function Diagrama({ n, d, g, us, unidade }: { n: number; d: DiagramaBarras; g: C
   const env = d.hipotese.tipo === 'envoltoria', ex = d.extremos[g];
   const area = `${X(us[0]).toFixed(1)},${cy} ${pts('max')} ${X(us.at(-1)!).toFixed(1)},${cy}`;
   return (
-    <svg className="esf-svg" role="img" aria-label={`Diagrama de esforços (janela ${n})`} viewBox={`0 0 ${LARG} ${ALT}`}>
+    <svg className="esf-svg" role="img" aria-label={`Diagrama de esforços (${typeof n === 'number' ? `janela ${n}` : n})`} viewBox={`0 0 ${LARG} ${ALT}`}>
       <line className="esf-eixo" x1={PAD} x2={LARG - PAD} y1={cy} y2={cy} />
       <polygon className="esf-area" points={area} />
       <polyline className="esf-curva" points={pts('max')} />

@@ -21,6 +21,7 @@ import { EditorArmaduraPilar, EditorArmaduraViga } from './Armadura';
 import { CopiarArmadura, DetalheDaViga } from './Detalhamento';
 import { DetalheDoPilar } from './DetalhamentoPilar';
 import { SegundaOrdemPilar } from './SegundaOrdem';
+import { EsforcosDoPilar } from './EsforcosPilarUI';
 import { DetalheDaLaje } from './DetalhamentoLaje';
 import { Armadura3D } from '../vista3d/Armadura3D';
 import { JanelaVigotas } from './Vigotas';
@@ -342,6 +343,7 @@ function JanelaPilar({ id, pavimento }: { id: string; pavimento?: string }) {
       <AbasDetalhe aba={aba} onChange={setAba} />
       <ApoioDoPilar id={id} />
       <SituacaoPilares id={id} pavimentoNome={pavimento} />
+      <EsforcosDoPilar id={id} />
       {b.pilares.find((q) => q.id === id) && <DadosDoPilar b={b} p={b.pilares.find((q) => q.id === id)!} />}
       <p className="small">Combinações determinantes por lance: Nd (compressão +), momentos de 1ª ordem na base e no topo em cada direção (u ao longo de b, v ao longo de h) e momento de cálculo total com os efeitos locais de 2ª ordem (Md,tot).</p>
       {lances.map((x) => (

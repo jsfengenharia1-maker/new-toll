@@ -7,6 +7,8 @@ import { capturaPlano, faceSuperiorDaViga, planoPor, secaoNoPlano, setaDeclivida
 import { corDoPlano } from './planosUtil';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useBuilding } from './store';
+import { useResultados } from './resultadosStore';
+import { useEdifUI } from './uiStore';
 import { useRevisao } from './revisao';
 import { aoEscolher, facesLaje, hexDaCor, paleta, usePlanta, type Ferramenta, type Vista } from './plantaStore';
 import { EscadaMenu, escolherEscada } from './EscadaMenu';
@@ -149,7 +151,7 @@ const distSeg = (p: P2, a: P2, z: P2) => {
 /** Nome de cada ferramenta (barra da planta, paleta e repetição pelo Enter) e a tecla de atalho. */
 export const ROTULO_FERRAMENTA: Record<Ferramenta, string> = {
   selecionar: 'Selecionar', plano: 'Definir plano na planta', pilar: 'Pilar', viga: 'Viga', laje: 'Laje', carga: 'Carga', eixo: 'Eixo', fundacao: 'Fundação', vigaFund: 'Viga de fundação', girarFund: 'Girar 2 pontos', insFund: 'Ponto de inserção', radier: 'Radier', vigaElastica: 'Viga sobre base elástica', vigaGabarito: 'Viga pelo gabarito', moverRef: 'Mover referência', contaGotas: 'Conta-gotas', contornoRet: 'Contorno retangular de vigas', aberturaRet: 'Abertura retangular', cargaLaje: 'Carga na laje inteira', cargaViga: 'Carga ao longo da viga', direcaoPano: 'Direção do pano', insercaoPano: 'Inserção do pano (vértice)', cota: 'Cota em série', corrida: 'Sapata corrida', limite: 'Limite da fundação', limiteMascara: 'Limite pela máscara', mover: 'Mover', medir: 'Medir', alinhar: 'Alinhar máscara',
-  dividir: 'Dividir viga', unir: 'Unir vigas', prolongar: 'Prolongar viga', copiar: 'Copiar', girar: 'Girar', espelhar: 'Espelhar', puncao: 'Armadura de punção', zonaLaje: 'Zona de uniformização', corte: 'Corte do edifício', secao: 'Linha de seção', linhaDobra: 'Linha de dobra', pilarParede: 'Pilar-parede', parede: 'Parede de concreto', escada: 'Escada',
+  dividir: 'Dividir viga', unir: 'Unir vigas', prolongar: 'Prolongar viga', copiar: 'Copiar', girar: 'Girar', espelhar: 'Espelhar', puncao: 'Armadura de punção', zonaLaje: 'Zona de uniformização', corte: 'Corte do edifício', secao: 'Linha de seção', flecha: 'Flecha entre dois pontos', linhaDobra: 'Linha de dobra', pilarParede: 'Pilar-parede', parede: 'Parede de concreto', escada: 'Escada',
 };
 export const TECLA_FERRAMENTA: Partial<Record<Ferramenta, string>> = { selecionar: 'S', pilar: 'P', viga: 'V', laje: 'L', carga: 'C', eixo: 'E', fundacao: 'U', vigaFund: 'B', girarFund: 'K', insFund: 'N', radier: 'W', vigaElastica: 'X', corrida: 'A', limite: 'T', limiteMascara: 'Q', mover: 'M', medir: 'D', dividir: 'I', unir: 'J', prolongar: 'O', copiar: 'Y', girar: 'G', espelhar: 'H', puncao: 'Z', escada: 'Shift+E' };
 
@@ -168,6 +170,7 @@ const PASSOS: Record<Ferramenta, string[]> = {
   eixo: ['Primeiro ponto do eixo.', 'Segundo ponto (digite a distância, @dx;dy ou @d<ângulo e Enter).'],
   mover: ['Ponto base do deslocamento da seleção.', 'Ponto de destino.'],
   medir: ['Primeiro ponto.', 'Segundo ponto.'],
+  flecha: ['Primeiro ponto da flecha (a laje do pavimento aberto; calcule a obra antes).', 'Segundo ponto: a aba Deslocamentos abre com a flecha entre os dois pontos.'],
   vigaGabarito: ['Clique numa linha, arco ou polilinha do gabarito (modo eixo: a viga sai pelo eixo; modo face: a linha é a face da viga).', 'Clique do lado em que o corpo da viga deve ficar (a linha é a face oposta ao clique).'],
   moverRef: ['Clique no texto de referência (nome) de um pilar, viga ou laje.', 'Clique no novo local do texto (Esc cancela; “Restaurar posições” no grupo Referências volta ao automático).'],
   contornoRet: ['Primeiro canto do contorno externo (dois cliques: cantos opostos, ângulo zero; três: um lado e um ponto do lado oposto).', 'Segundo ponto: com Enter, o contorno de ângulo zero; com outro clique, o terceiro ponto define o lado oposto. Esc cancela.', 'Ponto do lado oposto (qualquer ângulo).'],
@@ -1744,6 +1747,20 @@ export function Planta() {
       const [a, z] = novos, d = Math.hypot(z[0] - a[0], z[1] - a[1]);
       msg(`Distância ${fmt(d, 3)} m · Δx ${fmt(z[0] - a[0], 3)} · Δy ${fmt(z[1] - a[1], 3)} · ${fmt((Math.atan2(z[1] - a[1], z[0] - a[0]) * 180) / Math.PI, 2)}°`);
       setPontos([]); return;
+    }
+    if (f === 'flecha' && novos.length === 2) {
+      // V6d (C12.16, K1.15.4-1): os dois pontos vão para a aba Deslocamentos, que calcula o perfil e a flecha
+      setPontos([]);
+      const [a, z] = novos;
+      if (nivelFund || !pav) { msg('A flecha vale para as lajes: abra um pavimento.'); return; }
+      if (Math.hypot(z[0] - a[0], z[1] - a[1]) < 1e-3) { msg('Os dois pontos coincidem: clique em dois pontos distintos.'); return; }
+      const an = useBuilding.getState().analise;
+      if (!an || !an.grelhas.some((g) => g.pavimento === pav.id && g.res && !g.res.erro)) { msg('Calcule a obra (aba Dimensionamento) para obter a flecha da laje deste pavimento.'); return; }
+      useResultados.getState().set({ flecha: { pavimento: pav.id, x1: +a[0].toFixed(4), y1: +a[1].toFixed(4), x2: +z[0].toFixed(4), y2: +z[1].toFixed(4) } });
+      msg(`Flecha entre (${fmt(a[0], 2)}; ${fmt(a[1], 2)}) e (${fmt(z[0], 2)}; ${fmt(z[1], 2)}) m: veja a aba Deslocamentos.`);
+      useEdifUI.getState().set({ aba: 'deslocamentos' });
+      usePlanta.getState().set({ ferramenta: 'selecionar' });
+      return;
     }
     if (f === 'mover' && novos.length === 2) {
       const dx = +(novos[1][0] - novos[0][0]).toFixed(4), dy = +(novos[1][1] - novos[0][1]).toFixed(4);

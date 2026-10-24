@@ -877,6 +877,8 @@ tr.sel td { background: var(--accent-soft); }
 .v3d-def-leg { display: flex; gap: 8px; align-items: center; padding: 3px 10px; font-size: 11.5px; border-top: 1px solid var(--line); background: var(--surface); }
 .v3d-def-rampa { flex: 0 0 220px; height: 10px; border-radius: 3px; border: 1px solid var(--line); background: linear-gradient(90deg, var(--v3d-def-1), var(--v3d-def-2), var(--v3d-def-3), var(--v3d-def-4), var(--v3d-def-5)); }
 .v3d-def-leg .num { font-family: var(--font-num); }
+.v3d-consulta { max-height: 34%; overflow: auto; padding: 6px 10px; border-top: 1px solid var(--line); background: var(--surface); font-size: 12px; }
+.v3d-consulta .row { align-items: flex-start; flex-wrap: wrap; gap: 8px 12px; }
 .desloc-aba { display: flex; flex-direction: column; gap: 12px; padding: 10px; overflow: auto; }
 .desloc-aba .row { align-items: flex-end; flex-wrap: wrap; gap: 8px 12px; }
 .flecha-perfil { width: 100%; max-width: 640px; height: auto; background: var(--v3d-claro-fundo); border: 1px solid var(--line); border-radius: var(--radius); }

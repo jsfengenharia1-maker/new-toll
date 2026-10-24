@@ -2,7 +2,7 @@
 // (interpolação sobre os nós da grelha), flecha em relação à secante (padrão) ou à tangente no ponto inicial, e a
 // combinação gravitacional mais desfavorável. Núcleo puro.
 import type { AnaliseEdificio } from '../building/analitico';
-import { combinacoesDoEstado, type CombinacaoEd } from '../building/combinacoes';
+import { combinacoesDoEstado, combinacoesEdificio, type CombinacaoEd } from '../building/combinacoes';
 import type { BuildingModel, EstadoId } from '../building/types';
 import {
   deslocamentosHipotese, hipoteseDeCombinacao, type DeslocamentosHipotese, type Hipotese,
@@ -116,6 +116,21 @@ export function flechaMaisDesfavoravel(
 ): FlechaPorHipotese[] {
   const cands = (o.combinacoes ?? combinacoesDoEstado(b, an, o.estado ?? 'flecha')).filter((c) => ehGravitacional(an, c));
   return cands
+    .map((c) => flechaDaHipotese(an, hipoteseDeCombinacao(c), pavimento, a, bb, o))
+    .sort((x, y) => Math.abs(y.resultado.flecha) - Math.abs(x.resultado.flecha));
+}
+
+export type FamiliaEnvoltoria = 'ELU' | 'RARA' | 'FREQ' | 'QP';
+
+/**
+ * Flecha pela envoltória de uma família de combinações (V6d, acesso pelas envoltórias): a combinação da família de maior
+ * |flecha| entre os dois pontos vem primeiro. Diferente de `flechaMaisDesfavoravel`, não se restringe às gravitacionais
+ * (a envoltória inclui as combinações com vento). A família ELU é só informativa: a flecha é verificação de serviço.
+ */
+export function flechaEnvoltoria(
+  b: BuildingModel, an: AnaliseEdificio, familia: FamiliaEnvoltoria, pavimento: string, a: Ponto2, bb: Ponto2, o: OpcoesFlecha = {},
+): FlechaPorHipotese[] {
+  return combinacoesEdificio(b, an).filter((c) => c.tipo === familia)
     .map((c) => flechaDaHipotese(an, hipoteseDeCombinacao(c), pavimento, a, bb, o))
     .sort((x, y) => Math.abs(y.resultado.flecha) - Math.abs(x.resultado.flecha));
 }

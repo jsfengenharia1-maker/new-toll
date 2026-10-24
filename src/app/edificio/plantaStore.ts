@@ -9,7 +9,7 @@ import { EVENTO_TEMA, temaEfetivo } from '../design/tema';
 
 export type Ferramenta = 'selecionar' | 'pilar' | 'viga' | 'laje' | 'carga' | 'eixo' | 'mover' | 'medir' | 'alinhar' | 'fundacao' | 'vigaFund' | 'girarFund'
   | 'limite' | 'limiteMascara' | 'insFund' | 'radier' | 'vigaElastica' | 'corrida' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar' | 'puncao' | 'zonaLaje' | 'linhaDobra' | 'pilarParede' | 'parede' | 'corte' | 'secao' | 'vigaGabarito' | 'moverRef' | 'contaGotas'
-  | 'contornoRet' | 'aberturaRet' | 'cargaLaje' | 'cargaViga' | 'direcaoPano' | 'insercaoPano' | 'cota' | 'plano' | 'escada';
+  | 'contornoRet' | 'aberturaRet' | 'cargaLaje' | 'cargaViga' | 'direcaoPano' | 'insercaoPano' | 'cota' | 'plano' | 'escada' | 'flecha';
 /** Ferramentas que só existem no nível de fundação; as que mantêm a seleção ao serem escolhidas (agem sobre ela ou sobre um elemento). */
 export const FERRAMENTAS_FUNDACAO: Ferramenta[] = ['fundacao', 'vigaFund', 'girarFund', 'limite', 'limiteMascara', 'insFund', 'radier', 'vigaElastica', 'corrida'];
 export const MANTEM_SELECAO: Ferramenta[] = ['girarFund', 'insFund'];

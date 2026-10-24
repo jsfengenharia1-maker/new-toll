@@ -154,6 +154,7 @@ function Analise() {
         <RibbonButton icon="resultados" label="Ver Esforços" onClick={() => ui({ aba: 'esforcos' })} />
         <RibbonButton icon="verificacao" label="Ver Verificação" onClick={() => ui({ aba: 'verificacao' })} />
       </RibbonGroup>
+      <RibbonGroup label="Consultas" radios="Ferramenta"><Ferr f="flecha" icon="medir" /></RibbonGroup>
       <RibbonGroup label="Opções"><RibbonButton icon="config" label="Opções de cálculo…" onClick={cfg('opcoes')} /></RibbonGroup>
     </>
   );

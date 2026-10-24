@@ -12,7 +12,7 @@ import { deformarCena, posicoesDeformadas, subdividir } from './deformadaCena';
 import { campoDisperso } from './interpolacao';
 import { consultaNo, csvDeslocamentos, maximosPilaresCombinados, maximosPorPano, tabelaDeslocamentosMalha } from './consultas';
 import { valoresLegenda } from './bandas';
-import { ehGravitacional, flechaDaHipotese, flechaEntrePontos, flechaMaisDesfavoravel, perfilDeslocamentos } from './flechaPontos';
+import { ehGravitacional, flechaDaHipotese, flechaEntrePontos, flechaEnvoltoria, flechaMaisDesfavoravel, perfilDeslocamentos } from './flechaPontos';
 
 // ---- viga isolada: Hermite + carga uniforme = linha elástica exata ----
 const E = 30e6, I = 0.0004, L = 6, q = 12, EI = E * I;
@@ -231,6 +231,20 @@ describe('V3: deformada, consultas e flecha no edifício', () => {
     for (let i = 1; i < lista.length; i++) expect(Math.abs(lista[i - 1].resultado.flecha)).toBeGreaterThanOrEqual(Math.abs(lista[i].resultado.flecha));
     const raras = flechaMaisDesfavoravel(b, an, pavTipo.id, [0.5, 2.5], [5.5, 2.5], { combinacoes: combinacoesEdificio(b, an).filter((c) => c.tipo === 'RARA') });
     expect(raras.every((x) => Object.keys(x.hipotese.fatores).every((c) => an.casos.includes(c)))).toBe(true);
+  });
+
+  it('flecha pela envoltória (V6d): ordenada por |flecha| e cada item reproduz a flecha da combinação', () => {
+    const a: [number, number] = [0.5, 2.5], z: [number, number] = [5.5, 2.5];
+    for (const fam of ['RARA', 'FREQ', 'QP'] as const) {
+      const lista = flechaEnvoltoria(b, an, fam, pavTipo.id, a, z);
+      const combs = combinacoesEdificio(b, an).filter((c) => c.tipo === fam);
+      expect(lista.length).toBe(combs.length);
+      for (let i = 1; i < lista.length; i++) expect(Math.abs(lista[i - 1].resultado.flecha)).toBeGreaterThanOrEqual(Math.abs(lista[i].resultado.flecha));
+      const c0 = combs.find((c) => `comb:${c.nome}` === lista[0].hipotese.id)!;
+      expect(flechaDaHipotese(an, hipoteseDeCombinacao(c0), pavTipo.id, a, z).resultado.flecha).toBeCloseTo(lista[0].resultado.flecha, 12);
+    }
+    // a família ELU entra (informativa) e inclui as combinações com vento
+    expect(flechaEnvoltoria(b, an, 'ELU', pavTipo.id, a, z).length).toBe(combinacoesEdificio(b, an).filter((c) => c.tipo === 'ELU').length);
   });
 
   it('cena deformada: malha refinada, topo do pilar acompanha o nó e escala automática = 5 % da altura', () => {

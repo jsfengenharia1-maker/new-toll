@@ -20,12 +20,12 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
 | 1.9 Entrada de dados (págs. 41–65) | 116 | 91 | 12 | 0 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 9 | 0 | 0 | 2 |
-| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 44 | 15 | 0 | 3 |
+| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 46 | 13 | 0 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 86 | 10 | 1 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 37 | 4 | 0 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
-| 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 21 | 3 | 0 | 19 |
-| **Total** | **661** | **481** | **67** | **2** | **111** |
+| 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 22 | 2 | 0 | 19 |
+| **Total** | **661** | **484** | **64** | **2** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -36,8 +36,8 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 31 | 2 | 33 |
 | FU — Fundações | 4 | 0 | 4 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 1 | 0 | 1 |
-| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 15 | 0 | 15 |
-| **Total** | **67** | **2** | **69** |
+| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 12 | 0 | 12 |
+| **Total** | **64** | **2** | **66** |
 
 ## Divergências de premissa
 
@@ -553,7 +553,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | | **Maciças, nervuradas e radiers** | | | |
 | K1.11.16 | Armadura base definida/modificada; malha de discretização (modelo 3D). | Feito | — | armadura base das lajes definida e alterada na janela da laje e por comando; malha de discretização pela opção `malha` (R7d) |
 | K1.11.17 | Envoltória de áreas de armadura por metro nas direções de armadura, superior e inferior. | Parcial | V | As por metro (máximo por laje e direção) na tabela e no detalhamento; mapa de `AsInf` e `AsSup` (envoltória das duas direções) e por direção em `resultados/isovalores.ts` e AbaIsovalores.tsx, só para lajes maciças (os demais tipos não têm mapa de As); envoltória das taxas nas nervuradas: [V6f] [V4] |
-| K1.11.18 | Deslocamentos (mm) por caso em qualquer nó; esforços por caso e taxa necessária por direção. | Parcial | V | `consultaNo` (`resultados/consultas.ts`): deslocamentos por caso e combinação, esforços por caso e armadura da laje; interface na aba Deslocamentos (AbaDeslocamentos.tsx e Vista3D.tsx); falta abrir pelo clique no nó da vista 3D [V3] — V6d: abrir a consulta pelo clique no nó da vista 3D |
+| K1.11.18 | Deslocamentos (mm) por caso em qualquer nó; esforços por caso e taxa necessária por direção. | Feito | — | `consultaNo` (`resultados/consultas.ts`): deslocamentos por caso e combinação, esforços por caso e armadura da laje; interface na aba Deslocamentos (AbaDeslocamentos.tsx, `ConsultaNoUI.tsx`) [V3] — Feito 24/10/2026 [V6d]: chip Consultar nó da vista 3D (Vista3D.tsx; `RenderizadorCena.pickPonto` dá o ponto de contato; no isométrico estático vale o centro do objeto) mostra a tabela do nó e abre a aba Deslocamentos; e2e V6d |
 | K1.11.19 | Esforços de cálculo pelo método de Wood (combina momentos fletores e volventes/torção nas direções de armadura). | Feito | — | lajes maciças: Wood-Armer com o torçor, média em faixa de 1 m (opção, N1d) |
 | K1.11.20 | Deslocamento máximo por pano e caso (não é flecha); no radier é recalque; valor positivo = levantamento → hipótese inválida. | Parcial | V | `maximosPorPano`: deslocamento máximo do nó por pano e caso, com levantamento marcado (radier/FU6 não incluído); tabela na aba Deslocamentos (AbaDeslocamentos.tsx e Vista3D.tsx) [V3] |
 | K1.11.21 | Verificação e armadura de punção e cortante em zonas maciças e nervuras. | Parcial | E | punção e cortante de zonas maciças: contornos C, C′ e C″, armadura de punção em linhas radiais e armadura transversal de cortante (`src/core/building/puncao.ts`, NBR 6118 19.4 e 19.5); nervuras com as nervuradas (E3d) [N2d] |
@@ -564,7 +564,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.26 | "Rearmar" lajes com os esforços iniciais (com linha de igualação). | Feito | — | `laje.barras` com `refazer`: descarta edição e geração sem cálculo e refaz com os esforços da análise, mantendo `zonasLaje` e `linhasDobra` (R7e) |
 | | **Pilares** | | | |
 | K1.11.27 | Armadura consultável e editável; mudança de dimensão gera nova armadura. | Feito | — | armadura do pilar editável por lance (R2); mudar a seção do elemento solta a armadura bloqueada no mesmo passo (desfazível) e o recálculo gera a nova (R7f) |
-| K1.11.28 | Esforços por caso (N, M, V, T) em qualquer ponto da altura e diagramas. | Parcial | V | [V5] núcleo: `diagramaPilar` (N, M, V e T por caso, combinação ou envoltória, em qualquer altura, conferido com as cargas na fundação) e aba Esforços (AbaEsforcos.tsx); falta o seletor na janela do pilar — V6d: seletor de esforços por caso na janela do pilar |
+| K1.11.28 | Esforços por caso (N, M, V, T) em qualquer ponto da altura e diagramas. | Feito | — | [V5] núcleo: `diagramaPilar` (N, M, V e T por caso, combinação ou envoltória, em qualquer altura, conferido com as cargas na fundação) e aba Esforços (AbaEsforcos.tsx) — Feito 24/10/2026 [V6d]: seletor de hipótese, grandeza e altura na janela do pilar (`EsforcosPilarUI.tsx` em Revisao.tsx; núcleo `esforcosPilarEmAltura`, testes em esforcosCaso.test.ts); e2e V6d |
 | K1.11.29 | Esforços mais desfavoráveis (majorados) por lance que determinam a armadura; pode haver várias combinações determinantes (atendem a armadura escolhida mas não a imediatamente inferior). | Feito | — | janela do pilar com as combinações determinantes por lance: Nd, momentos de base e topo por direção, Md,tot e tração (R1) |
 | K1.11.30 | Diagramas de deformação e tensão do concreto e aço na reta normal à linha neutra. | Parcial | V | [V5] núcleo: `estadoDaSecao` (plano de deformações, domínio, linha neutra, tensões do concreto e do aço por barra; ∫σ = N e momento iguais ao cálculo por fibras) e seção na aba Esforços (viga e pilar retangular); seção circular e poligonal fora |
 | K1.11.31 | Momentos ampliados por excentricidade acidental e de 2ª ordem (flambagem) destacados. | Feito | — | janela do pilar com momentos de 1ª ordem na base e no topo e Md,tot com M1d,mín e 2ª ordem por combinação determinante (R1) |
@@ -832,7 +832,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.15.3-4 | Estimativa prática: deslocamentos de peso próprio + uso × fator de 1,5 a 4, conforme processo construtivo e tipo de flecha. | Feito | — | fator simplificado das lajes editável (0 a 5; 0 = método da NBR) (N1d) |
 | K1.15.3-5 | Flecha relativa L/xxx: usar o menor dos vãos adjacentes ao ponto de máximo deslocamento absoluto. | Feito | — | limite pelo menor vão da laje (L/250) |
 | | **1.15.4 Flecha entre dois pontos (págs. 98–111)** | | | |
-| K1.15.4-1 | Ferramenta: dois pontos em laje maciça ou nervurada; linha entre eles e perfil dos deslocamentos verticais ao longo dela, por caso, por combinação e pela combinação gravitacional mais desfavorável (peso próprio + permanentes + variável). | Parcial | V | `perfilDeslocamentos`/`flechaDaHipotese`: perfil dos uz ao longo da reta, por caso, combinação e combinação gravitacional mais desfavorável; aba Deslocamentos em AbaDeslocamentos.tsx e Vista3D.tsx; pontos digitados (ferramenta com cliques na planta pendente) [V3] — V6d: cliques na planta para os dois pontos |
+| K1.15.4-1 | Ferramenta: dois pontos em laje maciça ou nervurada; linha entre eles e perfil dos deslocamentos verticais ao longo dela, por caso, por combinação e pela combinação gravitacional mais desfavorável (peso próprio + permanentes + variável). | Feito | — | `perfilDeslocamentos`/`flechaDaHipotese`: perfil dos uz ao longo da reta, por caso, combinação e combinação gravitacional mais desfavorável; aba Deslocamentos em AbaDeslocamentos.tsx e Vista3D.tsx [V3] — Feito 24/10/2026 [V6d]: os dois pontos vêm de cliques na planta (ferramenta Flecha entre dois pontos, Planta.tsx; `resultadosStore.ts`); e2e V6d |
 | K1.15.4-2 | Leitura: convexidade nos apoios e concavidade nos vãos; o máximo absoluto costuma estar na maior concavidade. | Fora | — | explicação do manual |
 | K1.15.4-3 | Direção da flecha relativa máxima: menor distância entre 2 pontos do contorno da concavidade; sugere marcar pontos mais afastados primeiro para achar o contorno. | Fora | — | dica de uso |
 | K1.15.4-4 | Flecha medida em relação à reta pelos pontos inicial e final (secante) ou à tangente no ponto inicial (opção). | Feito | — | `flechaEntrePontos({ referencia })`: secante (padrão) ou tangente no ponto inicial; controle em AbaDeslocamentos.tsx e Vista3D.tsx [V3] — Feito 23/10/2026: interface: Vista3D.tsx (deformada) e AbaDeslocamentos.tsx; e2e V3 [V3] |

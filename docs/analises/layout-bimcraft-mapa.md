@@ -181,6 +181,7 @@ Todas as 40 ferramentas de `Ferramenta` (plantaStore.ts) e a tecla de `TECLA_FER
 | T41 | Cota em série | | PlantaBarra | RB:lancamento / Anotação (L6; acrescentada após o mapa) |
 | T42 | Definir plano na planta | | PlanosUI | RB:edicao / Planos (E3f; acrescentada após o mapa) |
 | T43 | Escada | Shift+E | EscadaMenu.tsx, Planta.tsx | RB:lancamento / Elementos (E4b; acrescentada após o mapa) |
+| T44 | Flecha entre dois pontos | | Planta.tsx, AbaDeslocamentos.tsx | RB:analise / Consultas (V6d; acrescentada após o mapa) |
 
 Opções e botões da `PlantaBarra` (barra da planta hoje, `.planta-barra`):
 

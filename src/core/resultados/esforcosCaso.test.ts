@@ -4,7 +4,7 @@ import { analisarEdificio, type AnaliseEdificio } from '../building/analitico';
 import { combinacoesEdificio } from '../building/combinacoes';
 import { comandosEdificioPadrao, Sessao } from '../commands';
 import { dimensionarEdificio } from '../building/dimensionamento';
-import { desenharDiagrama, diagramaBarras, diagramaInclinada, diagramaPilar, diagramaViga, direcaoDoDiagrama, escalaAutomatica, estacoesDaBarra, hipotesesDeEsforco, type Envoltoria } from './esforcosCaso';
+import { desenharDiagrama, diagramaBarras, diagramaInclinada, diagramaPilar, diagramaViga, direcaoDoDiagrama, escalaAutomatica, esforcosPilarEmAltura, estacoesDaBarra, hipotesesDeEsforco, type Envoltoria } from './esforcosCaso';
 
 function predio() {
   const s = new Sessao();
@@ -139,6 +139,19 @@ describe('esforços por hipótese no edifício', () => {
     // extremos de N em compressão positiva
     expect(dG.extremos.N.max.valor).toBeCloseTo(baseG.N, 3);
     expect(dG.extremos.N.max.pos[2]).toBeLessThan(dG.extremos.N.min.pos[2] + 1e-9);
+  });
+
+  it('pilar em uma altura (V6d): extremos coincidem com os pontos e o meio é a média linear', () => {
+    const pil = b.pilares[0], d = diagramaPilar(an, pil.id, hs.find((h) => h.id === 'caso:G')!)!;
+    const base = esforcosPilarEmAltura(d, 0), topo = esforcosPilarEmAltura(d, 1e3);
+    expect(base.max.N).toBeCloseTo(d.pontos[0].max.N, 12);
+    expect(topo.max.N).toBeCloseTo(d.pontos.at(-1)!.max.N, 12);
+    expect(topo.altura).toBeCloseTo(d.altura.at(-1)!, 12);
+    expect(esforcosPilarEmAltura(d, -3).altura).toBe(d.altura[0]);
+    const k = Math.floor(d.pontos.length / 2), zm = (d.altura[k] + d.altura[k + 1]) / 2, m = esforcosPilarEmAltura(d, zm);
+    expect(m.max.N).toBeCloseTo((d.pontos[k].max.N + d.pontos[k + 1].max.N) / 2, 9);
+    expect(m.max.Mz).toBeCloseTo((d.pontos[k].max.Mz + d.pontos[k + 1].max.Mz) / 2, 9);
+    expect(esforcosPilarEmAltura(d, d.altura[k]).max.N).toBeCloseTo(d.pontos[k].max.N, 9);
   });
 
   it('pilar sob vento: cortante global na base confere em módulo com a reação horizontal da fundação', () => {

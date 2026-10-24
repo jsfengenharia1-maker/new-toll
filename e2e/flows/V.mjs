@@ -562,3 +562,99 @@ export const f_V5 = {
       await page.locator('[data-lista-folhas="1"]').waitFor({ timeout: 30000 });
     },
   };
+
+export const f_V6d = {
+    webgl: true,
+    name: 'V6d: flecha por dois cliques na planta e pelas envoltórias, consulta de nó pelo clique na vista 3D e esforços do pilar por hipótese na janela do pilar',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      const abas = page.locator('.edif-tabs');
+
+      // ---- sem cálculo, a ferramenta avisa
+      await faixaAba(page, 'Análise');
+      const barra = page.getByRole('toolbar', { name: /^Comandos: Análise/ });
+      await barra.getByRole('radio', { name: 'Flecha entre dois pontos', exact: true }).click();
+      await page.keyboard.press('f');
+      const [a0x, a0y] = await telaDe(page, 0.5, 2.5), [z0x, z0y] = await telaDe(page, 5.5, 2.5);
+      await page.mouse.click(a0x, a0y);
+      await page.mouse.click(z0x, z0y);
+      await page.locator('.statusbar .msg', { hasText: 'Calcule a obra' }).waitFor();
+
+      await abas.getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+
+      // ---- flecha pelos dois cliques na planta: abre a aba Deslocamentos com os pontos
+      await abas.getByRole('tab', { name: 'Planta', exact: true }).click();
+      await faixaAba(page, 'Análise');
+      await page.getByRole('toolbar', { name: /^Comandos: Análise/ }).getByRole('radio', { name: 'Flecha entre dois pontos', exact: true }).click();
+      await page.keyboard.press('f');
+      const [ax, ay] = await telaDe(page, 0.5, 2.5), [zx, zy] = await telaDe(page, 5.5, 2.5);
+      await page.mouse.click(ax, ay);
+      await page.mouse.click(zx, zy);
+      await page.locator('[data-flecha]').waitFor();
+      assert.equal(await abas.getByRole('tab', { name: 'Deslocamentos', exact: true }).getAttribute('aria-selected'), 'true');
+      const flecha = async () => JSON.parse(await page.locator('[data-flecha]').getAttribute('data-flecha'));
+      const f0 = await flecha();
+      assert.ok(Math.abs(f0.L - 5) < 0.2 && f0.flechaMm > 0.01, JSON.stringify(f0));
+      assert.ok(Math.abs((await page.getByLabel(/^X inicial/).inputValue()).replace(',', '.') - 0.5) < 0.3);
+
+      // ---- acesso pelas envoltórias: a combinação da família de maior flecha
+      const hip = page.getByLabel(/^Hipótese da flecha/);
+      const opcoes = await hip.locator('option').evaluateAll((os) => os.map((o) => o.value));
+      assert.ok(['env:RARA', 'env:FREQ', 'env:QP'].every((v) => opcoes.includes(v)), opcoes.join(','));
+      await hip.selectOption('env:RARA');
+      await page.waitForFunction((n) => document.querySelector('[data-flecha]')?.innerText.includes('Hipótese') && document.querySelector('[data-flecha]').getAttribute('data-flecha') !== n, JSON.stringify(f0));
+      const fr = await flecha();
+      assert.ok(fr.flechaMm >= f0.flechaMm - 1e-6, `rara ${fr.flechaMm} >= quase permanente ${f0.flechaMm}`);
+
+      // ---- consulta do nó pelo clique na vista vista 3D
+      await abas.getByRole('tab', { name: '3D', exact: true }).click();
+      const cv = page.locator('.v3d-cv');
+      await cv.waitFor();
+      await page.waitForFunction(() => document.querySelector('.v3d-cv')?.getAttribute('data-status') !== 'carregando');
+      const status = await cv.getAttribute('data-status');
+      console.log(`        (V6d: vista 3D em modo ${status})`);
+      await page.getByRole('button', { name: 'Consultar nó', exact: true }).click();
+      await page.locator('[data-consulta-3d=""]').waitFor();
+      if (status === 'pronto') {
+        const box = await cv.boundingBox();
+        await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+      } else {
+        await page.locator('.v3d-iso-box path[data-id^="laje"]').first().click();
+      }
+      const c3 = page.locator('[data-consulta-3d]:not([data-consulta-3d=""])');
+      await c3.waitFor();
+      assert.ok((await c3.locator('tbody tr').count()) > 5);
+      const uz = parseFloat((await c3.locator('tbody tr', { hasText: /^Caso G/ }).first().locator('td').nth(3).innerText()).replace(',', '.'));
+      assert.ok(uz < 0, `uz de G no nó clicado: ${uz} mm`);
+      await c3.getByRole('button', { name: 'Abrir na aba Deslocamentos', exact: true }).click();
+      assert.equal(await abas.getByRole('tab', { name: 'Deslocamentos', exact: true }).getAttribute('aria-selected'), 'true');
+      await page.locator('[data-consulta-no]').waitFor();
+
+      // ---- esforços do pilar por hipótese, na janela do pilar
+      await abas.getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: 'Pilares (por lance)' }) }).locator('tbody tr').first().dblclick();
+      const jp = page.getByRole('dialog', { name: /Resultados do elemento — Pilar/ });
+      await jp.waitFor();
+      const ep = jp.locator('[data-esf-pilar]');
+      await ep.waitFor();
+      await jp.getByLabel(/^Hipótese dos esforços do pilar/).selectOption('caso:G');
+      await page.waitForFunction(() => JSON.parse(document.querySelector('[data-esf-pilar]').getAttribute('data-esf-pilar')).hipotese === 'caso:G');
+      const e0 = JSON.parse(await ep.getAttribute('data-esf-pilar'));
+      assert.equal(e0.altura, 0);
+      assert.ok(e0.N > 10, `N na base: ${e0.N}`);
+      await jp.getByLabel(/^Altura acima da base/).fill('2');
+      await jp.getByLabel(/^Altura acima da base/).press('Enter');
+      await page.waitForFunction(() => JSON.parse(document.querySelector('[data-esf-pilar]').getAttribute('data-esf-pilar')).altura > 1.9);
+      const e2 = JSON.parse(await ep.getAttribute('data-esf-pilar'));
+      assert.ok(e2.N > 0 && e2.N <= e0.N + 1e-6, `N a 2 m (${e2.N}) não maior que na base (${e0.N})`);
+      await jp.getByLabel(/^Grandeza do diagrama do pilar/).selectOption('N');
+      assert.equal(await jp.locator('svg[aria-label="Diagrama de esforços (pilar)"]').count(), 1);
+    },
+  };

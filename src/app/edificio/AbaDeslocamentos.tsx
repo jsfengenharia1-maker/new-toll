@@ -1,16 +1,23 @@
 // Aba "Deslocamentos" (V3): consulta de deslocamentos por nó e caso, máximos por pano e por pavimento, saída da malha em
 // CSV e flecha entre dois pontos de uma laje (perfil em SVG). A matemática vem de src/core/resultados (funções puras).
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { calculoAtual, useBuilding } from './store';
 import { pavimentosOrdenados, type BuildingModel } from '../../core/building/types';
 import { hipotesesDisponiveis } from '../../core/resultados/deformada';
 import { consultaNo, csvDeslocamentos, maximosPilaresCombinados, maximosPorPano, tabelaDeslocamentosMalha } from '../../core/resultados/consultas';
-import { flechaDaHipotese, flechaMaisDesfavoravel, type MedidaFlecha, type ReferenciaFlecha } from '../../core/resultados/flechaPontos';
+import { flechaDaHipotese, flechaEnvoltoria, flechaMaisDesfavoravel, type FamiliaEnvoltoria, type MedidaFlecha, type ReferenciaFlecha } from '../../core/resultados/flechaPontos';
 import { Button, Group, Hint, NumField, Seg, Select, download } from '../ui';
+import { TabelaConsultaNo } from './ConsultaNoUI';
+import { useResultados } from './resultadosStore';
 
 const mm = (v: number, d = 2) => (v * 1000).toFixed(d).replace('.', ',');
 const num = (v: number, d = 2) => v.toFixed(d).replace('.', ',');
 const MAIS_DESFAVORAVEL = 'mais-desfavoravel';
+const ENV_PREFIXO = 'env:';
+const ENVOLTORIAS: { v: FamiliaEnvoltoria; label: string }[] = [
+  { v: 'RARA', label: 'Envoltória rara (combinação de maior flecha)' }, { v: 'FREQ', label: 'Envoltória frequente (combinação de maior flecha)' },
+  { v: 'QP', label: 'Envoltória quase permanente (combinação de maior flecha)' }, { v: 'ELU', label: 'Envoltória ELU (só informativa)' },
+];
 
 export function AbaDeslocamentos({ b }: { b: BuildingModel }) {
   const an = useBuilding((s) => (calculoAtual(s) && !s.analise?.erro ? s.analise : null));
@@ -18,6 +25,7 @@ export function AbaDeslocamentos({ b }: { b: BuildingModel }) {
   const ps = useMemo(() => pavimentosOrdenados(b).filter((p) => an?.grelhas.some((g) => g.pavimento === p.id && g.res && !g.res.erro)), [b, an]);
   const [pav, setPav] = useState('');
   const [cx, setCx] = useState(0.5), [cy, setCy] = useState(0.5);
+  const [noZ, setNoZ] = useState<number | undefined>(undefined);
   const [fp, setFp] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
   const [ref, setRef] = useState<ReferenciaFlecha>('secante');
   const [medida, setMedida] = useState<MedidaFlecha>('relativaMax');
@@ -26,6 +34,18 @@ export function AbaDeslocamentos({ b }: { b: BuildingModel }) {
   const [hipF, setHipF] = useState(MAIS_DESFAVORAVEL);
 
   const hips = useMemo(() => (an ? hipotesesDisponiveis(b, an) : []), [b, an]);
+  // pedidos vindos de outras vistas: dois pontos clicados na planta (ferramenta Flecha) e nó clicado na vista 3D
+  const pedidoFlecha = useResultados((s) => s.flecha), pedidoNo = useResultados((s) => s.no);
+  useEffect(() => {
+    if (!pedidoFlecha) return;
+    setPav(pedidoFlecha.pavimento); setFp({ x1: pedidoFlecha.x1, y1: pedidoFlecha.y1, x2: pedidoFlecha.x2, y2: pedidoFlecha.y2 });
+    useResultados.getState().set({ flecha: null });
+  }, [pedidoFlecha]);
+  useEffect(() => {
+    if (!pedidoNo) return;
+    setCx(pedidoNo.x); setCy(pedidoNo.y); setNoZ(pedidoNo.z); if (pedidoNo.pavimento) setPav(pedidoNo.pavimento);
+    useResultados.getState().set({ no: null });
+  }, [pedidoNo]);
   const pavId = ps.find((p) => p.id === pav)?.id ?? ps[0]?.id ?? '';
   const pavObj = ps.find((p) => p.id === pavId);
   // pontos padrão: linha média da primeira laje do pavimento, de um lado ao outro
@@ -38,7 +58,7 @@ export function AbaDeslocamentos({ b }: { b: BuildingModel }) {
   }, [b, pavObj]);
   const P = fp ?? padrao;
 
-  const consulta = useMemo(() => (an && pavId ? consultaNo(b, an, dim, { x: cx, y: cy, pavimento: pavId }) : null), [b, an, dim, pavId, cx, cy]);
+  const consulta = useMemo(() => (an && pavId ? consultaNo(b, an, dim, noZ === undefined ? { x: cx, y: cy, pavimento: pavId } : { x: cx, y: cy, z: noZ }) : null), [b, an, dim, pavId, cx, cy, noZ]);
   const panos = useMemo(() => (an ? maximosPorPano(b, an) : []), [b, an]);
   const pilares = useMemo(() => (an ? maximosPilaresCombinados(b, an, 'FREQ') : []), [b, an]);
   const flecha = useMemo(() => {
@@ -50,6 +70,7 @@ export function AbaDeslocamentos({ b }: { b: BuildingModel }) {
       const lista = flechaMaisDesfavoravel(b, an, pavId, a, z, o);
       return lista[0] ?? null;
     }
+    if (hipF.startsWith(ENV_PREFIXO)) return flechaEnvoltoria(b, an, hipF.slice(ENV_PREFIXO.length) as FamiliaEnvoltoria, pavId, a, z, o)[0] ?? null;
     const h = hips.find((x) => x.id === hipF);
     return h ? flechaDaHipotese(an, h, pavId, a, z, o) : null;
   }, [b, an, pavId, P.x1, P.y1, P.x2, P.y2, ref, medida, amp, lim, hipF, hips]);
@@ -66,27 +87,11 @@ export function AbaDeslocamentos({ b }: { b: BuildingModel }) {
     <div className="desloc-aba">
       <Group title="Consulta por nó e caso">
         <div className="row">
-          <Select label="Pavimento da consulta" value={pavId} options={ps.map((p) => ({ v: p.id, label: p.nome }))} onChange={setPav} />
-          <NumField label="X da consulta" value={cx} unit="m" onChange={setCx} />
-          <NumField label="Y da consulta" value={cy} unit="m" onChange={setCy} />
+          <Select label="Pavimento da consulta" value={pavId} options={ps.map((p) => ({ v: p.id, label: p.nome }))} onChange={(v) => { setNoZ(undefined); setPav(v); }} />
+          <NumField label="X da consulta" value={cx} unit="m" onChange={(v) => { setNoZ(undefined); setCx(v); }} />
+          <NumField label="Y da consulta" value={cy} unit="m" onChange={(v) => { setNoZ(undefined); setCy(v); }} />
         </div>
-        {consulta && (
-          <div className="tablewrap" data-consulta-no={consulta.no}>
-            <p className="hint">Nó {consulta.no} da malha em ({num(consulta.pos[0])}; {num(consulta.pos[1])}) m, a {num(consulta.distancia)} m do ponto pedido.</p>
-            <table className="data quadro">
-              <thead><tr><th>Caso ou combinação</th><th>ux (mm)</th><th>uy (mm)</th><th>uz (mm)</th><th>rx (mrad)</th><th>ry (mrad)</th><th>rz (mrad)</th></tr></thead>
-              <tbody>
-                {[...consulta.casos.map((c) => ({ ...c, tipo: 'Caso' })), ...consulta.combinacoes.map((c) => ({ ...c, tipo: c.tipo }))].map((c, i) => (
-                  <tr key={`${c.nome}-${i}`}>
-                    <td className="tl">{c.tipo === 'Caso' ? `Caso ${c.nome}` : `${c.tipo} · ${c.nome}`}</td>
-                    {c.u.map((v, k) => <td key={k} className="num">{mm(v)}</td>)}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {consulta.armadura && <p className="hint">Laje {consulta.armadura.nome}: As necessária positiva {num(consulta.armadura.pos[0])} / {num(consulta.armadura.pos[1])} cm²/m e negativa {num(consulta.armadura.neg[0])} / {num(consulta.armadura.neg[1])} cm²/m (direções 0 / 1 da malha).</p>}
-          </div>
-        )}
+        {consulta && <TabelaConsultaNo consulta={consulta} />}
       </Group>
 
       <Group title="Deslocamentos máximos">
@@ -131,14 +136,14 @@ export function AbaDeslocamentos({ b }: { b: BuildingModel }) {
           <NumField label="Y final" value={P.y2} unit="m" onChange={(v) => setFp({ ...P, y2: v })} />
         </div>
         <div className="row">
-          <Select label="Hipótese da flecha" value={hipF} options={[{ v: MAIS_DESFAVORAVEL, label: 'Combinação gravitacional mais desfavorável' }, ...hips.map((h) => ({ v: h.id, label: h.tipo === 'caso' ? `Caso ${h.nome}` : h.nome }))]} onChange={setHipF} />
+          <Select label="Hipótese da flecha" value={hipF} options={[{ v: MAIS_DESFAVORAVEL, label: 'Combinação gravitacional mais desfavorável' }, ...ENVOLTORIAS.map((e) => ({ v: ENV_PREFIXO + e.v, label: e.label })), ...hips.map((h) => ({ v: h.id, label: h.tipo === 'caso' ? `Caso ${h.nome}` : h.nome }))]} onChange={setHipF} />
           <Seg value={ref} options={[{ v: 'secante', label: 'Secante' }, { v: 'tangente', label: 'Tangente no ponto inicial' }]} onChange={setRef} />
           <Select label="Medida da flecha" value={medida} options={[{ v: 'relativaMax', label: 'Máxima relativa' }, { v: 'absolutaMax', label: 'Máxima absoluta' }, { v: 'entrePontos', label: 'Entre os dois pontos' }]} onChange={setMedida} />
           <NumField label="Amplificação da flecha" value={amp} unit="×" onChange={setAmp} min={0.01} />
           <NumField label="Limite da flecha" value={lim} unit="L/n" onChange={setLim} min={1} />
         </div>
         {flecha ? <ResultadoFlecha f={flecha} /> : <p className="hint">Informe dois pontos distintos.</p>}
-        <Hint>Casos gravitacionais (peso próprio, permanentes e variável) entre as combinações de flecha do projeto; limite L/250 (secante) ou 2L/250 (tangente) é o padrão, editável [a confirmar para este uso].</Hint>
+        <Hint>Casos gravitacionais (peso próprio, permanentes e variável) entre as combinações de flecha do projeto; limite L/250 (secante) ou 2L/250 (tangente) é o padrão, editável [a confirmar para este uso]. As envoltórias (rara, frequente, quase permanente) dão a combinação da família de maior flecha entre os pontos. Os pontos também podem ser clicados na planta (ferramenta Flecha entre dois pontos, no grupo Resultados da faixa Análise).</Hint>
       </Group>
     </div>
   );
