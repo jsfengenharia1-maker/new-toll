@@ -25,6 +25,8 @@ export interface JanelaEsforco {
   /** Pilar-parede (V7c): grandeza das resultantes e lado exibido no diagrama ao longo da altura. */
   grandezaPP: keyof Resultante;
   ladoPP: number;
+  /** Pilar-parede (V7g): polo do torçor da base (m); indefinido = centroide dos lados. */
+  poloPP?: [number, number];
 }
 
 interface EsfState {

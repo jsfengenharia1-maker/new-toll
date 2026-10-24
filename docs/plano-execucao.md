@@ -109,6 +109,7 @@ Escalonamento: se um agente S falhar a verificação duas vezes ou relatar dúvi
 | V7e radier por hipótese/combinação, limite por diâmetro e deslocamento por pano (3 itens) | S2 | S1 |
 | V7f interface das opções próprias da viga; opções próprias de lajes e pilares (1 item) | — | S1 |
 | V7g momento de torção do pilar-parede por hipótese (1 item, resíduo da V7c) | S3 | — |
+| V7h torçor do pilar-parede por lance/pavimento (1 item, resíduo da V7g) | S3 | — |
 | N4a tabelas de fogo (NBR 15200:2012, 180 min, NBR 14432) e e ≤ 0,15·b; depende de `pendencias-usuario.md` (4 itens) | S3 | — |
 | N4b ábacos da NBR 6123 e Wp/K da punção (Tabela 19.2); depende de `pendencias-usuario.md` (3 itens) | S3 | — |
 | N4c redistribuição nas faces, opções por elemento e flecha ativa 1,965 × 1,981 (3 itens) | S3 | — |

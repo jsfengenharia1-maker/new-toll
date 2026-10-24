@@ -4,8 +4,8 @@
 import { useMemo } from 'react';
 import type { ResultadoPilarParede } from '../../core/building/pilarParedeEsforcos';
 import type { HipoteseEsforco } from '../../core/resultados/esforcosCaso';
-import { baseDoPilarParede, esforcosPilarParedePorHipotese, GRANDEZAS_PP } from '../../core/resultados/pilarParedeHipotese';
-import { Select } from '../ui';
+import { baseDoPilarParede, esforcosPilarParedePorHipotese, GRANDEZAS_PP, torsorDoPilarParede } from '../../core/resultados/pilarParedeHipotese';
+import { Button, NumField, Select } from '../ui';
 import type { JanelaEsforco } from './esforcosStore';
 
 const f2 = (v: number) => v.toFixed(2).replace('.', ',');
@@ -14,6 +14,7 @@ const LARG = 640, ALT = 260, PAD = 28;
 export function EsforcosPilarParede({ n, j, pp, hip, mudar }: { n: number; j: JanelaEsforco; pp: ResultadoPilarParede | undefined; hip: HipoteseEsforco; mudar: (p: Partial<JanelaEsforco>) => void }) {
   const linhas = useMemo(() => (pp ? esforcosPilarParedePorHipotese(pp, hip) : []), [pp, hip]);
   const base = useMemo(() => (pp ? baseDoPilarParede(pp, hip) : null), [pp, hip]);
+  const tors = useMemo(() => (pp ? torsorDoPilarParede(pp, hip, j.poloPP) : null), [pp, hip, j.poloPP]);
   if (!pp || !linhas.length) return <p className="hint">Nenhum pilar-parede calculado (calcule a estrutura na aba Dimensionamento).</p>;
   const env = hip.tipo === 'envoltoria', g = GRANDEZAS_PP.find((x) => x.v === j.grandezaPP) ?? GRANDEZAS_PP[0];
   const lados = [...new Map(linhas.map((l) => [l.lado, l.nome])).entries()];
@@ -54,6 +55,19 @@ export function EsforcosPilarParede({ n, j, pp, hip, mudar }: { n: number; j: Ja
           Carga na base ({hip.nome}), compressão +: {(['N', 'Vx', 'Vy'] as const).map((k) => `${k} ${env ? `${f2(base.max[k])} / ${f2(base.min[k])}` : f2(base.max[k])} kN`).join('; ')}; {(['Mx', 'My'] as const).map((k) => `${k} ${env ? `${f2(base.max[k])} / ${f2(base.min[k])}` : f2(base.max[k])} kN·m`).join('; ')}{env ? ' (máx. / mín. de cada componente)' : ''}.
           N de cada lado: tração +; lado em casca = média do painel no lance; lado em barra = extremo do lance.
         </p>
+      )}
+      {tors && base && (
+        <div data-esf-pp-torsor={JSON.stringify({ max: +tors.max.toFixed(4), min: +tors.min.toFixed(4), ref: tors.ref.map((v) => +v.toFixed(4)), centro: tors.centro.map((v) => +v.toFixed(4)), vx: +base.max.Vx.toFixed(4), vy: +base.max.Vy.toFixed(4), envoltoria: env })}>
+          <div className="row esf-barra">
+            <NumField label={`Polo do torçor x (janela ${n})`} unit="m" value={tors.ref[0]} onChange={(v) => mudar({ poloPP: [v, tors.ref[1]] })} />
+            <NumField label={`Polo do torçor y (janela ${n})`} unit="m" value={tors.ref[1]} onChange={(v) => mudar({ poloPP: [tors.ref[0], v] })} />
+            {j.poloPP && <Button onClick={() => mudar({ poloPP: undefined })}>{`Centroide (janela ${n})`}</Button>}
+          </div>
+          <p className="hint small">
+            Torçor da base (Mz, reação em torno do eixo vertical, anti-horário + visto de cima) pelo {j.poloPP ? 'polo informado' : 'centroide dos lados'} ({f2(tors.ref[0])}; {f2(tors.ref[1])}) m, {hip.nome}: {env ? `${f2(tors.max)} / ${f2(tors.min)} kN·m (máx. / mín.; ${tors.porMax || '—'} / ${tors.porMin || '—'})` : `${f2(tors.max)} kN·m`}.
+            Centro de cisalhamento teórico: a confirmar (adotado o centroide; informe o polo para transportar o torçor).
+          </p>
+        </div>
       )}
     </div>
   );

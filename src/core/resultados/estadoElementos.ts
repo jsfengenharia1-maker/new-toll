@@ -20,6 +20,7 @@ export function estadoDaViga(b: BuildingModel, r: ResultadoViga): EstadoDoElemen
 
 /**
  * Pilar retangular ou circular: combinação determinante (Nd, momentos totais nas duas direções) com o arranjo adotado.
+ * Retangular e circular: centro das barras a cobrimento da obra (ou do pilar) + 5 mm + φ/2 da borda, como `dimensionarPilares`.
  * Circular: n barras igualmente espaçadas, centro das barras a cobrimento + 5 mm + φ/2 da borda (como no dimensionamento);
  * o momento resultante é a soma vetorial dos dois planos, e a seção gira para a direção dele.
  */
@@ -38,7 +39,7 @@ export function estadoDoPilar(b: BuildingModel, r: ResultadoPilar): EstadoDoElem
   }
   if (arr.n !== undefined || sec.tipo !== 'ret') return null;
   // u ao longo de b e v ao longo de h; a seção é desenhada com x = b e y = h
-  const a = 0.04 + arr.estribo.phi / 1000 + arr.phi / 2000;
+  const a = cobrimentoPilar(b, p.cobrimento) + 0.005 + arr.phi / 2000; // d' do dimensionamento (V7g): cobrimento da obra + 5 mm + φ/2
   const barras = barrasDoArranjo(sec.b, sec.h, a, arr);
   const S = secaoRetangularArmada(sec.b, sec.h, barras, concretoDe(b, 'pilar', lance?.id, p), acoDe(b, 'pilarLong').fyd);
   // momento fletor em torno do eixo x comprime y+ (MuTot no plano de h); em torno de y comprime x+

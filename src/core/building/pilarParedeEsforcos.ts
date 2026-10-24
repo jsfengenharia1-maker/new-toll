@@ -40,7 +40,7 @@ export interface ResultadoPilarParede {
   /** Ponto de referência (centroide dos lados) em que as cargas da base são dadas. */
   centro: [number, number];
   /** Cargas na base por caso (N > 0 compressão; eixos globais, kN e kN·m) e extremos ELU de N. */
-  base: Record<string, { N: number; Vx: number; Vy: number; Mx: number; My: number }>;
+  base: Record<string, { N: number; Vx: number; Vy: number; Mx: number; My: number; /** Torçor da reação em torno do eixo vertical pelo centro (V7g; anti-horário +). */ Mz: number }>;
   baseElu: { Nmax: number; Nmin: number; cNmax: string; cNmin: string };
   lados: EsforcosLado[];
   mensagens: string[];
@@ -113,7 +113,7 @@ export function esforcosPilaresParede(b: BuildingModel, an: AnaliseEdificio, por
     }
     // base
     const base: ResultadoPilarParede['base'] = {};
-    for (const f of an.fundacao) if (f.pilar === pp.id) base[f.caso] = { N: f.N, Vx: f.Vx, Vy: f.Vy, Mx: f.Mx, My: f.My };
+    for (const f of an.fundacao) if (f.pilar === pp.id) base[f.caso] = { N: f.N, Vx: f.Vx, Vy: f.Vy, Mx: f.Mx, My: f.My, Mz: f.Mz ?? 0 };
     let Nmax = -Infinity, Nmin = Infinity, cx = '', cn = '';
     for (const cb of elu) {
       let N = 0;
