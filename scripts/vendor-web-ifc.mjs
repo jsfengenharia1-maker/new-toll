@@ -15,6 +15,7 @@ await build({
   build: {
     outDir: `${raiz}public/vendor`, emptyOutDir: false, minify: true, copyPublicDir: false,
     lib: { entry: entrada, formats: ['es'], fileName: () => `web-ifc-${pkg.version}.mjs` },
+    rolldownOptions: { output: { minify: { compress: true, mangle: true, codegen: { removeWhitespace: true } } } },
   },
 });
 copyFileSync(`${raiz}node_modules/web-ifc/web-ifc.wasm`, `${raiz}public/vendor/web-ifc-${pkg.version}.wasm`);
