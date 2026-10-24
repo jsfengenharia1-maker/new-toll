@@ -11,6 +11,7 @@ import { Button, FilePick, Group, Hint, NumField, OptNumField, Pill, Seg, Select
 import { deleteFromLibrary, listLibrary, loadFromLibrary, saveToLibrary, type LibraryItem } from '../storage';
 import { useStore } from '../store';
 import { useBuilding } from './store';
+import { FormasLajeUI } from './FormasLaje';
 
 type Aba = 'geometria' | 'positivo' | 'negativo' | 'cortante' | 'protensao' | 'resumo';
 const ABAS: { v: Aba; label: string }[] = [
@@ -74,7 +75,7 @@ export function TiposLajeGrupo({ b }: { b: BuildingModel }) {
 
   return (
     <div data-grupo-tipos-laje>
-      <Group title={`Tipos de laje${(b.tiposLaje?.fichas?.length ?? 0) + (b.tiposLaje?.enchimentos?.length ?? 0) ? ` (${b.tiposLaje?.fichas?.length ?? 0} ficha(s), ${b.tiposLaje?.enchimentos?.length ?? 0} enchimento(s))` : ''}`} open={false}>
+      <Group title={`Tipos de laje${(b.tiposLaje?.fichas?.length ?? 0) + (b.tiposLaje?.enchimentos?.length ?? 0) + (b.tiposLaje?.formas?.length ?? 0) ? ` (${b.tiposLaje?.fichas?.length ?? 0} ficha(s), ${b.tiposLaje?.enchimentos?.length ?? 0} enchimento(s), ${b.tiposLaje?.formas?.length ?? 0} forma(s))` : ''}`} open={false}>
         <div className="row wrap">
           <Select label="Ficha de vigotas" value={ficha.id} options={todas.map((x) => ({ v: x.ficha.id, label: `${x.ficha.nome} · ${FONTE_ROTULO[x.fonte]}` }))} onChange={(x) => { setFid(x); setSid(''); }} />
           <Select label="Laje da série" value={serie.id} options={ficha.series.map((s) => ({ v: s.id, label: `${s.id} · h ${cm(s.altura)} · i ${cm(s.intereixo)}${s.tipo ? ` · ${s.tipo}` : ''}` }))} onChange={setSid} />
@@ -181,6 +182,7 @@ export function TiposLajeGrupo({ b }: { b: BuildingModel }) {
         {msg.length > 0 && <p className="small bad" role="alert" data-erros-tipos-laje>{msg.join(' ')}</p>}
 
         <EnchimentosUI b={b} eid={eid} setEid={setEid} roda={roda} />
+        <FormasLajeUI b={b} roda={roda} />
         <ArquivoTiposLaje b={b} roda={roda} setMsg={setMsg} />
         <BibliotecaTiposLaje b={b} roda={roda} />
         <Hint>Dados de ficha são do fabricante: o programa só confere a coerência lógica. Fichas de catálogo e de exemplo são copiadas para a obra ao atribuir; copie uma ficha para editá-la. O catálogo das treliçadas fica na biblioteca de normas.</Hint>
@@ -222,7 +224,7 @@ function ArquivoTiposLaje({ b, roda, setMsg }: { b: BuildingModel; roda: (n: str
     const texto = await f.text();
     const r = importarTiposLaje(texto);
     if (!r.ok) { setMsg(r.erros); return; }
-    if (roda('tipoLaje.importar', { texto, substituir: true })) useStore.getState().set({ message: `${r.fichas.length} ficha(s) e ${r.enchimentos.length} enchimento(s) importados.` });
+    if (roda('tipoLaje.importar', { texto, substituir: true })) useStore.getState().set({ message: `${r.fichas.length} ficha(s), ${r.enchimentos.length} enchimento(s) e ${r.formas.length} forma(s) importados.` });
   };
   return (
     <div className="row wrap">
@@ -239,11 +241,11 @@ function BibliotecaTiposLaje({ b, roda }: { b: BuildingModel; roda: (n: string, 
   const [aviso, setAviso] = useState('');
   const recarregar = () => listLibrary().then((r) => setItens(r.items.filter((i) => i.kind === 'tiposLaje'))).catch(() => {});
   useEffect(() => { recarregar(); }, []);
-  const temAlgo = (b.tiposLaje?.fichas?.length ?? 0) + (b.tiposLaje?.enchimentos?.length ?? 0) > 0;
+  const temAlgo = (b.tiposLaje?.fichas?.length ?? 0) + (b.tiposLaje?.enchimentos?.length ?? 0) + (b.tiposLaje?.formas?.length ?? 0) > 0;
   const gravar = async () => {
     try {
       const arq = JSON.parse(exportarTiposLaje(b));
-      await saveToLibrary('tiposLaje', nome.trim(), `${arq.fichas.length} ficha(s), ${arq.enchimentos.length} enchimento(s)`, arq);
+      await saveToLibrary('tiposLaje', nome.trim(), `${arq.fichas.length} ficha(s), ${arq.enchimentos.length} enchimento(s), ${(arq.formas ?? []).length} forma(s)`, arq);
       setNome(''); recarregar(); setAviso(`Tipos de laje “${nome.trim()}” gravados.`);
     } catch (e) { setAviso((e as Error).message); }
   };
