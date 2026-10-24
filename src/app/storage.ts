@@ -7,6 +7,7 @@ import type { ModeloPortico } from '../core/building/copiaArmadura';
 import type { BuildingFile } from '../core/building/file';
 import type { BibliotecaAlvenaria } from '../core/building/alvenariaLista';
 import type { ArquivoTiposLaje } from '../core/building/tiposLaje';
+import type { ArquivoFichasAlveolares } from '../core/building/alveolares';
 
 export interface SavedCharacteristics {
   projectName: string;
@@ -16,9 +17,9 @@ export interface SavedCharacteristics {
   settings: Record<string, unknown>;
 }
 
-export type LibraryKind = 'project' | 'characteristics' | 'materiais' | 'combinacoes' | 'portico' | 'edificio' | 'alvenaria' | 'tiposLaje';
+export type LibraryKind = 'project' | 'characteristics' | 'materiais' | 'combinacoes' | 'portico' | 'edificio' | 'alvenaria' | 'tiposLaje' | 'fichasAlveolares';
 /** Conteúdo gravado na biblioteca: projeto, características das fundações, materiais do edifício, situações de projeto (N2a) ou modelo de armadura de pórtico (R7f) ou edifício inteiro (L1). */
-export type LibraryPayload = Model | SavedCharacteristics | PerfilMateriais | ListaSituacoes | ModeloPortico | BuildingFile | BibliotecaAlvenaria | ArquivoTiposLaje;
+export type LibraryPayload = Model | SavedCharacteristics | PerfilMateriais | ListaSituacoes | ModeloPortico | BuildingFile | BibliotecaAlvenaria | ArquivoTiposLaje | ArquivoFichasAlveolares;
 export interface LibraryItem { id: string; kind: LibraryKind; name: string; savedAt: string; summary: string }
 export interface LibraryEntry extends LibraryItem { payload: LibraryPayload }
 
