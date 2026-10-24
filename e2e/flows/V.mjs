@@ -803,3 +803,59 @@ export const f_V6f_alveolar = {
       assert.equal(await page.locator('[data-isov-janela="2"]').getByLabel(/^Grandeza \(janela 2\)/).inputValue(), 'Mx');
     },
   };
+
+export const f_V7a = {
+    name: 'V7a: seletor de esforços (tipo de hipótese, filtro, hipótese e abscissa) nas janelas da viga e do pilar',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      const abas = page.locator('.edif-tabs');
+      await abas.getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+
+      // ---- janela da viga: envoltória ELU, depois só casos (G) e combinações
+      await page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Vigas$/ }) }).locator('tbody tr').first().dblclick();
+      const jv = page.getByRole('dialog', { name: /Resultados do elemento — Viga/ });
+      await jv.waitFor();
+      const ev = jv.locator('[data-esf-viga]');
+      await ev.waitFor();
+      const lerV = async () => JSON.parse(await ev.getAttribute('data-esf-viga'));
+      const v0 = await lerV();
+      assert.equal(v0.hipotese, 'env:ELU');
+      assert.equal(v0.envoltoria, true);
+      assert.equal(await jv.locator('svg[aria-label="Diagrama de esforços (viga)"] polyline.esf-curva-min').count(), 1);
+      await jv.getByLabel(/^Tipo de hipótese dos esforços da viga/).selectOption({ label: 'Casos simples' });
+      await page.waitForFunction(() => JSON.parse(document.querySelector('[data-esf-viga]').getAttribute('data-esf-viga')).hipotese.startsWith('caso:'));
+      assert.equal(await jv.locator('svg[aria-label="Diagrama de esforços (viga)"] polyline.esf-curva-min').count(), 0);
+      await jv.getByLabel(/^Hipótese dos esforços da viga/).selectOption('caso:G');
+      await page.waitForFunction(() => JSON.parse(document.querySelector('[data-esf-viga]').getAttribute('data-esf-viga')).hipotese === 'caso:G');
+      const vG = await lerV();
+      assert.equal(vG.envoltoria, false);
+      assert.ok(Math.abs(vG.M) <= Math.abs(v0.M) + 1e-6, JSON.stringify([vG, v0]));
+      await jv.getByLabel(/^Tipo de hipótese dos esforços da viga/).selectOption({ label: 'Combinações' });
+      await page.waitForFunction(() => JSON.parse(document.querySelector('[data-esf-viga]').getAttribute('data-esf-viga')).hipotese.startsWith('comb:'));
+      // filtro sem resultado mantém a lista inteira
+      const nTodas = await jv.getByLabel(/^Hipótese dos esforços da viga/).locator('option').count();
+      await jv.getByLabel(/^Filtrar hipóteses \(viga\)/).fill('zzz');
+      assert.equal(await jv.getByLabel(/^Hipótese dos esforços da viga/).locator('option').count(), nTodas);
+      // abscissa: valor interpolado no meio da viga
+      await jv.getByLabel(/^Abscissa s ao longo da viga/).fill('3');
+      await jv.getByLabel(/^Abscissa s ao longo da viga/).press('Enter');
+      await page.waitForFunction(() => JSON.parse(document.querySelector('[data-esf-viga]').getAttribute('data-esf-viga')).s > 2.9);
+      await jv.getByRole('button', { name: 'Fechar' }).click();
+
+      // ---- janela do pilar: o mesmo seletor
+      await page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: 'Pilares (por lance)' }) }).locator('tbody tr').first().dblclick();
+      const jp = page.getByRole('dialog', { name: /Resultados do elemento — Pilar/ });
+      await jp.waitFor();
+      await jp.getByLabel(/^Tipo de hipótese dos esforços do pilar/).selectOption({ label: 'Combinações' });
+      await page.waitForFunction(() => JSON.parse(document.querySelector('[data-esf-pilar]').getAttribute('data-esf-pilar')).hipotese.startsWith('comb:'));
+      await jp.getByLabel(/^Tipo de hipótese dos esforços do pilar/).selectOption({ label: 'Envoltórias' });
+      await page.waitForFunction(() => JSON.parse(document.querySelector('[data-esf-pilar]').getAttribute('data-esf-pilar')).hipotese.startsWith('env:'));
+    },
+  };

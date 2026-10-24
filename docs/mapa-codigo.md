@@ -143,7 +143,7 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
   - usado por: app/edificio/Propriedades.tsx
 - `EscadaUI.tsx`: useEscadaUI, EscadaHost, DadosComuns
   - usado por: app/edificio/Edificio.tsx, app/edificio/FaixaEdificio.tsx, app/edificio/Navegador.tsx, app/edificio/NovaEscadaUI.tsx, app/edificio/Planta.tsx, app/edificio/Propriedades.tsx, app/edificio/Revisao.tsx
-- `EsforcosPilarUI.tsx`: EsforcosDoPilar
+- `EsforcosPilarUI.tsx`: useSeletorHipotese, SeletorHipotese, EsforcosDoPilar, EsforcosDaViga
   - usado por: app/edificio/Revisao.tsx
 - `EstadosLimite.tsx`: lerColagem, EstadosGrupo
   - usado por: app/edificio/Configuracao.tsx
@@ -1216,7 +1216,7 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
 - `esforcosCaso.test.ts`: (sem exports)
   - usado por: -
 - `esforcosCaso.ts`: COMPONENTES, Componente, Comp, Envoltoria, HipoteseEsforco, hipotesesDeEsforco, hipoteseDoCaso, PontoEsforco, BarraDiagrama, Extremo, DiagramaBarras, estacoesDaBarra, diagramaBarras, DiagramaViga, diagramaViga, DiagramaPilar, diagramaPilar, esforcosPilarEmAltura, diagramaInclinada, GrandezaDiagrama, direcaoDoDiagrama, DesenhoDiagrama, desenharDiagrama, escalaAutomatica
-  - usado por: app/edificio/AbaEsforcos.tsx, app/edificio/EsforcosPilarUI.tsx, app/edificio/esforcosStore.ts, core/building/alveolares.test.ts, core/resultados/esforcosCaso.test.ts, core/resultados/vigotasVista.test.ts, core/resultados/vigotasVista.ts
+  - usado por: app/edificio/AbaEsforcos.tsx, app/edificio/EsforcosPilarUI.tsx, app/edificio/esforcosStore.ts, core/building/alveolares.test.ts, core/resultados/esforcosCaso.test.ts, core/resultados/seletorEsforcos.test.ts, core/resultados/seletorEsforcos.ts, core/resultados/vigotasVista.test.ts, core/resultados/vigotasVista.ts
 - `estadoElementos.test.ts`: (sem exports)
   - usado por: -
 - `estadoElementos.ts`: EstadoDoElemento, estadoDaViga, estadoDoPilar, estadosDasVigas
@@ -1235,6 +1235,10 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
   - usado por: app/edificio/AbaIsovalores.tsx, app/edificio/MemorialMapas.tsx, app/edificio/isovaloresStore.ts, core/resultados/isovalores.test.ts, core/sheets/folhasV5.ts, core/sheets/v5.test.ts
 - `resultados.test.ts`: (sem exports)
   - usado por: -
+- `seletorEsforcos.test.ts`: (sem exports)
+  - usado por: -
+- `seletorEsforcos.ts`: FiltroHipotese, filtrarHipoteses, hipoteseSelecionada, esforcosVigaEmS
+  - usado por: app/edificio/EsforcosPilarUI.tsx, core/resultados/seletorEsforcos.test.ts
 - `vigotasVista.test.ts`: (sem exports)
   - usado por: -
 - `vigotasVista.ts`: P, DiagramaVigota, diagramaVigotas, FamiliaVista, VistaVigota, DadosVigota, vistaDisponivel, textoVigota, dadosDasVigotas, dadosDeResultado, RotuloVigota, rotulosDeVigotas

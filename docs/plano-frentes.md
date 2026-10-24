@@ -11,7 +11,7 @@ Base: `checklist-manual-cypecad.md` (manual do usuário, 763 itens) e `checklist
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 2 | 3 | 5 |
 | FU — Fundações integradas (spec: `spec-frente-FU.md`, aprovada em 20/10/2026; FU1 concluída, núcleo e interface, em 20/10/2026; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026, núcleo e interface, e FU4 em 20/10/2026) | 0 | 1 | 1 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 0 | 0 | 0 |
-| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas; V1 a V5 concluídas; V6 = correções da auditoria V, feita em 24/10/2026, e dona dos pendentes, subfatias V6a–V6f marcadas nas notas: V6a cortes nas pranchas, V6b várias janelas de deformada, V6c vista 3D da viga de fundação, V6d cliques na planta e na vista 3D, V6e vento e cargas por caso na planta, V6f folha Resultados e figuras de isovalores no memorial) | 14 | 8 | 22 |
+| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas; V1 a V5 concluídas; V6 = correções da auditoria V, feita em 24/10/2026, e dona dos pendentes, subfatias V6a–V6f marcadas nas notas: V6a cortes nas pranchas, V6b várias janelas de deformada, V6c vista 3D da viga de fundação, V6d cliques na planta e na vista 3D, V6e vento e cargas por caso na planta, V6f folha Resultados e figuras de isovalores no memorial) | 13 | 8 | 21 |
 
 Os dois manuais se sobrepõem em parte (o de cálculo detalha critérios de funções descritas no do usuário); os totais não são somas de funcionalidades distintas. Contagens conferidas em 20/10/2026 após a frente R (histórico no fim de cada checklist); `src/core/checklists.test.ts` reprova quando esta tabela ou os resumos dos checklists não batem com as linhas.
 
@@ -56,7 +56,7 @@ Itens Parcial ou Falta cujas notas só citavam fatias já encerradas (`node scri
 |---|---|---|---|---|
 | V7a | V | 2 | seletor de esforços nas janelas do pilar e da viga | interface |
 | V7b | V | 5 | camada de esforços e armadura das vigotas na planta | interface |
-| V7c | V | 4 | estado da seção circular/poligonal, diagramas de alveolares e mistas, distorção e vento por direção, vento na malha | núcleo |
+| V7c | V | 4 | estado da seção circular/poligonal, diagramas de alveolares e mistas, esforços do pilar-parede por hipótese, distorção e vento por direção, vento na malha | núcleo |
 | V7d | V | 4 | planta e editor de símbolos, estilo de pranchas, formato e margens livres, folha de resultados | núcleo + interface |
 | V7e | V | 3 | radier por hipótese/combinação, limite por diâmetro, deslocamento por pano | núcleo + interface |
 | N4a | N | 4 | tabelas de fogo (2012, 180 min, NBR 14432), e ≤ 0,15·b; material do usuário | núcleo |
