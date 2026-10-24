@@ -14,6 +14,9 @@ import { download } from '../ui';
 const CAMADAS_OPC = (Object.keys(CAMADAS) as Camada[]).map((c) => ({ v: c, label: c }));
 const TEXTOS_OPC = (Object.keys(TIPOS_TEXTO) as TipoTexto[]).map((t) => ({ v: t, label: TIPOS_TEXTO[t].rotulo }));
 
+/** Teto do DXF importado como fundo (o texto fica no modelo; biblioteca e artifact aceitam 240 KB). */
+export const DXF_MAX_BYTES = 200 * 1024;
+
 export function EstiloPranchas() {
   const { sessao, exec } = useBuilding();
   const msg = (m: string) => useStore.getState().set({ message: m });
@@ -28,6 +31,7 @@ export function EstiloPranchas() {
   const ok = (r: { ok: boolean; erros: { mensagem: string }[] }) => { if (!r.ok) msg(r.erros[0]?.mensagem ?? 'Não foi possível aplicar.'); };
   const camadaPatch = (p: { nome?: string; cor?: number; pena?: number }) => ok(exec('prancha.definir', { estilo: { camadas: { [camada]: p } } }));
   const dxf = async (f: File) => {
+    if (f.size > DXF_MAX_BYTES) { msg(`DXF de ${(f.size / 1024).toFixed(0)} KB recusado: o limite é ${DXF_MAX_BYTES / 1024} KB (o modelo guarda o texto do DXF e a biblioteca aceita 240 KB). Simplifique o desenho.`); return; }
     const t = await f.text();
     ok(exec('prancha.definir', alvoDxf === 'moldura' ? { moldura: { dxf: t, nome: f.name, ...pos, modo: 'moldura' } } : { detalhe: { dxf: t, nome: f.name, ...pos } }));
   };

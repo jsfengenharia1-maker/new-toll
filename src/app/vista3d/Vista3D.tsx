@@ -212,13 +212,14 @@ export function Vista3D({ onPlanta }: { onPlanta: () => void }) {
     r.definirDeformada(cd, eixos, [1, 2, 3, 4, 5].map((i) => cssVar(`v3d-def-${i}`, el)), cd ? 'completa' : 'simplificada', defDmax);
     pedir();
   }, [cd, eixos, tema, status, pedir]);
+  const reduzido = (() => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } })();
   useEffect(() => {
-    if (!st.defAnimar) { rend.current?.atualizarDeformada(escalaDef, 1, true); pedir(); }
-  }, [escalaDef, cd, eixos, st.defAnimar, status, pedir]);
-  // animação u(t) = u·sin(2πt/T): para quando a aba fica oculta e começa desligada (prefers-reduced-motion)
+    if (!st.defAnimar || reduzido) { rend.current?.atualizarDeformada(escalaDef, 1, true); pedir(); }
+  }, [escalaDef, cd, eixos, st.defAnimar, status, pedir, reduzido]);
+  // animação u(t) = u·sin(2πt/T): começa desligada, para quando a aba fica oculta e não roda com prefers-reduced-motion
   useEffect(() => {
     const r = rend.current;
-    if (status !== 'pronto' || !r || !(cd || eixos) || !st.defAnimar) return;
+    if (status !== 'pronto' || !r || !(cd || eixos) || !st.defAnimar || reduzido) return;
     const t0 = performance.now();
     let id = 0;
     const volta = (t: number) => {
@@ -227,7 +228,7 @@ export function Vista3D({ onPlanta }: { onPlanta: () => void }) {
     };
     id = requestAnimationFrame(volta);
     return () => cancelAnimationFrame(id);
-  }, [cd, eixos, st.defAnimar, st.defPeriodo, escalaDef, status, pedir]);
+  }, [cd, eixos, st.defAnimar, st.defPeriodo, escalaDef, status, pedir, reduzido]);
 
   // projeção: o enquadramento (alvo, distância, ângulos) é o mesmo nas duas
   useEffect(() => {

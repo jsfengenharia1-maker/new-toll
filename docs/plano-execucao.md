@@ -86,6 +86,7 @@ Escalonamento: se um agente S falhar a verificação duas vezes ou relatar dúvi
 | V3 deformada, deslocamentos e flecha entre pontos | S2 | S2 |
 | V4 isovalores e isolinhas | S2 | S2 |
 | V5 esforços por hipótese, vistas de vigotas e saídas | S2 | S1 |
+| V6 pendentes da auditoria V: V6a pranchas de cortes, V6b janelas de deformada, V6c viga de fundação 3D, V6d cliques (planta e vista 3D), V6e vento e cargas por caso na planta, V6f folha Resultados e figuras no memorial (correções da auditoria V já feitas em 24/10/2026) | S2 | S2 |
 | Specs E3, E4, L, V (escritas em 20/10/2026) | S2 | — |
 | Auditorias de fim de frente | S2 | — |
 | Conflitos de checklist e docs | H | — |

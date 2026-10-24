@@ -134,8 +134,8 @@ export function AbaDeslocamentos({ b }: { b: BuildingModel }) {
           <Select label="Hipótese da flecha" value={hipF} options={[{ v: MAIS_DESFAVORAVEL, label: 'Combinação gravitacional mais desfavorável' }, ...hips.map((h) => ({ v: h.id, label: h.tipo === 'caso' ? `Caso ${h.nome}` : h.nome }))]} onChange={setHipF} />
           <Seg value={ref} options={[{ v: 'secante', label: 'Secante' }, { v: 'tangente', label: 'Tangente no ponto inicial' }]} onChange={setRef} />
           <Select label="Medida da flecha" value={medida} options={[{ v: 'relativaMax', label: 'Máxima relativa' }, { v: 'absolutaMax', label: 'Máxima absoluta' }, { v: 'entrePontos', label: 'Entre os dois pontos' }]} onChange={setMedida} />
-          <NumField label="Amplificação da flecha" value={amp} unit="×" onChange={setAmp} />
-          <NumField label="Limite da flecha" value={lim} unit="L/n" onChange={setLim} />
+          <NumField label="Amplificação da flecha" value={amp} unit="×" onChange={setAmp} min={0.01} />
+          <NumField label="Limite da flecha" value={lim} unit="L/n" onChange={setLim} min={1} />
         </div>
         {flecha ? <ResultadoFlecha f={flecha} /> : <p className="hint">Informe dois pontos distintos.</p>}
         <Hint>Casos gravitacionais (peso próprio, permanentes e variável) entre as combinações de flecha do projeto; limite L/250 (secante) ou 2L/250 (tangente) é o padrão, editável [a confirmar para este uso].</Hint>
@@ -161,7 +161,7 @@ function ResultadoFlecha({ f }: { f: ReturnType<typeof flechaDaHipotese> }) {
             <tr><td className="tl">Vão L</td><td className="num">{num(r.L)} m</td></tr>
             <tr><td className="tl">Flecha ({r.referencia === 'secante' ? 'secante' : 'tangente'})</td><td className="num">{mm(r.flecha)} mm</td></tr>
             <tr><td className="tl">Flecha relativa</td><td className="num">{Number.isFinite(r.razao) ? `${r.referencia === 'secante' ? 'L' : '2L'}/${num(r.razao, 0)}` : '—'}</td></tr>
-            <tr><td className="tl">Limite {r.referencia === 'secante' ? 'L' : '2L'}/n</td><td className="num">{mm(r.limiteM)} mm — {r.ok ? 'atende' : 'não atende'}</td></tr>
+            <tr><td className="tl">Limite {r.referencia === 'secante' ? 'L' : '2L'}/n</td><td className="num">{r.erro ? `inválido — ${r.erro}` : `${mm(r.limiteM)} mm — ${r.ok ? 'atende' : 'não atende'}`}</td></tr>
           </tbody>
         </table>
       </div>

@@ -413,3 +413,12 @@ export function dxfIsolinhas(c: Campo, niveis: number[], lim: Limites = {}): str
   for (const ct of c.contornos ?? []) s += linha(ct, 'CONTORNO', true);
   return s + g(0, 'ENDSEC') + g(0, 'EOF');
 }
+
+/** Valores sob a barra da legenda: limite inferior, alguns limites intermediários e o superior (no máximo 5). */
+export function valoresLegenda(itens: readonly { de: number; ate: number }[]): number[] {
+  if (!itens.length) return [];
+  const passo = Math.max(1, Math.ceil(itens.length / 4)), v: number[] = [itens[0].de];
+  for (let k = passo; k < itens.length; k += passo) v.push(itens[k].de);
+  v.push(itens[itens.length - 1].ate);
+  return v;
+}

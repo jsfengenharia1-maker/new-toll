@@ -7,7 +7,7 @@ import { abrirJanela } from './Revisao';
 import { pavimentosOrdenados, type BuildingModel } from '../../core/building/types';
 import {
   bandas, csvCampo, dxfIsolinhas, encadear, enquadramento, extremos, faixaExibida, fmtIso, isolinhas, legenda, niveisAutomaticos,
-  niveisDefinidos, nosParaRotulo, svgIsovalores, type Campo, type Limites,
+  niveisDefinidos, nosParaRotulo, svgIsovalores, valoresLegenda, type Campo, type Limites,
 } from '../../core/resultados/bandas';
 import {
   campoDoPavimento, campoDoRadier, elementoNoPonto, GRANDEZAS_ISO, hipotesesDeLaje, infoGrandeza, pavimentosComMapa,
@@ -74,6 +74,12 @@ function JanelaIsovalores({ j, b }: { j: JanelaIso; b: BuildingModel }) {
   const leg = useMemo(() => (campo ? legenda(campo, niveis, lim) : null), [campo, niveis, j.min, j.max]); // eslint-disable-line react-hooks/exhaustive-deps
   const ex = campo ? extremos(campo, lim) : null;
 
+  function abrirNoPonto(pos: readonly number[]) {
+    if (!campo || doRadier) return;
+    const id = elementoNoPonto(campo, pos[0], pos[1]);
+    const pav = pavimentosOrdenados(b).find((p) => p.id === alvo);
+    if (id && pav) abrirJanela({ tipo: 'laje', id, pavimento: pav.nome });
+  }
   function clicar(e: MouseEvent<SVGSVGElement>) {
     if (!campo || !E || doRadier) return;
     const svg = e.currentTarget, pt = svg.createSVGPoint();
@@ -144,11 +150,17 @@ function JanelaIsovalores({ j, b }: { j: JanelaIso; b: BuildingModel }) {
             <div className="iso-leg" role="img" aria-label={`Legenda do mapa (janela ${n})`}>
               {leg.itens.map((it, k) => <span key={k} className={`iso-cel iso-${it.token}`} title={`${it.rotulo} ${campo.unidade}`} />)}
             </div>
+            <div className="iso-leg-txt" data-iso-legenda>
+              {valoresLegenda(leg.itens).map((t, k) => <span key={k}>{fmtIso(t, 3)}</span>)}
+              <span>{campo.unidade}</span>
+            </div>
             <p className="hint small" data-iso-extremos>
               {campo.rotulo}. Mínimo {ex?.min ? `${fmtIso(ex.min.valor, 3)} ${campo.unidade} em (${fmtIso(ex.min.pos[0])}; ${fmtIso(ex.min.pos[1])}) m` : '—'}; máximo {ex?.max ? `${fmtIso(ex.max.valor, 3)} ${campo.unidade} em (${fmtIso(ex.max.pos[0])}; ${fmtIso(ex.max.pos[1])}) m` : '—'}.
               {' '}Faixa de {leg.itens[0] ? fmtIso(leg.itens[0].de, 3) : '—'} a {leg.itens.at(-1) ? fmtIso(leg.itens.at(-1)!.ate, 3) : '—'} {campo.unidade} em {leg.itens.length} bandas.
             </p>
             <div className="row wrap">
+              {!doRadier && ex?.max && <Button onClick={() => abrirNoPonto(ex.max!.pos)}>{`Abrir a laje do valor máximo (janela ${n})`}</Button>}
+              {!doRadier && ex?.min && <Button onClick={() => abrirNoPonto(ex.min!.pos)}>{`Abrir a laje do valor mínimo (janela ${n})`}</Button>}
               <Button onClick={() => { void download(`${nome}.svg`, svgTexto(), 'image/svg+xml'); }}>{`Baixar SVG (janela ${n})`}</Button>
               <Button onClick={() => { void baixarPng(); }}>{`Baixar PNG (janela ${n})`}</Button>
               <Button onClick={() => { void download(`${nome}.dxf`, dxfIsolinhas(campo, niveis, lim), 'application/dxf'); }}>{`Baixar DXF das isolinhas (janela ${n})`}</Button>
@@ -160,3 +172,4 @@ function JanelaIsovalores({ j, b }: { j: JanelaIso; b: BuildingModel }) {
     </Group>
   );
 }
+

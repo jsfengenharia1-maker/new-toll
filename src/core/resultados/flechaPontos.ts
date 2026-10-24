@@ -59,6 +59,8 @@ export interface ResultadoFlecha {
   /** Valores nos extremos (m, para baixo) e inclinação inicial da tangente (rad, para baixo positivo). */
   w0: number; w1: number; inclinacaoInicial: number;
   amplificacao: number;
+  /** Parâmetro inválido (limite ≤ 0, amplificação ≤ 0 ou não finita): o veredito não vale (`ok` = false, `limiteM` = NaN). */
+  erro?: string;
 }
 
 /** Inclinação do perfil no ponto inicial: diferença finita de 2ª ordem com 3 pontos. */
@@ -70,6 +72,8 @@ export function inclinacaoInicial(p: PerfilFlecha): number {
 
 export function flechaEntrePontos(p: PerfilFlecha, o: OpcoesFlecha = {}): ResultadoFlecha {
   const referencia = o.referencia ?? 'secante', medida = o.medida ?? 'relativaMax', amp = o.amplificacao ?? 1, lim = o.limite ?? 250;
+  const erro = !(Number.isFinite(lim) && lim > 0) ? 'Limite da flecha (L/n) deve ser maior que zero.'
+    : !(Number.isFinite(amp) && amp > 0) ? 'Amplificação da flecha deve ser maior que zero.' : undefined;
   const n = p.w.length - 1, w0 = p.w[0], w1 = p.w[n], i0 = inclinacaoInicial(p);
   const ref = (s: number) => (referencia === 'secante' ? w0 + ((w1 - w0) * s) / p.L : w0 + i0 * s);
   let f = 0, s = 0;
@@ -82,7 +86,8 @@ export function flechaEntrePontos(p: PerfilFlecha, o: OpcoesFlecha = {}): Result
   const base = referencia === 'secante' ? p.L : 2 * p.L;
   return {
     referencia, medida, L: p.L, flecha: f, s, razao: Math.abs(f) > 1e-12 ? base / Math.abs(f) : Infinity,
-    limiteM: base / lim, ok: Math.abs(f) <= base / lim + 1e-12, w0, w1, inclinacaoInicial: i0, amplificacao: amp,
+    limiteM: erro ? NaN : base / lim, ok: !erro && Math.abs(f) <= base / lim + 1e-12, w0, w1, inclinacaoInicial: i0, amplificacao: amp,
+    ...(erro ? { erro } : {}),
   };
 }
 

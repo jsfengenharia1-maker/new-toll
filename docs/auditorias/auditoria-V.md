@@ -35,3 +35,10 @@ Nenhum.
 10. **DXF importado fica como texto no modelo** (`EstiloPranchas.tsx:30`): arquivos grandes estouram o limite de 240 KB da biblioteca e do artifact sem aviso. Avisar o tamanho e recusar acima de um teto.
 11. **Comentário sobre `prefers-reduced-motion` na animação** (`Vista3D.tsx:218`) não corresponde ao código (não consulta `matchMedia`; vale só o padrão desligado). Ou consultar, ou corrigir o comentário.
 12. **Cobertura**: `renderizador.ts`, `Armadura3D.tsx` e as abas só têm e2e (que lê JSON em `data-*`); sem teste de unidade da câmera do caminhar com colisão nos limites além do já existente, nem de vários contextos WebGL (cada janela de armadura 3D abre um renderizador próprio; o limite do navegador é cerca de 16). Sugestão: limitar a janelas simultâneas ou reaproveitar o contexto.
+
+## Correções (V6, 24/10/2026)
+- Achado 1 corrigido: entradas `v2-cortes-armaduras`, `v3-deformada-flecha`, `v4-isovalores` e `v5-esforcos-estilo` em `premissas.ts` (a confirmar, com fonte; entram no memorial e no MCP). A escala de 5 %, a sigla e o L/250 já eram editáveis ou substituíveis; as demais ficam registradas.
+- Achado 2 corrigido: `flechaEntrePontos` devolve `erro` (ok falso, `limiteM` NaN) com limite ≤ 0 ou amplificação ≤ 0/não finita; a aba mostra "inválido"; `NumField` aceita `min` (limite ≥ 1, amplificação ≥ 0,01); testes em `resultados.test.ts`.
+- Achado 3 corrigido: C12.19, C12.6, K1.11.42 (notas conferidas com `campoDoPavimento` e `deformadaCena.ts`), K1.11.17 passou a Parcial (As só em maciças); referências a "cartões" nas linhas V trocadas por arquivo.
+- Achado 4 corrigido: pendentes reatribuídos às subfatias V6a–V6f (frente V), registradas em `plano-frentes.md` e `plano-execucao.md`. Continuam pendentes (não implementados): pranchas de cortes, janelas de deformada, viga 3D, cliques na planta e na vista 3D, vento e cargas por caso na planta, folha Resultados e figuras no memorial.
+- Sugestões 5, 6, 10 e 11 aplicadas (botões "Abrir a laje do valor máximo/mínimo", valores sob a legenda, teto de 200 KB do DXF de fundo, `prefers-reduced-motion` consultado). Sugestões 7, 8, 9 e 12 não feitas (pendem de decisão de interface).

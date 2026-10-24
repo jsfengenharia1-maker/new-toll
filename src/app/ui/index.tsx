@@ -48,15 +48,15 @@ export function useId(prefix: string) {
   return id;
 }
 
-export function NumField({ label, value, onChange, unit, step = 'any', width, disabled }: {
-  label: string; value: number; onChange: (v: number) => void; unit?: string; step?: string; width?: number; disabled?: boolean;
+export function NumField({ label, value, onChange, unit, step = 'any', width, disabled, min }: {
+  label: string; value: number; onChange: (v: number) => void; unit?: string; step?: string; width?: number; disabled?: boolean; min?: number;
 }) {
   const id = useId('num');
   const [txt, setTxt] = useState(fmtIn(value));
   useEffect(() => setTxt(fmtIn(value)), [value]);
   const commit = () => {
     const v = parseFloat(txt.replace(',', '.'));
-    if (Number.isFinite(v) && v !== value) onChange(v); else setTxt(fmtIn(value));
+    if (Number.isFinite(v) && (min === undefined || v >= min) && v !== value) onChange(v); else setTxt(fmtIn(value));
   };
   return (
     <label className="field" htmlFor={id} style={width ? { width } : undefined}>

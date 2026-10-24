@@ -11,6 +11,7 @@ import {
 import { deformarCena, posicoesDeformadas, subdividir } from './deformadaCena';
 import { campoDisperso } from './interpolacao';
 import { consultaNo, csvDeslocamentos, maximosPilaresCombinados, maximosPorPano, tabelaDeslocamentosMalha } from './consultas';
+import { valoresLegenda } from './bandas';
 import { ehGravitacional, flechaDaHipotese, flechaEntrePontos, flechaMaisDesfavoravel, perfilDeslocamentos } from './flechaPontos';
 
 // ---- viga isolada: Hermite + carga uniforme = linha elástica exata ----
@@ -91,6 +92,26 @@ describe('V3: interpolação e flecha entre dois pontos', () => {
     expect(flechaEntrePontos(perfil, { medida: 'entrePontos' }).flecha).toBeCloseTo(0.004 * 6, 9);
     const abs = flechaEntrePontos(perfil, { medida: 'absolutaMax' });
     expect(abs.flecha).toBeCloseTo(Math.max(...perfil.w), 12);
+  });
+  it('valores da legenda: extremos e intermediários (≤ 5)', () => {
+    const it = (n: number) => Array.from({ length: n }, (_, k) => ({ de: k * 10, ate: (k + 1) * 10 }));
+    expect(valoresLegenda(it(4))).toEqual([0, 10, 20, 30, 40]);
+    expect(valoresLegenda(it(8))).toEqual([0, 20, 40, 60, 80]);
+    expect(valoresLegenda(it(1))).toEqual([0, 10]);
+    expect(valoresLegenda([])).toEqual([]);
+  });
+  it('limite ≤ 0 ou amplificação inválida não dá "atende": erro explícito', () => {
+    const perfil = perfilDeslocamentos((x) => -0.01 * x * (6 - x) / 9, [0, 1], [6, 1], 60);
+    for (const lim of [0, -250, NaN, Infinity]) {
+      const r = flechaEntrePontos(perfil, { limite: lim });
+      expect(r.ok).toBe(false); expect(r.erro).toMatch(/Limite/); expect(Number.isNaN(r.limiteM)).toBe(true);
+    }
+    for (const amplificacao of [0, -1, NaN]) {
+      const r = flechaEntrePontos(perfil, { amplificacao });
+      expect(r.ok).toBe(false); expect(r.erro).toMatch(/Amplificação/);
+    }
+    const bom = flechaEntrePontos(perfil, { limite: 250, amplificacao: 1 });
+    expect(bom.erro).toBeUndefined(); expect(bom.limiteM).toBeCloseTo(6 / 250, 12);
   });
   it('tangente: balanço w = k·x² → flecha k·L² e razão 2L/f', () => {
     const k = 0.0005, Lp = 4;

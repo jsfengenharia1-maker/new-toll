@@ -139,7 +139,7 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
   - usado por: app/edificio/Edificio.tsx, app/edificio/FaixaEdificio.tsx, app/edificio/Navegador.tsx, app/edificio/NovaEscadaUI.tsx, app/edificio/Planta.tsx, app/edificio/Propriedades.tsx, app/edificio/Revisao.tsx
 - `EstadosLimite.tsx`: lerColagem, EstadosGrupo
   - usado por: app/edificio/Configuracao.tsx
-- `EstiloPranchas.tsx`: EstiloPranchas
+- `EstiloPranchas.tsx`: DXF_MAX_BYTES, EstiloPranchas
   - usado por: app/edificio/Pranchas.tsx
 - `EtapasFlecha.tsx`: EtapasFlechaGrupo
   - usado por: app/edificio/Configuracao.tsx
@@ -1089,8 +1089,8 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
   - usado por: app/FundacoesDetail.tsx, core/building/baseElastica.ts, core/building/sapataCorrida.ts, core/caissons.ts, core/caps.test.ts, core/caps.ts, core/capsGroup.test.ts, core/footings.ts, core/footingsGroup.ts, core/sheets/fundacaoDetalhe.ts
 ## src/core/resultados/
 
-- `bandas.ts`: P, N_TOKENS_ISO, Campo, Limites, areaTriangulo, areaDoCampo, triangularNos, campoDeFuncao, gradeRetangular, faixaDoCampo, passoAgradavel, niveisAutomaticos, niveisDefinidos, Extremo, extremos, faixaExibida, Isolinha, isolinhas, encadear, Banda, ModoCor, modoAutomatico, tokenDoValor, limitesDasBandas, bandas, areaPoligono, areaDasBandas, fmtIso, ItemLegenda, Legenda, legenda, nosParaRotulo, OpcoesSvg, enquadramento, svgIsovalores, csvCampo, dxfIsolinhas
-  - usado por: app/edificio/AbaIsovalores.tsx, core/resultados/isovalores.test.ts, core/resultados/isovalores.ts
+- `bandas.ts`: P, N_TOKENS_ISO, Campo, Limites, areaTriangulo, areaDoCampo, triangularNos, campoDeFuncao, gradeRetangular, faixaDoCampo, passoAgradavel, niveisAutomaticos, niveisDefinidos, Extremo, extremos, faixaExibida, Isolinha, isolinhas, encadear, Banda, ModoCor, modoAutomatico, tokenDoValor, limitesDasBandas, bandas, areaPoligono, areaDasBandas, fmtIso, ItemLegenda, Legenda, legenda, nosParaRotulo, OpcoesSvg, enquadramento, svgIsovalores, csvCampo, dxfIsolinhas, valoresLegenda
+  - usado por: app/edificio/AbaIsovalores.tsx, core/resultados/isovalores.test.ts, core/resultados/isovalores.ts, core/resultados/resultados.test.ts
 - `cargasCaso.test.ts`: (sem exports)
   - usado por: -
 - `cargasCaso.ts`: CLASSES_CARGA_NATUREZA, N_CLASSES_ADICIONAIS, classeAdicional, TODAS_CLASSES_CARGA, classeDoCaso, EntradaLegendaCarga, legendaDeCargas, cargasPorGrupoECaso, ZonaVentoLinha, LinhaVentoPavimento, ventoPorPavimento, tabelaVento, setasDeVento
