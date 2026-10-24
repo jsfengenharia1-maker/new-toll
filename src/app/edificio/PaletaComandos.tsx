@@ -14,6 +14,7 @@ import { useDiagonaisUI } from './DiagonaisUI';
 import { useConsolosUI } from './ConsolosUI';
 import { useInclinadasUI } from './InclinadasUI';
 import { useEscadaCalculoUI } from './EscadaCalculoUI';
+import { useEscadaArmaduraUI } from './EscadaArmaduraUI';
 
 export interface ItemPaleta { id: string; tipo: 'Ferramenta' | 'Ação' | 'Comando' | 'Aba' | 'Pavimento' | 'Pilar' | 'Viga' | 'Laje'; rotulo: string; detalhe?: string; executar: () => void; repetivel: boolean }
 
@@ -50,6 +51,7 @@ function itensDaPaleta(b: BuildingModel, ctx: { exec: (n: string, p: Record<stri
     { id: 'a:enquadrar', tipo: 'Ação', rotulo: 'Enquadrar a planta', detalhe: 'tecla F', repetivel: true, executar: () => naPlanta({ vista: null }) },
     { id: 'a:inclinadas', tipo: 'Ação', rotulo: 'Vigas inclinadas', detalhe: 'lançar, editar e ver resultados', repetivel: false, executar: () => useInclinadasUI.getState().abrir() },
     { id: 'a:escadas-calculo', tipo: 'Ação', rotulo: 'Calcular escadas', detalhe: 'reações, esforços e deslocamentos de cada lance', repetivel: false, executar: () => useEscadaCalculoUI.getState().abrir() },
+    { id: 'a:escadas-armadura', tipo: 'Ação', rotulo: 'Armadura das escadas', detalhe: 'posições, ancoragens, esperas e passadores de cada lance', repetivel: false, executar: () => useEscadaArmaduraUI.getState().abrir() },
     { id: 'a:diagonais', tipo: 'Ação', rotulo: 'Diagonais de contraventamento', detalhe: 'lançar, editar e ver resultados', repetivel: false, executar: () => useDiagonaisUI.getState().abrir() },
     { id: 'a:consolos', tipo: 'Ação', rotulo: 'Consolos curtos', detalhe: 'lançar, editar e ver resultados', repetivel: false, executar: () => useConsolosUI.getState().abrir() },
     { id: 'a:viga-curva', tipo: 'Ação', rotulo: 'Viga: alternar trecho reto ou curvo', detalhe: 'ferramenta Viga, tecla R', repetivel: true, executar: () => naPlanta({ ferramenta: 'viga', ...aoEscolher('viga'), curvaViga: !usePlanta.getState().curvaViga, passagemViga: null }) },
