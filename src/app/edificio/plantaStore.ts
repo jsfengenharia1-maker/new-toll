@@ -1,17 +1,25 @@
 // Estado de visualização e de ferramenta da planta (não vai para o arquivo).
 import { create } from 'zustand';
-import type { AbaCorrida, Ajuste, Alinhamento, PosicaoFundacao, TipoFundacao, TipoLaje, TipoVigaFundacao } from '../../core/building/types';
+import { pavimentosOrdenados, type AbaCorrida, type Ajuste, type Alinhamento, type BuildingModel, type PosicaoFundacao, type TipoFundacao, type TipoLaje, type TipoVigaFundacao } from '../../core/building/types';
 import { TODAS, type TipoCaptura } from '../../core/geom/snap';
 import type { RefTemp } from '../../core/geom/cotasTemp';
+import type { DadosComunsEscada, LanceEscada } from '../../core/building/escadas';
 import { cssVar } from '../design/tokens';
 import { EVENTO_TEMA, temaEfetivo } from '../design/tema';
 
 export type Ferramenta = 'selecionar' | 'pilar' | 'viga' | 'laje' | 'carga' | 'eixo' | 'mover' | 'medir' | 'alinhar' | 'fundacao' | 'vigaFund' | 'girarFund'
   | 'limite' | 'limiteMascara' | 'insFund' | 'radier' | 'vigaElastica' | 'corrida' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar' | 'puncao' | 'zonaLaje' | 'linhaDobra' | 'pilarParede' | 'parede' | 'corte' | 'secao' | 'vigaGabarito' | 'moverRef' | 'contaGotas'
-  | 'contornoRet' | 'aberturaRet' | 'cargaLaje' | 'cargaViga' | 'direcaoPano' | 'insercaoPano' | 'cota' | 'plano';
+  | 'contornoRet' | 'aberturaRet' | 'cargaLaje' | 'cargaViga' | 'direcaoPano' | 'insercaoPano' | 'cota' | 'plano' | 'escada';
 /** Ferramentas que só existem no nível de fundação; as que mantêm a seleção ao serem escolhidas (agem sobre ela ou sobre um elemento). */
 export const FERRAMENTAS_FUNDACAO: Ferramenta[] = ['fundacao', 'vigaFund', 'girarFund', 'limite', 'limiteMascara', 'insFund', 'radier', 'vigaElastica', 'corrida'];
 export const MANTEM_SELECAO: Ferramenta[] = ['girarFund', 'insFund'];
+/** Grupo do pavimento aberto na planta (o mesmo pavimento que a Planta desenha quando nenhum foi escolhido: o segundo, ou o único). */
+export function grupoDaPlanta(b: BuildingModel, pavimento: string | null): { id: string; nome: string } | null {
+  const pavs = pavimentosOrdenados(b);
+  const pav = pavs.find((p) => p.id === pavimento) ?? pavs[Math.min(1, pavs.length - 1)];
+  const g = b.grupos.find((x) => x.id === pav?.grupo);
+  return g ? { id: g.id, nome: g.nome } : null;
+}
 /** Parâmetros que levam a planta ao nível de fundação ao escolher a ferramenta (e limpam a seleção, salvo as que a usam). */
 export const aoEscolher = (f: Ferramenta): Partial<{ pavimento: string; selecao: Set<string> }> =>
   !FERRAMENTAS_FUNDACAO.includes(f) ? {} : MANTEM_SELECAO.includes(f) ? { pavimento: 'fundacao' } : { pavimento: 'fundacao', selecao: new Set<string>() };
@@ -163,6 +171,17 @@ interface PState {
   espelharCopia: boolean;
   /** Cores da planta alteradas pelo usuário, por tema (só neste navegador). */
   cores: Partial<Record<Tema, Partial<Paleta>>>;
+  /** Ferramenta Escada (E4b): função (criar, editar, apagar, mover, girar); dados e lances da última escada lançada (C8.38, zerados ao trocar de obra);
+   *  inserção repetida (C8.35) e escada de que a nova copia dados e lances (C8.39). Não vão para o arquivo. */
+  escadaFn: 'criar' | 'editar' | 'apagar' | 'mover' | 'girar';
+  escadaPadrao: { dados: DadosComunsEscada; lances: Omit<LanceEscada, 'id'>[]; nome?: string; angulo?: number } | null;
+  escadaRepetir: boolean;
+  escadaCopiar: string | null;
+  /** Ângulo digitado da função Girar (graus) e erros geométricos do último lançamento recusado (C8.36). */
+  escadaAngulo: number;
+  escadaErros: { codigo: string; mensagem: string }[];
+  /** Contador que descarta o ponto pendente da Planta depois de um giro digitado no menu da Escada. */
+  escadaZera: number;
   /** Última ação repetível (Enter com a ferramenta Selecionar e nada pendente): ferramenta ou item da paleta. */
   ultimaAcao: { tipo: 'ferramenta'; f: Ferramenta } | { tipo: 'paleta'; rotulo: string; executar: () => void } | null;
   set(p: Partial<Omit<PState, 'set'>>): void;
@@ -232,6 +251,13 @@ export const usePlanta = create<PState>((set) => ({
   ppAngulo: 0,
   ppParams: null,
   pwParams: null,
+  escadaFn: 'criar',
+  escadaPadrao: null,
+  escadaRepetir: true,
+  escadaCopiar: null,
+  escadaAngulo: 90,
+  escadaErros: [],
+  escadaZera: 0,
   corteLanc: { sentido: 'esq', profundidade: 0 },
   mostrarCortes: true,
   janelaCorte: null,

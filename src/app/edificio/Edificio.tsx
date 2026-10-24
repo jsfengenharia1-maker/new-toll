@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { calculoAtual, dimAtual, podeRearmar as podeRearm, useBuilding } from './store';
 import { FERRAMENTAS_FUNDACAO, aoEscolher, usePlanta, type Ferramenta } from './plantaStore';
 import { Planta, ROTULO_FERRAMENTA, TECLA_FERRAMENTA } from './Planta';
+import { escolherEscada } from './EscadaMenu';
 import { listarComandos } from '../../core/commands';
 import { UNIDADES } from './lancamentoLeitura';
 import { BLOCOS, paredesDaMascara, propriedadesLaje, TRELICADAS, vaos, areaLaje } from '../../core/building/lajes';
@@ -28,7 +29,9 @@ import { ConsolosHost } from './ConsolosUI';
 import { TipoPanoGrupo } from './TipoPano';
 import { PlanosGrupo, PlanosHost } from './PlanosUI';
 import { InclinadasHost } from './InclinadasUI';
+import { EscadaCalculoHost } from './EscadaCalculoUI';
 import { EscadaHost } from './EscadaUI';
+import { NovaEscadaHost } from './NovaEscadaUI';
 import { lerQuadroVigas } from '../../core/building/quadros';
 import { Pranchas } from './Pranchas';
 import { AlveolarCampos, tipoAlveolarInicial } from './AlveolarTipo';
@@ -108,6 +111,7 @@ export function Edificio() {
   const irEtapa = (id: EtapaId) => {
     if (id === 'obra') { setDialogoL1('gerais'); return; }
     if (id === 'calculo') { setAba('dimensionamento'); return; }
+    if (id === 'escadas') { setAba('planta'); escolherEscada(); return; }
     if (id === 'pavimentos') { setAba('planta'); useStore.getState().set({ message: 'Pavimentos: edite a lista “Pavimentos” do painel (nome, cota, grupo, +1 para repetir).' }); return; }
     const f = ({ gabarito: 'eixo', pilares: 'pilar', pilaresParede: 'pilarParede', vigas: 'viga', lajes: 'laje', cargas: 'carga' } as Partial<Record<EtapaId, Ferramenta>>)[id];
     setAba('planta');
@@ -254,7 +258,9 @@ export function Edificio() {
       <JanelaElemento />
       <JanelaCorte />
       <InclinadasHost />
+      <EscadaCalculoHost />
       <EscadaHost />
+      <NovaEscadaHost />
       <DiagonaisHost />
       <ConsolosHost />
       <PlanosHost />

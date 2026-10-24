@@ -46,7 +46,7 @@ export function montarArvore(b: BuildingModel): NoArvore {
       { id: 'pilares', rotulo: 'Pilares', nivel: 2, contagem: b.pilares.length, filhos: b.pilares.map((p) => folha('pilar', 3, p, 'pilar')) },
       { id: 'vigas', rotulo: 'Vigas', nivel: 2, contagem: b.vigas.length, filhos: porGrupo(b, 'vigas', 'viga') },
       { id: 'lajes', rotulo: 'Lajes', nivel: 2, contagem: b.lajes.length, filhos: porGrupo(b, 'lajes', 'laje') },
-      { id: 'escadas', rotulo: 'Escadas', nivel: 2, contagem: (b.escadas ?? []).length, filhos: (b.escadas ?? []).map((e) => folha('escada', 3, e, 'escada')) },
+      { id: 'escadas', rotulo: 'Escadas', nivel: 2, contagem: (b.escadas ?? []).length, filhos: (b.escadas ?? []).map((e) => folha('escada', 3, { id: e.id, nome: `${e.nome} — ${e.lances.length} lance(s)` }, 'escada')) },
       { id: 'pilaresParede', rotulo: 'Pilares-parede', nivel: 2, contagem: (b.pilaresParede ?? []).length, filhos: (b.pilaresParede ?? []).map((x) => folha('pilarParede', 3, x, 'pilarParede')) },
       { id: 'paredes', rotulo: 'Paredes', nivel: 2, contagem: (b.paredes ?? []).length, filhos: (b.paredes ?? []).map((x) => folha('parede', 3, x, 'parede')) },
       { id: 'muros', rotulo: 'Muros', nivel: 2, contagem: (b.murosArrimo ?? []).length, filhos: (b.murosArrimo ?? []).map((x) => folha('muro', 3, x, 'muro')) },

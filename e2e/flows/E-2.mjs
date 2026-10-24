@@ -749,7 +749,7 @@ export const f_E4a = {
       await jan.getByRole('button', { name: 'Fechar', exact: true }).click();
       // 4b) Navegador: abre o nó Escadas e seleciona E1; as Propriedades mostram a escada e o espelho é editável
       await page.getByRole('treeitem', { name: /^Escadas/ }).click();
-      await page.getByRole('treeitem', { name: 'E1', exact: true }).click();
+      await page.getByRole('treeitem', { name: /^E1/ }).click();
       const jan2 = page.getByRole('dialog', { name: 'Escadas', exact: true });
       await jan2.waitFor();
       await jan2.getByRole('button', { name: 'Fechar', exact: true }).click();
@@ -770,6 +770,402 @@ export const f_E4a = {
       assert.match(await me.innerText(), /18 degraus · 3,000 m para um desnível de 3,000 m/);
       assert.match(await me.innerText(), /\[a confirmar\]/);
       await memo.getByRole('button', { name: 'Fechar' }).click();
+    },
+};
+
+/** Pórtico 8 × 5 m com vigas e laje no grupo g_3 e a planta aberta e enquadrada (base dos fluxos E4b). */
+async function porticoParaEscadas(page) {
+  await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+  const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+  await cmd('lote {"comandos": [' + [[0, 0], [8, 0], [0, 5], [8, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+  await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 5], [8, 5]], [[0, 0], [0, 5]], [[8, 0], [8, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.45}}}`).join(', ') + ']}');
+  await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+  await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+  await enquadrarEstavel(page);
+  return cmd;
+}
+const escadasNaPlanta = async (page) => (await page.locator('.planta-cv').getAttribute('data-escadas')) ?? '';
+const esperarEscadas = (page, lista) => page.waitForFunction((l) => document.querySelector('.planta-cv')?.getAttribute('data-escadas') === l, lista);
+const clicarPlanta = async (page, x, y) => { const [px, py] = await telaDe(page, x, y); await page.mouse.move(px, py); await page.mouse.click(px, py); };
+
+export const f_E4b_inserir = {
+    name: 'E4b-inserir: ferramenta Escada (menu, dados da nova escada, dois cliques, inserção repetida, Esc, desfazer e erro de altura)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await porticoParaEscadas(page);
+      await faixaAba(page, 'Lançamento');
+      await page.getByRole('button', { name: 'Escada', exact: true }).click();
+      const menu = page.locator('[data-escada-menu]');
+      await menu.waitFor();
+      assert.match(await menu.innerText(), /Grupo atual:/);
+      // dados da nova escada: espelho de 1/6 m fecha os 3 m com 18 degraus
+      await menu.getByRole('button', { name: 'Dados da nova escada…', exact: true }).click();
+      const jan = page.getByRole('dialog', { name: 'Nova escada', exact: true });
+      await jan.waitFor();
+      assert.match(await jan.innerText(), /Grupo:/);
+      await jan.getByLabel(/^Espelho \(altura do degrau\)/).fill('0.16667');
+      await jan.getByLabel(/^Espelho \(altura do degrau\)/).press('Tab');
+      await jan.locator('[data-escada-erro]').waitFor({ state: 'detached' });
+      await jan.getByRole('button', { name: 'Lançar na planta', exact: true }).click();
+      await jan.waitFor({ state: 'detached' });
+      // 1º clique (início) e 2º (direção): E1; a inserção repetida lança E2
+      await clicarPlanta(page, 1, 1); await clicarPlanta(page, 1, 4);
+      await esperarEscadas(page, 'E1');
+      await clicarPlanta(page, 5, 1); await clicarPlanta(page, 5, 4);
+      await esperarEscadas(page, 'E1,E2');
+      // Esc encerra a inserção repetida: a ferramenta volta a Selecionar
+      await page.keyboard.press('Escape');
+      await page.locator('canvas.int[data-ferramenta="selecionar"]').waitFor();
+      // Ctrl+Z desfaz só E2
+      await page.keyboard.press('Control+z');
+      await esperarEscadas(page, 'E1');
+      // erro geométrico: espelho de 0,20 m não fecha a altura; nada é criado e o código aparece em vermelho
+      await page.keyboard.press('Shift+E');
+      await menu.waitFor();
+      await menu.getByRole('button', { name: 'Dados da nova escada…', exact: true }).click();
+      await jan.waitFor();
+      await jan.getByLabel(/^Espelho \(altura do degrau\)/).fill('0.2');
+      await jan.getByLabel(/^Espelho \(altura do degrau\)/).press('Tab');
+      await jan.locator('[data-escada-erro="ESCADA_ALTURA"]').waitFor();
+      await jan.getByRole('button', { name: 'Lançar na planta', exact: true }).click();
+      await clicarPlanta(page, 5, 1); await clicarPlanta(page, 5, 4);
+      await menu.locator('[data-escada-erro="ESCADA_ALTURA"]').waitFor();
+      assert.equal(await escadasNaPlanta(page), 'E1');
+    },
+};
+
+/** Escada E1 (meia-volta 9 + 9, espelho 1/6 m) criada pela linha de comandos: origem (1; 1), subindo em +y. */
+const ESCADA_E1 = 'escada.criar {"id": "e1", "grupo": "g_3", "origem": [1, 1], "angulo": 90, "piso": 0.2941176, "espelho": 0.1666667, "lances": [{"tipo": "pre:meia-volta-9-9"}]}';
+const modeloEscadas = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.escadas ?? []);
+const numero = async (campo) => parseFloat((await campo.inputValue()).replace(',', '.'));
+
+export const f_E4b_editar = {
+    name: 'E4b-editar: funções Editar, Mover, Girar, Duplicar lance e Apagar da ferramenta Escada, com desfazer',
+    async run({ newPage }) {
+      const page = await newPage();
+      const cmd = await porticoParaEscadas(page);
+      await cmd(ESCADA_E1);
+      await esperarEscadas(page, 'E1');
+      await faixaAba(page, 'Lançamento');
+      await page.getByRole('button', { name: 'Escada', exact: true }).click();
+      const menu = page.locator('[data-escada-menu]');
+      const funcao = (nome) => menu.getByRole('radio', { name: nome, exact: true }).click();
+      // Editar: clicar na escada abre a janela; a largura muda pelo comando de dados
+      await funcao('Editar');
+      await clicarPlanta(page, 1, 2);
+      const jan = page.getByRole('dialog', { name: 'Escadas', exact: true });
+      await jan.waitFor();
+      const dados = jan.locator('[data-escada-dados]');
+      await dados.getByLabel(/^Largura da escada/).fill('1.3');
+      await dados.getByLabel(/^Largura da escada/).press('Tab');
+      await page.waitForFunction(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.escadas ?? [])[0]?.largura === 1.3);
+      await jan.getByRole('button', { name: 'Fechar', exact: true }).click();
+      // Mover: referência e destino (dx = 2 m)
+      await funcao('Mover');
+      await clicarPlanta(page, 1, 2); await clicarPlanta(page, 3, 2);
+      await page.waitForFunction(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.escadas ?? [])[0]?.origem?.[0] === 3);
+      // Girar: clicar na escada e digitar 90 (soma ao sentido atual: 90 + 90 = 180)
+      await funcao('Girar');
+      await clicarPlanta(page, 3, 2);
+      await menu.getByLabel(/^Ângulo do giro/).fill('90');
+      await menu.getByLabel(/^Ângulo do giro/).press('Tab');
+      await menu.getByRole('button', { name: 'Girar', exact: true }).click();
+      await page.waitForFunction(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.escadas ?? [])[0]?.angulo === 180);
+      // a janela mostra origem e sentido; Duplicar lance 1 acrescenta um lance
+      await funcao('Editar');
+      await clicarPlanta(page, 2.8, 1);
+      await jan.waitFor();
+      assert.equal(await numero(dados.getByLabel(/^Origem x/)), 3);
+      assert.equal(await numero(dados.getByLabel(/^Sentido de subida/)), 180);
+      await jan.getByRole('radio', { name: 'Lances', exact: true }).click();
+      // patamar apoiado com apoio lateral e cota inicial do lance (C8.15, C8.26)
+      await jan.getByRole('checkbox', { name: 'Patamar 1 apoiado (lance 1)', exact: true }).check();
+      await jan.getByLabel(/^Apoio lateral do patamar 1 \(lance 1\)/).selectOption('alvenaria');
+      await page.waitForFunction(() => { const l = (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.escadas ?? [])[0]?.lances?.[0]; return l?.patamares?.[0]?.apoiado && l.patamares[0].apoios.some((x) => x.borda === 'lateral' && x.tipo === 'alvenaria'); });
+      await jan.getByLabel(/^Cota inicial do lance 1/).fill('0');
+      await jan.getByLabel(/^Cota inicial do lance 1/).press('Enter');
+      await page.waitForFunction(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.escadas ?? [])[0]?.lances?.[0]?.cotaInicial === 0);
+      await jan.getByRole('button', { name: 'Duplicar lance 1', exact: true }).click();
+      await jan.getByRole('button', { name: 'Duplicar lance 2', exact: true }).waitFor();
+      await page.waitForFunction(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.escadas ?? [])[0]?.lances?.length === 2);
+      await jan.getByRole('button', { name: 'Fechar', exact: true }).click();
+      // Apagar por clique: E1 some; Ctrl+Z traz de volta
+      await funcao('Apagar');
+      await clicarPlanta(page, 2.8, 1);
+      await esperarEscadas(page, '');
+      await page.keyboard.press('Control+z');
+      await esperarEscadas(page, 'E1');
+      // Apagar por janela (da direita para a esquerda captura as escadas que a janela toca)
+      const [ax, ay] = await telaDe(page, 7.9, 4.9), [bx, by] = await telaDe(page, 1.0, 0.5);
+      await page.mouse.move(ax, ay); await page.mouse.down(); await page.mouse.move(bx, by, { steps: 8 }); await page.mouse.up();
+      await esperarEscadas(page, '');
+    },
+};
+
+export const f_E4b_copiar = {
+    name: 'E4b-copiar: "Copiar dados de" outra escada, giro à direita e mesmos lances',
+    async run({ newPage }) {
+      const page = await newPage();
+      const cmd = await porticoParaEscadas(page);
+      await cmd(ESCADA_E1);
+      await esperarEscadas(page, 'E1');
+      await faixaAba(page, 'Lançamento');
+      await page.getByRole('button', { name: 'Escada', exact: true }).click();
+      const menu = page.locator('[data-escada-menu]');
+      await menu.getByLabel('Copiar dados de').selectOption({ label: 'E1' });
+      await menu.getByRole('button', { name: 'Dados da nova escada…', exact: true }).click();
+      const jan = page.getByRole('dialog', { name: 'Nova escada', exact: true });
+      await jan.waitFor();
+      assert.ok(Math.abs((await numero(jan.getByLabel(/^Espelho \(altura do degrau\)/))) - 1 / 6) < 1e-3);
+      await jan.getByLabel(/^Giro ao subir/).selectOption('dir');
+      await jan.getByRole('button', { name: 'Lançar na planta', exact: true }).click();
+      await clicarPlanta(page, 5, 1); await clicarPlanta(page, 5, 4);
+      await esperarEscadas(page, 'E1,E2');
+      await page.waitForFunction(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.escadas ?? []).length === 2);
+      const [e1, e2] = await modeloEscadas(page);
+      assert.equal(e2.giro, 'dir');
+      assert.equal(e1.giro, undefined);
+      assert.equal(e2.lances.length, e1.lances.length);
+      assert.equal(e2.lances[0].tipo, e1.lances[0].tipo);
+    },
+};
+
+export const f_E4b_biblioteca = {
+    name: 'E4b-biblioteca: tipos de lance (em uso e bloqueio, desbloquear, copiar com nova referência, exportar, importar e biblioteca do usuário)',
+    async run({ newPage }) {
+      const page = await newPage();
+      const cmd = await porticoParaEscadas(page);
+      await cmd(ESCADA_E1);
+      await esperarEscadas(page, 'E1');
+      const abrirTipos = async (pg) => {
+        await faixaAba(pg, 'Lançamento');
+        await pg.getByRole('button', { name: 'Escadas…', exact: true }).click();
+        const j = pg.getByRole('dialog', { name: 'Escadas', exact: true });
+        await j.waitFor();
+        await j.getByRole('radio', { name: 'Tipos de lance', exact: true }).click();
+        return j;
+      };
+      const jan = await abrirTipos(page);
+      const tipo = jan.locator('[data-tipo-lance]').first();
+      await tipo.waitFor();
+      assert.match(await tipo.innerText(), /Em uso por 1 lance\(s\)/);
+      assert.match(await tipo.innerText(), /Bloqueado: o tipo é usado em outro lance/);
+      // campos desabilitados enquanto bloqueado; "Desbloquear" os habilita e a edição vale
+      await tipo.getByRole('button', { name: /^Editar / }).click();
+      const trechos = tipo.getByLabel('Degraus de cada trecho');
+      assert.equal(await trechos.isDisabled(), true);
+      await tipo.getByRole('button', { name: 'Salvar alterações do tipo', exact: true }).click();
+      await tipo.getByText(/bloqueado para edição/).waitFor();
+      await tipo.getByRole('button', { name: /^Desbloquear / }).click();
+      await page.waitForFunction(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.tiposLance ?? [])[0]?.desbloqueado === true);
+      assert.equal(await trechos.isDisabled(), false);
+      await trechos.fill('10 + 8');
+      await tipo.getByRole('button', { name: 'Salvar alterações do tipo', exact: true }).click();
+      await page.waitForFunction(() => JSON.stringify((JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.tiposLance ?? [])[0]?.trechos) === '[10,8]');
+      // copiar com nova referência: o nome sugerido é "<nome> (cópia)"
+      await jan.locator('[data-tipo-lance]').first().getByRole('button', { name: /^Copiar com nova referência/ }).click();
+      await jan.getByRole('button', { name: 'Criar a cópia', exact: true }).click();
+      await jan.locator('[data-tipo-lance]').filter({ hasText: '(cópia)' }).waitFor();
+      // exportar da obra (.json)
+      await jan.getByText('Biblioteca de tipos de lance', { exact: true }).click();
+      const { name, text } = await downloadText(page, () => jan.getByRole('button', { name: 'Exportar da obra (.json)', exact: true }).click());
+      assert.match(name, /tipos-de-lance\.json$/);
+      const j = JSON.parse(text);
+      assert.equal(j.formato, 'statikos-tipos-lance');
+      assert.equal(j.tipos.length, 2);
+      // biblioteca do usuário: guardar e trazer (os tipos já existem na obra: nada duplica)
+      await jan.getByLabel('Nome na biblioteca do usuário', { exact: true }).fill('Meus tipos');
+      await jan.getByLabel('Nome na biblioteca do usuário', { exact: true }).press('Tab');
+      await jan.getByRole('button', { name: 'Guardar na biblioteca do usuário', exact: true }).click();
+      await jan.getByLabel(/^Tipos de lance guardados/).selectOption({ index: 1 });
+      await jan.getByRole('button', { name: 'Trazer da biblioteca do usuário', exact: true }).click();
+      await jan.locator('[data-aviso-tipos-lance]').filter({ hasText: /0 tipo\(s\) de lance importado\(s\); 2 já existia/ }).waitFor();
+      // importar numa obra nova: entra 1 tipo... (2 tipos distintos), e de novo diz que já existiam
+      const page2 = await newPage();
+      await page2.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const jan2 = await abrirTipos(page2);
+      await jan2.getByText('Biblioteca de tipos de lance', { exact: true }).click();
+      await jan2.getByLabel('Importar (.json)', { exact: true }).setInputFiles({ name: 'tipos-de-lance.json', mimeType: 'application/json', buffer: Buffer.from(text) });
+      await jan2.locator('[data-aviso-tipos-lance]').filter({ hasText: /2 tipo\(s\) de lance importado\(s\); 0 já existia/ }).waitFor();
+      await jan2.getByLabel('Importar (.json)', { exact: true }).setInputFiles({ name: 'tipos-de-lance.json', mimeType: 'application/json', buffer: Buffer.from(text) });
+      await jan2.locator('[data-aviso-tipos-lance]').filter({ hasText: /0 tipo\(s\) de lance importado\(s\); 2 já existia/ }).waitFor();
+      await jan2.getByLabel('Importar (.json)', { exact: true }).setInputFiles({ name: 'ruim.json', mimeType: 'application/json', buffer: Buffer.from('{"formato": "outro"}') });
+      await jan2.locator('.note.bad').first().waitFor();
+    },
+};
+
+export const f_E4b_guia = {
+    name: 'E4b-guia: etapa Escadas do guia (pendente sem escada, feito depois do lançamento na planta)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await porticoParaEscadas(page);
+      const etapa = page.locator('[data-etapa="escadas"]');
+      await etapa.waitFor();
+      assert.match(await etapa.innerText(), /pendente/);
+      await faixaAba(page, 'Lançamento');
+      await page.getByRole('button', { name: 'Escada', exact: true }).click();
+      const menu = page.locator('[data-escada-menu]');
+      await menu.getByRole('button', { name: 'Dados da nova escada…', exact: true }).click();
+      const jan = page.getByRole('dialog', { name: 'Nova escada', exact: true });
+      await jan.getByLabel(/^Espelho \(altura do degrau\)/).fill('0.16667');
+      await jan.getByLabel(/^Espelho \(altura do degrau\)/).press('Tab');
+      await jan.getByRole('button', { name: 'Lançar na planta', exact: true }).click();
+      await clicarPlanta(page, 1, 1); await clicarPlanta(page, 1, 4);
+      await esperarEscadas(page, 'E1');
+      assert.match(await etapa.innerText(), /feito/);
+      assert.match(await etapa.innerText(), /1 escada\(s\)/);
+      // Navegador: menu do nó (botão direito) duplica a escada; as Propriedades mostram a posição e giram 90°
+      await page.getByRole('treeitem', { name: /^Escadas/ }).click();
+      await page.getByRole('treeitem', { name: /^E1 — 1 lance\(s\)/ }).click({ button: 'right' });
+      await page.getByRole('menuitem', { name: 'Duplicar', exact: true }).click();
+      await esperarEscadas(page, 'E1,E2');
+      const prop = page.locator('[data-escada-propriedades]');
+      await prop.waitFor();
+      await prop.getByRole('button', { name: 'Girar 90°', exact: true }).click();
+      await page.waitForFunction(() => { const e = (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.escadas ?? []); return e.length === 2 && e[1].angulo === 180 && e[0].angulo === 90; });
+      await page.getByRole('treeitem', { name: /^E2 — 1 lance\(s\)/ }).click({ button: 'right' });
+      await page.getByRole('menuitem', { name: 'Apagar', exact: true }).click();
+      await esperarEscadas(page, 'E1');
+    },
+};
+
+export const f_E4b_formas = {
+    name: 'E4b-formas: escadas nas pranchas de formas e de locação e a tabela "Escadas por grupo" do memorial',
+    async run({ newPage }) {
+      const page = await newPage();
+      const cmd = await porticoParaEscadas(page);
+      await cmd(ESCADA_E1);
+      await esperarEscadas(page, 'E1');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Pranchas' }).click();
+      const tipo = page.getByLabel('Tipo de prancha');
+      const prev = page.locator('.prancha-prev');
+      await tipo.selectOption({ label: 'Formas' });
+      await prev.locator('svg').waitFor();
+      assert.match(await prev.textContent(), /E1/);
+      await tipo.selectOption({ label: 'Locação e cargas' });
+      await prev.locator('svg').waitFor();
+      assert.match(await prev.textContent(), /E1/);
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const me = memo.locator('[data-memorial-escadas]');
+      await me.waitFor();
+      assert.match(await me.innerText(), /Escadas por grupo/);
+      const tab = me.locator('[data-memorial-escadas-grupo] tbody tr');
+      assert.equal(await tab.count(), 1);
+      assert.match(await tab.first().innerText(), /E1\s+1,00 ; 1,00\s+90,00\s+1\s+18/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+    },
+};
+
+export const f_E4c = {
+    name: 'E4c: cálculo das escadas (janela com reações por apoio, esforços, aviso de recálculo e memorial)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const esperar = (fn, arg, t = 30000) => page.waitForFunction(fn, arg, { timeout: t });
+      const fmt = (v) => v.toFixed(2).replace('.', ',');
+      // pórtico 8 × 5 m com vigas nos eixos y = 0 e y = 5; escada reta de 18 degraus entre elas (origem x = 4, subindo em +y, 17 pisos de 5/17 m)
+      await cmd('lote {"comandos": [' + [[0, 0], [8, 0], [0, 5], [8, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 5], [8, 5]], [[0, 0], [0, 5]], [[8, 0], [8, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.45}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await cmd('tipoLance.criar {"id": "T", "tipo": {"nome": "Reto de 18", "tipologia": "reto", "trechos": [18], "espessura": 0.15}}');
+      await cmd('escada.criar {"id": "e1", "grupo": "g_3", "origem": [4, 0], "angulo": 90, "piso": 0.2941176, "espelho": 0.1666667, "lances": [{"tipo": "T"}]}');
+      await esperar(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.escadas ?? []).length === 1, null);
+      // valores esperados (viga biapoiada inclinada com carga por projeção): R = q·ℓ·largura/2 por apoio
+      const piso = 0.2941176, esp = 0.1666667, ell = 17 * piso, w = 1.2, cosA = piso / Math.hypot(piso, esp);
+      const pg = (25 * 0.15) / cosA + (25 * esp) / 2 + 1, RG = (pg * ell * w) / 2, RQ = (2.5 * ell * w) / 2;
+      // 1) janela do cálculo individual (aba Análise da faixa)
+      await faixaAba(page, 'Análise');
+      await page.getByRole('button', { name: 'Calcular escadas…', exact: true }).click();
+      const jan = page.getByRole('dialog', { name: 'Cálculo das escadas', exact: true });
+      await jan.waitFor();
+      const lance = jan.locator('[data-escada-lance="E1-1"]');
+      await lance.waitFor({ timeout: 60000 });
+      const reac = lance.locator('[data-escada-reacoes]');
+      const txt = await reac.innerText();
+      assert.match(txt, /Apoio inferior/);
+      assert.match(txt, /Apoio superior/);
+      assert.ok(txt.split(fmt(RG)).length - 1 >= 2, `reação G ${fmt(RG)} kN nos dois apoios`);
+      assert.ok(txt.split(fmt(RQ)).length - 1 >= 2, `reação Q ${fmt(RQ)} kN nos dois apoios`);
+      assert.ok(txt.includes(fmt(RG / w)), 'carga linear G em kN/m');
+      const esf = lance.locator('[data-escada-esforcos]');
+      const mxLido = parseFloat((await esf.locator('tbody td').first().innerText()).replace(',', '.'));
+      const mxEsperado = (1.4 * (pg + 2.5) * ell * ell) / 8;
+      assert.ok(Math.abs(mxLido / mxEsperado - 1) < 0.02, `Mx+ ${mxLido} ≈ 1,4·(G+Q)·ℓ²/8 = ${mxEsperado.toFixed(2)}`);
+      assert.equal(await jan.locator('[data-escada-recalcular]').count(), 0, 'sem análise da obra ainda, sem aviso de recálculo');
+      await jan.getByRole('button', { name: 'Fechar', exact: true }).click();
+      // 2) calcular a obra: as reações entram nas vigas e o resultado fica guardado; memorial com o capítulo do cálculo
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const me = memo.locator('[data-memorial-escadas-calculo]');
+      await me.waitFor();
+      assert.match(await me.innerText(), /fora da análise global/);
+      assert.match(await me.innerText(), /Lance 1: Apoio inferior/);
+      assert.match(await me.innerText(), /\[a confirmar\]/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+      // 3) alterar a escada depois do cálculo: aviso de recálculo na janela; recalcular a obra o remove
+      await cmd('escada.editar {"id": "e1", "largura": 1.3}');
+      await faixaAba(page, 'Análise');
+      await page.getByRole('button', { name: 'Calcular escadas…', exact: true }).click();
+      const jan2 = page.getByRole('dialog', { name: 'Cálculo das escadas', exact: true });
+      await jan2.locator('[data-escada-recalcular]').waitFor();
+      assert.match(await jan2.locator('[data-escada-recalcular]').innerText(), /a escada mudou depois do último cálculo/);
+      assert.ok((await jan2.locator('[data-escada-lance="E1-1"] [data-escada-reacoes]').innerText()).includes(fmt((pg * ell * 1.3) / 2)), 'a reação acompanha a largura de 1,30 m');
+      await jan2.getByRole('button', { name: 'Calcular obra', exact: true }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await jan2.locator('[data-escada-recalcular]').waitFor({ state: 'detached' });
+      await jan2.getByRole('button', { name: 'Fechar', exact: true }).click();
+    },
+  };
+
+export const f_E4c_menu = {
+    name: 'E4c-menu: cálculo das escadas pelo menu da ferramenta, marca "recalcular" no Navegador e reações nas Propriedades',
+    async run({ newPage }) {
+      const page = await newPage();
+      const cmd = await porticoParaEscadas(page);
+      await cmd('tipoLance.criar {"id": "T", "tipo": {"nome": "Reto de 18", "tipologia": "reto", "trechos": [18], "espessura": 0.15}}');
+      await cmd('escada.criar {"id": "e1", "grupo": "g_3", "origem": [4, 0], "angulo": 90, "piso": 0.2941176, "espelho": 0.1666667, "lances": [{"tipo": "T"}]}');
+      await esperarEscadas(page, 'E1');
+      // menu da ferramenta: "Ver esforços e deslocamentos" abre a janela do cálculo
+      await faixaAba(page, 'Lançamento');
+      await page.getByRole('button', { name: 'Escada', exact: true }).click();
+      const menu = page.locator('[data-escada-menu]');
+      await menu.getByRole('button', { name: 'Ver esforços e deslocamentos', exact: true }).click();
+      const jan = page.getByRole('dialog', { name: 'Cálculo das escadas', exact: true });
+      await jan.locator('[data-escada-lance="E1-1"]').waitFor({ timeout: 60000 });
+      await jan.getByRole('button', { name: 'Fechar', exact: true }).click();
+      // "Calcular escada" do menu abre a mesma janela
+      await menu.getByRole('button', { name: 'Calcular escada', exact: true }).click();
+      await jan.locator('[data-escada-lance="E1-1"]').waitFor({ timeout: 60000 });
+      await jan.getByRole('button', { name: 'Fechar', exact: true }).click();
+      // sem a obra calculada: sem marca no Navegador e reações "—" nas Propriedades
+      await page.getByRole('treeitem', { name: /^Escadas/ }).click();
+      const no = page.getByRole('treeitem', { name: /^E1 — 1 lance/ });
+      await no.waitFor();
+      assert.equal(await no.getByText('recalcular', { exact: true }).count(), 0);
+      // calcula a obra: as Propriedades mostram as reações; alterar a escada põe a marca "recalcular" no nó
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await no.click();
+      await page.getByRole('dialog', { name: 'Escadas', exact: true }).getByRole('button', { name: 'Fechar', exact: true }).click();
+      const prop = page.locator('[data-escada-propriedades]');
+      await prop.waitFor();
+      await prop.getByText('Cálculo', { exact: true }).click();
+      assert.match(await prop.innerText(), /Reações \(G \/ Q\)\s*\d+,\d{2} \/ \d+,\d{2} kN/);
+      await cmd('escada.editar {"id": "e1", "largura": 1.3}');
+      await no.getByText('recalcular', { exact: true }).waitFor();
+      await prop.getByRole('button', { name: 'Calcular escada…', exact: true }).click();
+      await jan.locator('[data-escada-recalcular]').waitFor();
+      await jan.getByRole('button', { name: 'Fechar', exact: true }).click();
     },
 };
 export const f_E3e = {

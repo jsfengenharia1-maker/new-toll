@@ -17,11 +17,11 @@ const teclas = (() => {
 describe('mapa de migração do layout', () => {
   it('existe e tem a contagem do cabeçalho', () => {
     expect(mapa).toBeTruthy();
-    expect(mapa).toContain('**225 itens**');
+    expect(mapa).toContain('**226 itens**');
   });
 
-  it('as 42 ferramentas da planta têm linha no mapa, com a tecla quando existe', () => {
-    expect(rotulos.length).toBe(42);
+  it('as 43 ferramentas da planta têm linha no mapa, com a tecla quando existe', () => {
+    expect(rotulos.length).toBe(43);
     for (const { id, rotulo } of rotulos) {
       const linha = mapa.split('\n').find((l) => /^\| T\d+ \|/.test(l) && l.includes(`| ${rotulo} |`));
       expect(linha, `ferramenta ${id} (${rotulo}) sem linha T no mapa`).toBeTruthy();

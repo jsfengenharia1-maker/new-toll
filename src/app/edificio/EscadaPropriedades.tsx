@@ -1,14 +1,28 @@
 // Propriedades da escada selecionada (E4a, interface): grupos "Geometria" (largura, piso, espelho, giro, último degrau) e
 // "Cargas" (execução, corrimãos, revestimento, sobrecarga, acesso). Cada campo chama `escada.dados`; o núcleo valida.
-import { Check, Group, Hint, NumField, OptNumField, Select } from '../ui';
+import { Button, Check, Group, Hint, KV, NumField, OptNumField, Select } from '../ui';
 import type { Escada } from '../../core/building/escadas';
+import { resumoCalculoEscadas } from '../../core/building/escadasResumo';
 import { useBuilding } from './store';
+import { useEscadaCalculoUI } from './EscadaCalculoUI';
 
 export function EscadaPropriedades({ e }: { e: Escada }) {
   const { exec } = useBuilding();
   const muda = (p: Record<string, unknown>) => exec('escada.dados', { id: e.id, ...p });
+  const res = useBuilding((s) => s.analise?.escadas);
+  const lances = res ? resumoCalculoEscadas(res).filter((l) => l.escada === e.nome) : [];
+  const soma = (c: 'G' | 'Q') => lances.reduce((t, l) => t + l.reacoes.reduce((u, r) => u + r[c], 0), 0);
+  const fmt = (v: number) => v.toFixed(2).replace('.', ',');
   return (
     <div data-escada-propriedades>
+      <Group title="Posição">
+        <div className="row wrap u-items-end">
+          <NumField label="Origem x" unit="m" width={110} value={e.origem[0]} onChange={(v) => exec('escada.editar', { id: e.id, origem: [v, e.origem[1]] })} />
+          <NumField label="Origem y" unit="m" width={110} value={e.origem[1]} onChange={(v) => exec('escada.editar', { id: e.id, origem: [e.origem[0], v] })} />
+          <NumField label="Sentido de subida" unit="°" width={110} value={e.angulo} onChange={(v) => exec('escada.editar', { id: e.id, angulo: v })} />
+          <Button variant="mini" onClick={() => exec('escada.girar', { ids: [e.id], angulo: 90 })}>Girar 90°</Button>
+        </div>
+      </Group>
       <Group title="Geometria">
         <div className="row wrap u-items-end">
           <NumField label="Largura da escada" unit="m" width={120} value={e.largura} onChange={(v) => muda({ largura: v })} />
@@ -17,6 +31,10 @@ export function EscadaPropriedades({ e }: { e: Escada }) {
           <Select label="Giro ao subir" value={e.giro ?? 'esq'} options={[{ v: 'esq', label: 'esquerda' }, { v: 'dir', label: 'direita' }]} onChange={(v) => muda({ giro: v })} />
           <Select label="Último degrau" value={e.ultimoDegrau ?? 'patamar'} options={[{ v: 'patamar', label: 'formado pelo patamar' }, { v: 'laje', label: 'sobre a laje inclinada' }]} onChange={(v) => muda({ ultimoDegrau: v })} />
         </div>
+      </Group>
+      <Group title="Cálculo" open={false}>
+        <KV rows={[['Reações (G / Q)', lances.length ? `${fmt(soma('G'))} / ${fmt(soma('Q'))} kN` : '—']]} />
+        <Button variant="mini" onClick={() => useEscadaCalculoUI.getState().abrir()}>Calcular escada…</Button>
       </Group>
       <Group title="Cargas" open={false}>
         <div className="row wrap u-items-end">
