@@ -48,6 +48,27 @@ Os itens E que não estão nas specs da E1 e da E2 (228) foram alocados em 20/10
 6. **L — Produtividade.** Assistente de nova obra, lançamento automático por DXF (camada → pilar, contorno, abertura) e IFC, copiar grupo inteiro, viga por clique na máscara, ajudas. Spec: `spec-frente-L.md` (L1–L5; 75 itens), escrita em 20/10/2026; o IFC usa o web-ifc (decisão do usuário de 20/10/2026), vendorizado e sob demanda.
 7. **V — Visualização.** Vista 3D do modelo (por pavimento e por tipo de elemento) e das armaduras, cortes do edifício, isovalores, deformada. Os diagramas entram antes, na frente R; a vista 3D simples pode ser antecipada se ajudar a conferir as frentes E. Spec: `spec-frente-V.md` (V1–V5; 62 itens), escrita em 20/10/2026; three.js (decisão do usuário de 20/10/2026), vendorizado e sob demanda.
 
+## Fatias de resíduo (25/10/2026)
+
+Itens Parcial ou Falta cujas notas só citavam fatias já encerradas (`node scripts/residuos.mjs` lista; a regra de "encerrada" está em `src/core/checklists-donos.test.ts`) ganharam uma fatia de resíduo; cada nota traz `Resíduo [xxx]`. Sem spec própria: o escopo é o texto da nota. Modelo e esforço em `plano-execucao.md`.
+
+| Fatia | Frente | Itens | Conteúdo | Tipo |
+|---|---|---|---|---|
+| V7a | V | 2 | seletor de esforços nas janelas do pilar e da viga | interface |
+| V7b | V | 5 | camada de esforços e armadura das vigotas na planta | interface |
+| V7c | V | 4 | estado da seção circular/poligonal, diagramas de alveolares e mistas, distorção e vento por direção, vento na malha | núcleo |
+| V7d | V | 4 | planta e editor de símbolos, estilo de pranchas, formato e margens livres, folha de resultados | núcleo + interface |
+| V7e | V | 3 | radier por hipótese/combinação, limite por diâmetro, deslocamento por pano | núcleo + interface |
+| N4a | N | 4 | tabelas de fogo (2012, 180 min, NBR 14432), e ≤ 0,15·b; material do usuário | núcleo |
+| N4b | N | 3 | ábacos da NBR 6123, Wp/K da punção; material do usuário | núcleo |
+| N4c | N | 3 | redistribuição nas faces, opções por elemento, flecha ativa | núcleo |
+| R8a | R | 4 | vigas: comprimentos de corte, grupos, ancoragem, montagem e adicional | núcleo + interface |
+| R8b | R | 3 | estribos (zonas, grampos) e ordenação global dos pilares | núcleo + interface |
+| E6a | E | 1 | tabela de aço da alvenaria armada na prancha | núcleo + interface |
+| E6b | E | 1 | igualação das vigotas entre panos | núcleo |
+| E6c | E | 3 | paredes: lados variáveis por pavimento, viga partida, rigidez axial separada da flexão | núcleo |
+| E6d | E | 1 | pilar em trechos nas cotas das vigas com desnível | núcleo |
+
 ## Fora do escopo (decidido)
 
 Normas estrangeiras sem equivalente NBR, sismo, aço/misto/madeira/alumínio dentro do edifício (estruturas 3D integradas, vigas e pilares de aço, lajes mistas, ligações metálicas, placas de base), compactação e publicação de obras em servidor. O formato JSON da CYPE (só ligações metálicas) fica como possível exportação do Pórtico 2D, prioridade baixa.

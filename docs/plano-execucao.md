@@ -24,6 +24,8 @@ No máximo 3 lanes de código ao mesmo tempo, mais 1 agente de documentação (s
 | Onda 3 | E1 → FU7b | R7f → R7g | N2d → N2e → N2f → N2g | auditoria FU e R |
 | Onda 4 | E2 → E3a–E3f | L1 → L5 | V1 → V2 | auditoria N |
 | Onda 5 | E4a–E4e (a E4e depois de V1, V4 e V5); E5a–E5m (resíduos da frente E, após a auditoria E) | — | V3 → V4 → V5 | auditoria E, L e V |
+| Onda 5 | E4a–E4e (a E4e depois de V1, V4 e V5); E5a–E5l (resíduos da frente E, após a auditoria E) | — | V3 → V4 → V5 | auditoria E, L e V |
+| Onda 6 (resíduos, 25/10/2026) | E6a → E6c → E6b → E6d | R8a → R8b | V7a–V7e; N4c; N4a e N4b quando o usuário enviar o material | auditoria dos resíduos |
 | Fechamento | revisão numérica (Wp de borda/canto da punção, queda de momentos das vigas no modelo integrado, bloco multi-pilar com sinal do momento), desempenho (13 pavimentos ≤ 3 s, teste no CI), pacote (divisão em partes sob demanda), republicação do artifact, revisão final dos "a confirmar" | | | |
 
 Dependências que definem a ordem: FU7b depende de E1 (muros); E3 aproveita as vigotas da R6/R7; V usa os resultados de N2 e E; L (lançamento por DXF/IFC) não depende de nada e fica depois da R7 por dividir arquivos da planta com a R7-0.
@@ -100,6 +102,20 @@ Escalonamento: se um agente S falhar a verificação duas vezes ou relatar dúvi
 | E5k vigas de fundação T, L e plana (1 linha) | S3 | S1 |
 | E5l vínculo externo (apoio contínuo em muro) no modelo integrado (4 linhas) | O | — |
 | E5m pilar com vigas em desnível: nós intermediários no pórtico, vigas na própria cota e verificação por trecho (1 linha, K1.12.4-19, separada da E5j) | O | S1 |
+| V7a seletor de esforços nas janelas do pilar e da viga (2 itens) | — | S1 |
+| V7b camada de esforços e armadura das vigotas na planta (5 itens) | — | S2 |
+| V7c estado da seção circular/poligonal, diagramas de alveolares e mistas, distorção e vento por direção, vento na malha (4 itens) | S3 | — |
+| V7d planta e editor de símbolos, estilo de pranchas, formato e margens livres, folha de resultados (4 itens) | S2 | S2 |
+| V7e radier por hipótese/combinação, limite por diâmetro e deslocamento por pano (3 itens) | S2 | S1 |
+| N4a tabelas de fogo (NBR 15200:2012, 180 min, NBR 14432) e e ≤ 0,15·b; depende de `pendencias-usuario.md` (4 itens) | S3 | — |
+| N4b ábacos da NBR 6123 e Wp/K da punção (Tabela 19.2); depende de `pendencias-usuario.md` (3 itens) | S3 | — |
+| N4c redistribuição nas faces, opções por elemento e flecha ativa 1,965 × 1,981 (3 itens) | S3 | — |
+| R8a vigas: comprimentos de corte, grupos de barras, ancoragem, montagem e adicional (4 itens) | S3 | S1 |
+| R8b estribos (zonas, grampos) e ordenação global dos pilares (3 itens) | S3 | S1 |
+| E6a tabela de aço da alvenaria armada na prancha (1 item) | S2 | S1 |
+| E6b igualação das vigotas entre panos; depende de `pendencias-usuario.md` (1 item) | S3 | — |
+| E6c paredes: lados variáveis por pavimento, viga partida sobre parede, rigidez axial separada da flexão (3 itens) | S3 | — |
+| E6d pilar em trechos nas cotas das vigas com desnível (1 item; pórtico espacial com nós intermediários) | O | — |
 | Specs E3, E4, L, V (escritas em 20/10/2026) | S2 | — |
 | Auditorias de fim de frente | S2 | — |
 | Conflitos de checklist e docs | H | — |
@@ -119,6 +135,7 @@ Estimativa: ~8 agentes Opus (7 %; a E3f entra como Opus), ~102 Sonnet, ~12 Haiku
 | E4 | 80 | `spec-frente-E4.md` | 5: E4a modelo e tipos (26), E4b lançamento, edição e biblioteca (20), E4c cálculo (15), E4d armadura e detalhamento (11), E4e relatório, desenhos e fechamento da frente E (8) | 1 + 5 + 5 + 1 = 12 |
 | L | 75 | `spec-frente-L.md` | 5: L1 assistente de nova obra (15), L2 DXF/DWG por camada (19), L3 IFC (2), L4 cópias de grupo e ajudas (19), L5 ferramentas de lançamento (20) | 1 + 5 + 5 + 1 = 12 |
 | V | 62 | `spec-frente-V.md` | 5: V1 vista 3D (8), V2 cortes, seções e armaduras em 3D (4), V3 deformada e flecha entre pontos (15), V4 isovalores (19), V5 esforços por hipótese e saídas (16) | 1 + 5 + 5 + 1 = 12 |
+| Resíduos (25/10/2026) | 41 | notas dos checklists | 14: V7a–V7e (18), N4a–N4c (10), R8a–R8b (7), E6a–E6d (6); `src/core/checklists-donos.test.ts` exige fatia aberta em todo Parcial/Falta | 0 + 14 + 8 + 1 = 23 |
 | Fechamento | — | — | 2 | 2 |
 | **Total** | | | ~55 fatias | **~122 agentes** |
 
