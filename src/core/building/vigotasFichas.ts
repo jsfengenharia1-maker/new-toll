@@ -76,7 +76,7 @@ const pct = (comp: number, L: number) => Math.round((comp / (L || 1)) * 1000) / 
  * à laje em `lajes` e marca 'fail' nos erros. `op` traz os mínimos, a igualação, a redistribuição e os arredondamentos.
  */
 export function dimensionarVigotasFichas(b: BuildingModel, an: AnaliseEdificio, lajes: ResultadoLaje[], op: OpcoesCalculo): ResultadoVigotas[] {
-  const c = concretoDe(b, 'laje'), gm = gamas(b), aI = acoDe(b, 'lajeInf'), aS = acoDe(b, 'lajeSup'), aV = acoDe(b, 'lajeCortante');
+  const c = concretoDe(b, 'laje'), gm = gamas(b), aI0 = acoDe(b, 'vigotaInf'), aS0 = acoDe(b, 'vigotaSup'), aIN = acoDe(b, 'nervInf'), aSN = acoDe(b, 'nervSup'), aV = acoDe(b, 'lajeCortante');
   const obra = casosDaObra(b), nat = an.casos.map((id) => obra.find((x) => x.id === id)?.natureza ?? 'G');
   const psi1 = an.casos.map((id) => { const x = obra.find((y) => y.id === id); return x?.psi?.[1] ?? b.norma.psiQ?.[1] ?? 0.4; });
   const fFreq = nat.map((n, i) => (n === 'G' || n === 'H' ? 1 : n === 'Q' ? psi1[i] : 0)), fRara = nat.map((n) => (n === 'G' || n === 'H' || n === 'Q' ? 1 : 0));
@@ -87,6 +87,8 @@ export function dimensionarVigotasFichas(b: BuildingModel, an: AnaliseEdificio, 
     if (!g0 || g0.familia === 'trelicada' || g0.ausente) continue;
     if (l.armaduraVigotas) msgsLaje(l.id, ['Armadura bloqueada desconsiderada: a laje não é treliçada.'], false);
     const moldada = g0.tipo === 'moldada', ficha = g0.ficha, serie = g0.serie;
+    // aço próprio (E5f): nervuradas moldadas seguem as nervuradas; as demais vigotas in loco, as suas posições
+    const aI = moldada ? aIN : aI0, aS = moldada ? aSN : aS0;
     const { intereixo, bw, hEnch, capa, h } = g0;
     const prep = prepararVigotas(b, an, l, intereixo, op);
     if (!prep) continue;

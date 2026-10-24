@@ -72,6 +72,7 @@ function EditorGrupos({ r }: { r: ResultadoPuncao }) {
         <Button variant="danger" disabled={calculando || !grupos.length} onClick={() => executarERecalcular('laje.puncao', { id: r.laje, pilares: [r.pilar] })}>Apagar os grupos do pilar</Button>
       </div>
       <Hint>As barras novas somam-se às calculadas; para substituir, apague antes. O recálculo abate a armadura informada da exigência.</Hint>
+      {r.abaco && <Hint>Laje nervurada: as linhas radiais ficam nas nervuras que chegam ao ábaco (fora das cubetas) e valem para a região interna (C e C′, a partir da face do pilar).</Hint>}
     </div>
   );
 }

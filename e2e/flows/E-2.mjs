@@ -1478,3 +1478,52 @@ export const f_E5g = {
       await memo.getByRole('button', { name: 'Fechar' }).click();
     },
 };
+
+export const f_E5f = {
+    name: 'E5f: aço próprio das nervuradas, vigotas e ábacos (Materiais) e grupos de estribos de punção nas nervuras do ábaco',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
+      const esperarModelo = (fn, arg) => page.waitForFunction(fn, arg, { timeout: 20000 });
+      // 1) aço por posição: as seis posições novas aparecem em Materiais e seguem as lajes
+      const mat = await grupoEdif(page, 'Materiais e segurança');
+      for (const r of ['Lajes nervuradas: inferior', 'Lajes nervuradas: superior', 'Vigotas in loco: inferior', 'Vigotas in loco: superior', 'Ábacos: inferior', 'Ábacos: superior']) await mat.getByLabel(new RegExp('^' + r)).waitFor();
+      await mat.getByLabel(/^Lajes: superior/).selectOption('CA-60');
+      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.norma?.acoPos?.lajeSup === 'CA-60', null);
+      assert.equal(await mat.getByLabel(/^Ábacos: superior/).inputValue(), 'CA-60');
+      await mat.getByLabel(/^Lajes nervuradas: superior/).selectOption('CA-50');
+      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.norma?.acoPos?.nervSup === 'CA-50', null);
+      assert.equal(await mat.getByLabel(/^Ábacos: superior/).inputValue(), 'CA-50');
+      // 2) pano nervurado com pilar central e ábaco; grupo de estribos informado pelo cartão de punção
+      await cmd('lote {"comandos": [' + [[0, 0], [12, 0], [12, 6], [0, 6], [6, 3]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [12, 0]], [[0, 6], [12, 6]], [[0, 0], [0, 6]], [[12, 0], [12, 6]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.6}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "nervurada", "forma": "cat:rec-60-30", "hTotal": 0.35, "capa": 0.05}}');
+      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.length === 1, null);
+      const lj = await grupoEdif(page, /^Lajes/);
+      await lj.locator('table.loads-ed tbody tr').nth(0).click();
+      const ab = await grupoEdif(page, /^Ábacos/);
+      await ab.getByRole('button', { name: 'Gerar nos pilares', exact: true }).click();
+      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.abacos?.length === 1, null);
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      const card = page.locator('[data-card-puncao]');
+      await card.waitFor();
+      await card.locator('tbody tr').first().dblclick();
+      const jan = page.getByRole('dialog', { name: /Resultados do elemento — Laje/ });
+      await jan.getByRole('radio', { name: 'Punção e cortante' }).click();
+      const editor = jan.locator('[data-editor-puncao]').first();
+      await editor.waitFor();
+      assert.match(await editor.innerText(), /nervuras que chegam ao ábaco/);
+      await editor.getByRole('button', { name: 'Adicionar grupo', exact: true }).click();
+      await esperarModelo(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.[0]?.puncao ?? []).length === 1, null);
+      await jan.locator('[data-grupos-puncao="1"]').waitFor({ timeout: 90000 });
+      // 3) apagar os grupos do pilar
+      await jan.getByRole('button', { name: 'Apagar os grupos do pilar', exact: true }).click();
+      await esperarModelo(() => !JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.[0]?.puncao, null);
+      assert.equal((await modelo()).lajes[0].puncao, undefined);
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+    },
+};

@@ -15,17 +15,17 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 47 | 2 | 0 | 10 |
 | 1.4 Opções de cálculo (págs. 15–27) | 92 | 74 | 5 | 0 | 13 |
 | 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 42 | 3 | 0 | 14 |
-| 1.6 Materiais (págs. 37–38) | 11 | 7 | 1 | 0 | 3 |
+| 1.6 Materiais (págs. 37–38) | 11 | 8 | 0 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
-| 1.9 Entrada de dados (págs. 41–65) | 116 | 99 | 4 | 0 | 13 |
+| 1.9 Entrada de dados (págs. 41–65) | 116 | 101 | 2 | 0 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 9 | 0 | 0 | 2 |
-| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 52 | 7 | 0 | 3 |
+| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 53 | 6 | 0 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 89 | 7 | 1 | 23 |
-| 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 37 | 4 | 0 | 4 |
+| 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 40 | 1 | 0 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 22 | 2 | 0 | 19 |
-| **Total** | **661** | **514** | **35** | **1** | **111** |
+| **Total** | **661** | **521** | **28** | **1** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -33,11 +33,11 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 9 | 0 | 9 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 7 | 0 | 7 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 10 | 1 | 11 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 3 | 1 | 4 |
 | FU — Fundações | 1 | 0 | 1 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 0 | 0 | 0 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 8 | 0 | 8 |
-| **Total** | **35** | **1** | **36** |
+| **Total** | **28** | **1** | **29** |
 
 ## Divergências de premissa
 
@@ -352,7 +352,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.6.4 | Aço de armadura: resistência de escoamento, coeficiente redutor e módulo, conforme norma; definido por posição e tipo de elemento. | Feito | — | aço por posição com fyk 500/600 e γs da obra no dimensionamento (N1b) |
 | K1.6.5 | Aço de armadura distinto para pilares/paredes/pilares-parede/consolos (longitudinal; estribos). | Feito | — | pilares: longitudinal e estribos (N1b) |
 | K1.6.6 | Aço distinto em vigas e vigas de fundação: negativo, positivo, montagem, pele, estribos. | Feito | — | `acoPos.vigaMontagem` e `acoPos.vigaPele` (materiais.ts, `acoDaBarraViga` em detalhamento.ts e armacaoVigas.ts); seguem a positiva enquanto sem aço próprio; N2e |
-| K1.6.7 | Aço distinto em lajes e radiers: punção e cortante; superior e inferior de maciças; superior de nervuradas e vigotas; inferior de nervuradas. | Parcial | E | aço por posição: inferior e superior das lajes maciças (N1b), armadura de punção e de cortante (`acoPos.lajePuncao` e `lajeCortante`, `materiais.ts`, N2d); nervuradas, vigotas in loco e ábacos sem posição própria — E5f: posições de aço próprias em `acoPos` e `materiais.ts` (superior das nervuradas e vigotas, inferior das nervuradas) |
+| K1.6.7 | Aço distinto em lajes e radiers: punção e cortante; superior e inferior de maciças; superior de nervuradas e vigotas; inferior de nervuradas. | Feito | — | aço por posição: inferior e superior das lajes maciças (N1b), armadura de punção e de cortante (`acoPos.lajePuncao` e `lajeCortante`, `materiais.ts`, N2d); nervuradas, vigotas in loco e ábacos sem posição própria — [E5f] aço próprio das nervuradas, vigotas in loco e ábacos: posições nervInf, nervSup, vigotaInf, vigotaSup, abacoInf e abacoSup em Materiais (acoPos, POSICAO_PAI e acoDe em materiais.ts; herdam das lajes, e o ábaco das nervuradas), usadas em nervuradasDim.ts, vigotasFichas.ts e armacaoLajes.ts |
 | K1.6.8 | Aço distinto em sapatas, sapatas corridas e blocos. | Feito | — | módulo Fundações tem fck e fyk próprios (`piles.ts`: fckFound, fyk); no edifício, aço da posição `fundacao` em `materiais.definir` (`acoDe`, padrão o da obra, FU1) |
 | K1.6.9 | Aço estrutural de pilares, vigas e placas de base: biblioteca não editável (módulo, escoamento, Poisson etc.); perfis laminados, formados a frio e soldados. | Fora | — | aço estrutural |
 | K1.6.10 | Placas de base: aço da placa e enrijecedores, aço e tipo de chumbadores; bitolas pré-definidas não editáveis. | Fora | — | placas de base |
@@ -393,7 +393,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.5 | Blocos de concreto: argamassa, resistência da alvenaria e aço da armadura de junta. | Feito | — | núcleo: blocos de concreto (`TipoBloco`), argamassa, graute, prisma e aço da armadura de junta (`alvenariaHor`); interface: AlvenariaUI.tsx (editor de blocos e tipo de blocos) [E1e] |
 | K1.9.6 | Aço de armadura em pilares/pilares-parede/consolos (longitudinal e estribos), com abas separadas para estrutura e fundação. | Feito | — | aço dos pilares por posição: longitudinal e estribos (acoPos, N1b); aço da fundação do edifício na posição `fundacao` (FU1) |
 | K1.9.7 | Vigas: negativo (inferior em vigas de fundação), positivo (superior em vigas de fundação), montagem, pele lateral, estribos. | Feito | — | positiva, negativa, montagem, pele e estribos com aço por posição (`acoPos`); N2e |
-| K1.9.8 | Lajes: punção e cortante; negativo/positivo de maciças (superior/inferior em radier); negativo/positivo de nervuradas, ábacos e vigotas in loco. | Parcial | E | punção e cortante das lajes maciças com aço próprio (`acoPos`, N2d) e negativo/positivo de maciças e treliçadas (N1b); nervuradas, ábacos e vigotas in loco (E3) [N2d] — E5f: aço próprio (negativo e positivo) de nervuradas, ábacos e vigotas in loco em `acoPos` |
+| K1.9.8 | Lajes: punção e cortante; negativo/positivo de maciças (superior/inferior em radier); negativo/positivo de nervuradas, ábacos e vigotas in loco. | Feito | — | punção e cortante das lajes maciças com aço próprio (`acoPos`, N2d) e negativo/positivo de maciças e treliçadas (N1b); nervuradas, ábacos e vigotas in loco (E3) [N2d] — [E5f] aço próprio (negativo e positivo) de nervuradas, ábacos e vigotas in loco por acoPos (nervuradasDim.ts, vigotasFichas.ts); punção e cortante dos ábacos com aço lajePuncao/lajeCortante |
 | K1.9.9 | Aço de perfis de vigas e pilares: formado a frio e laminado a quente. | Fora | — | perfis de aço |
 | K1.9.10 | Dados gerais incluem: vento, sismo, verificação de incêndio, casos adicionais, estados-limite (concreto, fundações, aço frio, laminado, madeira, alumínio, tensões no solo, deslocamentos). | Feito | — | vento, ψ, casos adicionais (N1c), estados-limite selecionáveis (N2a) e incêndio (N2g, estado "incendio" em `acoes.ts`); sismo e os demais materiais (aço, madeira, alumínio) ficam fora do escopo do edifício de concreto |
 | K1.9.11 | Coeficientes de flambagem por pavimento e por direção, para pilares de concreto e de aço; definíveis por pavimento e por pilar. | Feito | — | pilar.flambagem (α por lance e direção) e α do pavimento (N1b) |
@@ -556,7 +556,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.18 | Deslocamentos (mm) por caso em qualquer nó; esforços por caso e taxa necessária por direção. | Feito | — | `consultaNo` (`resultados/consultas.ts`): deslocamentos por caso e combinação, esforços por caso e armadura da laje; interface na aba Deslocamentos (AbaDeslocamentos.tsx, `ConsultaNoUI.tsx`) [V3] — Feito 24/10/2026 [V6d]: chip Consultar nó da vista 3D (Vista3D.tsx; `RenderizadorCena.pickPonto` dá o ponto de contato; no isométrico estático vale o centro do objeto) mostra a tabela do nó e abre a aba Deslocamentos; e2e V6d |
 | K1.11.19 | Esforços de cálculo pelo método de Wood (combina momentos fletores e volventes/torção nas direções de armadura). | Feito | — | lajes maciças: Wood-Armer com o torçor, média em faixa de 1 m (opção, N1d) |
 | K1.11.20 | Deslocamento máximo por pano e caso (não é flecha); no radier é recalque; valor positivo = levantamento → hipótese inválida. | Parcial | V | `maximosPorPano`: deslocamento máximo do nó por pano e caso, com levantamento marcado (radier/FU6 não incluído); tabela na aba Deslocamentos (AbaDeslocamentos.tsx e Vista3D.tsx) [V3] |
-| K1.11.21 | Verificação e armadura de punção e cortante em zonas maciças e nervuras. | Parcial | E | punção e cortante de zonas maciças: contornos C, C′ e C″, armadura de punção em linhas radiais e armadura transversal de cortante (`src/core/building/puncao.ts`, NBR 6118 19.4 e 19.5); [N2d] — E5f: punção e cortante nas nervuras que chegam ao ábaco |
+| K1.11.21 | Verificação e armadura de punção e cortante em zonas maciças e nervuras. | Feito | — | punção e cortante de zonas maciças: contornos C, C′ e C″, armadura de punção em linhas radiais e armadura transversal de cortante (`src/core/building/puncao.ts`, NBR 6118 19.4 e 19.5); [N2d] — [E5f] punção das nervuradas com ábaco em abacosPuncao.ts: contornos C, C′ (altura do ábaco) e C″ (altura da laje, sem cubetas), biela τRd2, armadura calculada e grupos informados; cortante nas nervuras que chegam ao ábaco por varredura (opção puncaoNervCortante, NBR 6118 19.4.1) |
 | K1.11.22 | Igualação de barras por máximos de taxa e comprimento; edição de nº, bitola, espaçamento, comprimento e ganchos. | Feito | — | `igualarPosicoes`/`maximosDe` (lajesEdicao.ts): φ, espaçamento e comprimento da posição de maior taxa e o maior comprimento; edição de n, φ, espaçamento, comprimento e ganchos por posição (`laje.barras`), bloqueada e verificada no recálculo (ARM_BLOQ, BLOQ_IGNORADO) (R7e) |
 | K1.11.23 | Tensões excessivas no radier sinalizadas. | Feito | — | tensão no solo σ = k·w por nó nas combinações raras contra σadm (× fator de vento): FUND_RADIER_TENSAO; levantamento FUND_LEVANTAMENTO; mapa por nó na planta e na janela (`BaseElasticaUI.tsx`) |
 | K1.11.24 | Isovalores e isolinhas de esforços, deslocamentos e taxas. | Feito | — | `resultados/bandas.ts` e `isovalores.ts` (campos, bandas, isolinhas, legenda, SVG, DXF e CSV); interface em AbaIsovalores.tsx [V4] — Feito 23/10/2026: interface: AbaIsovalores.tsx; e2e V4 [V4] |
@@ -1021,3 +1021,6 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
   - Pendências por frente: FU diminui (3 itens a Feito); resta K1.9.110 (FU7d).
 - **24/10/2026 — fatia E5j (apoios longitudinais, rigidez das paredes, alvenaria por pavimento, pilar com desnível).** K1.12.21 passa a Feito (`vigaApoioLongEixos`: vão de cálculo limitado à distância entre eixos; `ResultadoViga.vaosParede`). K1.4.30 segue Parcial (`Casca3.fAxial` e `axialParedeSeparado`: rigidez axial separada do cisalhamento, da placa e do módulo horizontal; a flexão no plano de fibras verticais segue majorada). K1.3.59 segue Parcial (parede no meio: diagrama prolongado em teste, aviso para contato longo; a viga não é partida). K1.3.31 segue Parcial (espessura por pavimento confirmada em teste para os três tipos). K1.12.4-19 segue Falta (o pórtico ignora `Viga.nivel`).
   - Situação: ver o resumo (recontado por `npm run checklists`).
+- **24/10/2026 — fatia E5f (aço próprio e punção das nervuradas e ábacos).** K1.6.7, K1.9.8 e K1.11.21 passam de Parcial a Feito (posições de aço das nervuradas, vigotas in loco e ábacos; punção e cortante nas nervuras do ábaco).
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: E5 diminui (3 itens a Feito).

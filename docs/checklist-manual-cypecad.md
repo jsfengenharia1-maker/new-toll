@@ -15,14 +15,14 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 4. Pilares | 63 | 54 | 2 | 0 | 7 |
 | 5. Muros e paredes estruturais | 30 | 25 | 1 | 0 | 4 |
 | 6. Vigas | 108 | 81 | 2 | 0 | 25 |
-| 7. Lajes | 195 | 108 | 20 | 0 | 67 |
+| 7. Lajes | 195 | 110 | 18 | 0 | 67 |
 | 8. Escadas | 65 | 65 | 0 | 0 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 22 | 1 | 0 | 3 |
 | 11. Fundações | 70 | 64 | 0 | 1 | 5 |
 | 12. Isovalores e deformada | 22 | 19 | 2 | 1 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **544** | **29** | **4** | **186** |
+| **Total** | **763** | **546** | **27** | **4** | **186** |
 
 ## Pendências por frente
 
@@ -30,7 +30,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 16 | 1 | 17 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 14 | 1 | 15 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 0 | 0 | 0 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 11 | 3 | 14 |
@@ -567,9 +567,9 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.136 | Salvar cópia da armadura de todos os grupos (ex.: antes de abrir um furo imprevisto). | Feito | — | `lajes.copiaArmadura` salvar: guarda base, predefinidas, edição das posições, vigotas, punção, tabela, zonas e linhas de dobra de todos os grupos (`CopiaLajesCard`) (R7f) |
 | C7.137 | Recuperar a cópia salva: restaura só onde a geometria não mudou, cortando barras na borda de furos novos sem criar ganchos. | Feito | — | `lajes.copiaArmadura` recuperar: restaura só nas lajes de contorno igual; furo novo corta as barras na borda, sem ganchos (R7f) |
 | C7.138 | Copiar a armadura de outro grupo de pavimentos para o grupo atual (destino); copia só onde há laje, corta nas bordas de furos sem ganchos; exige mesmo ângulo e ponto de inserção da malha; recomenda-se criar grupos copiando o de baixo e revisar barras cortadas. | Feito | — | `lajes.copiaArmadura` copiar: de um grupo para outro, só onde há laje de mesmo contorno (mesma malha), com zonas e linhas de dobra (R7f) |
-| C7.139 | Adicionar grupos de estribos de punção nas nervuras que chegam a um ábaco: número, diâmetro e espaçamento; o ábaco sob o cursor escurece e recebe as barras ao clicar. | Parcial | E | grupos de armadura de punção nos pilares das lajes maciças: número de linhas, barras, diâmetro e espaçamento (`Laje.puncao`, comando `laje.puncao`, ferramenta Armadura de punção na planta, editor em `Puncao.tsx`); [N2d] — E5f: grupos de estribos de punção nas nervuras que chegam ao ábaco e destaque do ábaco sob o cursor |
+| C7.139 | Adicionar grupos de estribos de punção nas nervuras que chegam a um ábaco: número, diâmetro e espaçamento; o ábaco sob o cursor escurece e recebe as barras ao clicar. | Feito | — | grupos de armadura de punção nos pilares das lajes maciças: número de linhas, barras, diâmetro e espaçamento (`Laje.puncao`, comando `laje.puncao`, ferramenta Armadura de punção na planta, editor em `Puncao.tsx`); [N2d] — [E5f] grupos de estribos nas nervuras do ábaco: o clique da ferramenta Armadura de punção vale para o pilar ou o ábaco sob o cursor, que escurece (alvoPuncaoNoPonto em abacosPuncao.ts, Planta.tsx); os grupos somam-se à armadura calculada (puncaoAbacos) e entram nas pranchas |
 | C7.140 | As barras novas somam-se às existentes; para substituir, apagar antes. | Feito | — | os grupos informados somam-se à armadura calculada (a exigência por anel é abatida); para substituir, apagar antes (`laje.puncao`, `puncao.ts`) [N2d] |
-| C7.141 | Apagar grupos de armadura de punção (lajes cogumelo, maciças e nervuradas) um a um ou por janela de captura. | Parcial | E | apagar grupos de armadura de punção um a um, por pilar ou pela seleção por janela (comando `laje.puncao`, botão “Apagar punção da seleção”); [N2d] — E5f: apagar grupos de punção nas lajes cogumelo e nervuradas |
+| C7.141 | Apagar grupos de armadura de punção (lajes cogumelo, maciças e nervuradas) um a um ou por janela de captura. | Feito | — | apagar grupos de armadura de punção um a um, por pilar ou pela seleção por janela (comando `laje.puncao`, botão “Apagar punção da seleção”); [N2d] — [E5f] apagar grupos de punção das lajes cogumelo, maciças e nervuradas, um a um (ferramenta, modo apagar, pilar ou ábaco) ou por janela (Apagar punção da seleção); laje.puncao vale em qualquer laje |
 | | **7.2.3 Lajes alveolares** | | | |
 | C7.142 | Vistas de lajes alveolares inclinadas: desenho do dobramento e marca do ponto de dobra. | Feito | — | E5a: barrasAlveolaresDobradas (armacaoInclinadas.ts): negativo da capa das alveolares inclinadas que cruza a linha de dobra, desenhado com dobramento e marca na folha das negativas; a prancha de lajes passa a existir para grupo só de alveolares com dobra. [a confirmar: negativos[0] no início do eixo da placa] |
 | C7.143 | Catálogo de fabricante com fichas das placas alveolares; quadro de propriedades no relatório de dados da obra. | Feito | — | E3e: catálogo editável na biblioteca de normas (gabarito sem dado de fabricante: o usuário cadastra as placas) e quadro de propriedades das placas no memorial (MemorialAlveolares.tsx, com a marca da ficha) [E3e] |
@@ -1095,3 +1095,6 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **24/10/2026 — fatia FU7c, núcleo e interface.** Nenhum item do manual do usuário muda de situação (C5.2, C5.28, C11.28 e C11.31 já estavam Feito); a base da parede ganha a opção "viga de fundação" no editor e no lançamento (`BaseParedeUI.tsx`, `ParedesUI.tsx`).
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: nenhuma alteração (manual do usuário).
+- **24/10/2026 — fatia E5f (aço próprio e punção das nervuradas e ábacos).** C7.139 e C7.141 passam de Parcial a Feito (grupos de estribos nas nervuras do ábaco, clique no ábaco sob o cursor, apagar em lajes cogumelo e nervuradas).
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: E5 diminui (2 itens a Feito).

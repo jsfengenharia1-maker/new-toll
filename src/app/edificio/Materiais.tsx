@@ -28,7 +28,7 @@ export function MateriaisGrupo({ b }: { b: BuildingModel }) {
             onChange={(v) => def({ fckPilarPav: [{ pavimento: p.id, fck: v === fckDe(b, 'pilar') ? 0 : v }] })} />
         ))}
       </div>
-      <div className="row wrap">
+      <div className="row wrap aco-pos">
         {POSICOES_ACO.map((x) => <Select key={x.k} label={x.rotulo} value={acoDe(b, x.k).aco} options={ACOS} onChange={(v) => def({ aco: { [x.k]: v } })} />)}
       </div>
       <div className="row wrap">

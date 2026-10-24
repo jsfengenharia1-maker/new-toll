@@ -301,6 +301,8 @@ export interface OpcoesCalculo {
   cortanteVarredura: number;
   /** Passo da varredura de cortante, em múltiplos de d. */
   cortanteVarreduraPasso: number;
+  /** 1 = varredura do cortante também nas nervuras que chegam ao ábaco das nervuradas (E5f, K1.11.21); usa o passo de `cortanteVarreduraPasso`. */
+  puncaoNervCortante: number;
   /** Base elástica (FU6): coeficiente de reação vertical do solo padrão (kN/m³), para radiers e vigas sem valor próprio. */
   radierK: number;
   /** Base elástica (FU6): espaçamento máximo da malha do radier e da divisão das vigas sobre base elástica (m). */
@@ -912,6 +914,8 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Verifica o cortante da laje em superfícies paralelas ao contorno de punção, com VRd1 (19.4.1) e armadura transversal (19.4.2) do mesmo tipo da punção.' },
   { chave: 'cortanteVarreduraPasso', rotulo: 'Cortante em torno do pilar: passo da varredura', unidade: '× d', min: 0.25, max: 2, passo: 0.05, padrao: 0.75, fonte: 'Programa de referência (superfícies a cada 0,75d)', aConfirmar: false,
     descricao: 'Distância entre as superfícies verificadas, em múltiplos de d, a partir do contorno C′.' },
+  { chave: 'puncaoNervCortante', rotulo: 'Cortante nas nervuras que chegam ao ábaco: varredura', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, padraoNBR: 0, fonteNBR: 'NBR 6118 não exige a varredura: só o contorno C′ de punção e o cortante nas nervuras', fonte: 'Programa de referência: cortante em superfícies paralelas ao contorno de punção, só sobre as nervuras (trechos sobre cubetas descontados); NBR 6118, 19.4.1', aConfirmar: true,
+    descricao: 'Verifica o cortante das nervuras e zonas maciças em torno do pilar da laje nervurada com ábaco: V = FSd − q·A em cada superfície, dividido pelo comprimento efetivo (soma das larguras das nervuras cruzadas), contra VRd1; armadura transversal pelo mesmo critério das maciças.' },
   { chave: 'radierK', rotulo: 'Base elástica: coeficiente de reação vertical padrão (k)', unidade: 'kN/m³', min: 1000, max: 1000000, passo: 1000, padrao: 100000, fonte: 'Sem fonte normativa (NBR 6122 não fixa); valor da sapata corrida da spec da FU (10 kgf/cm³); tabela orientativa de Bowles (1996) no memorial; deve vir do geotécnico', aConfirmar: true,
     descricao: 'Molas de Winkler dos radiers e das vigas de fundação sobre base elástica que não têm k próprio: k × área de influência de cada nó (radier) ou k × largura × comprimento de influência (viga).' },
   { chave: 'modeloGlobal', rotulo: 'Modelo integrado (lajes no pórtico)', min: 0, max: 1, passo: 1, padrao: 1, padraoNBR: 0, fonteNBR: 'NBR 6118 não exige o modelo único: grelha das lajes e vigas e pórtico espacial separados (modelo clássico, 14.6.6 e 14.7; itens a confirmar)', booleana: true, fonte: 'Programa de referência: modelo único com pilares, vigas e lajes resolvidos juntos; a NBR 6118 admite os dois', aConfirmar: false,
@@ -1219,7 +1223,7 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   'lajeEmendaConstrutiva', 'lajeUniformizarPilares', 'lajeUniformizarPilaresLargura', 'lajeArmaduraMedia', 'lajeSiglaReforco', 'lajeNumeracao',
   'vigotaMomentoMinPositivo', 'vigotaMomentoMinNegativo', 'vigotaIgualacao', 'vigotaIgualacaoDif', 'vigotaNegativoVao', 'vigotaIgualacaoPonto', 'vigotaRedistribuir', 'vigotaBranson', 'nervuradaMesaMin', 'nervuradaCortanteDist', 'nervuradaIgualacaoDif', 'nervuradaFissuraNegativo', 'nervuradaWoodArmer', 'equGamaFav', 'equGamaVento',
   'puncaoVerificar', 'puncaoTipoArmadura', 'puncaoS0', 'puncaoSr', 'puncaoFuroDist', 'puncaoVigaChata', 'cortanteLajes', 'cortanteVarredura',
-  'cortanteVarreduraPasso', 'pilarLancesDesligados', 'pilarFluencia', 'pilarTaxaMin', 'rearmarLimiteRigidez',
+  'cortanteVarreduraPasso', 'puncaoNervCortante', 'pilarLancesDesligados', 'pilarFluencia', 'pilarTaxaMin', 'rearmarLimiteRigidez',
   'vigaApoioLongProlong', 'vigaApoioLongBarras', 'vigaApoioLongVao', 'vigaApoioLongEixos',
   'arredondamentoApoio', 'momentoFaceMin', 'envoltoriaCortante', 'vigaTaxaMin', 'lajeTaxaMin', 'vigaEstriboSmax', 'vigaEstriboSmin',
   'lajeMomentoMinPositivo', 'lajeMomentoMinNegativo', 'vigaSuspensao', 'vigaSuspensaoFator', 'criterioLinear', 'cargaProximaApoio', 'vigaEstriboComprimida',

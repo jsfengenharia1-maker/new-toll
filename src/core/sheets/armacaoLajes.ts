@@ -188,7 +188,7 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
           if (fl.faces.includes('inf')) {
             for (const [tipo, b2] of [['base', nv.baseDetalhada ? r0.inf.baseInformada : null], ['inferior', r0.inf.reforco]] as const) {
               if (!b2) continue;
-              const total = nr * b2.n, C = cmInt(r0.inf.comprimento), pos = reg.pos(`NB|${tipo}`, acoI, b2.phi, C, total * rep);
+              const total = nr * b2.n, C = cmInt(r0.inf.comprimento), pos = reg.pos(`NB|${tipo}`, acoDe(b, 'nervInf').aco, b2.phi, C, total * rep);
               desenhar('ARMADURA', r0.a, r0.z, `${nome}: ${qtd(rep, total)} ${pos} ${phiTxt(b2.phi)} C=${C} (${b2.n}φ por nervura${tipo === 'base' ? ', base' : ''}, ${nr} nervura${nr > 1 ? 's' : ''})`, 0.35);
             }
             if (r0.cortante.estribo) {
@@ -198,12 +198,12 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
             }
           } else {
             if (nv.baseDetalhada && r0.inf.baseSup) {
-              const b2 = r0.inf.baseSup, total = nr * b2.n, C = cmInt(Math.hypot(r0.z[0] - r0.a[0], r0.z[1] - r0.a[1]) + 2 * Math.max(0.1, b2.phi / 100)), pos = reg.pos('NB|baseSup', acoS, b2.phi, C, total * rep);
+              const b2 = r0.inf.baseSup, total = nr * b2.n, C = cmInt(Math.hypot(r0.z[0] - r0.a[0], r0.z[1] - r0.a[1]) + 2 * Math.max(0.1, b2.phi / 100)), pos = reg.pos('NB|baseSup', acoDe(b, 'nervSup').aco, b2.phi, C, total * rep);
               desenhar('ARMADURA-NEG', r0.a, r0.z, `${nome}: ${qtd(rep, total)} ${pos} ${phiTxt(b2.phi)} C=${C} (${b2.n}φ por nervura, base superior, ${nr} nervura${nr > 1 ? 's' : ''})`, 0.7);
             }
             r0.sup.forEach((sp, ponta) => {
               if (!sp?.barras) return;
-              const total = gp.nervuras.reduce((t, i) => t + (nv.nervuras[i].sup[ponta]?.barras?.n ?? 0), 0), C = cmInt(sp.comprimento + Math.max(0.15, nv.h - 2 * cobrimentoLaje(b, l.cobrimento).sup)), pos = reg.pos('NB|superior', acoS, sp.barras.phi, C, total * rep);
+              const total = gp.nervuras.reduce((t, i) => t + (nv.nervuras[i].sup[ponta]?.barras?.n ?? 0), 0), C = cmInt(sp.comprimento + Math.max(0.15, nv.h - 2 * cobrimentoLaje(b, l.cobrimento).sup)), pos = reg.pos('NB|superior', acoDe(b, 'nervSup').aco, sp.barras.phi, C, total * rep);
               const L = Math.hypot(r0.z[0] - r0.a[0], r0.z[1] - r0.a[1]) || 1, x0 = ponta === 0 ? 0 : L - sp.comprimento, x1 = ponta === 0 ? sp.comprimento : L;
               desenhar('ARMADURA-NEG', pt(x0), pt(x1), `${nome}: ${qtd(rep, total)} ${pos} ${phiTxt(sp.barras.phi)} C=${C}`, 0.5);
             });
@@ -220,21 +220,21 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
           if (!fl.faces.includes(f)) continue;
           const sMesa = !mh ? (f === 'sup' ? nv.mesa.s : 0) : f === 'sup' ? mh.sSup : mh.sInf;
           if (sMesa > 0) {
-            const pos = reg.pos(`NB|mesa|${f}`, f === 'sup' ? acoS : acoI, nv.mesa.phi, cmInt(1), Math.ceil((2 * nv.quantitativo.area) / sMesa) * rep);
+            const pos = reg.pos(`NB|mesa|${f}`, f === 'sup' ? acoDe(b, 'nervSup').aco : acoDe(b, 'nervInf').aco, nv.mesa.phi, cmInt(1), Math.ceil((2 * nv.quantitativo.area) / sMesa) * rep);
             linhas.push(`${pos} ${phiTxt(nv.mesa.phi)} c/${cmInt(sMesa)} nas duas direções — ${mh ? `complemento da malha da base da mesa (face ${f === 'sup' ? 'superior' : 'inferior'})` : `malha da mesa${nv.mesa.exigida ? ' (flexão da mesa verificada)' : ' (distribuição)'}`}`);
           }
           // zona maciça por Wood-Armer (E5g): armadura complementar por direção
           const zm = nv.zonaMacica;
           (f === 'sup' ? zm?.barrasSup : zm?.barrasInf)?.forEach((x, dr) => {
             if (!x) return;
-            const pos = reg.pos(`NB|zona|${f}`, f === 'sup' ? acoS : acoI, x.phi, cmInt(1), Math.ceil(zm!.area / x.s) * rep);
+            const pos = reg.pos(`NB|zona|${f}`, f === 'sup' ? acoDe(b, 'nervSup').aco : acoDe(b, 'nervInf').aco, x.phi, cmInt(1), Math.ceil(zm!.area / x.s) * rep);
             linhas.push(`${pos} ${phiTxt(x.phi)} c/${cmInt(x.s)} na direção ${dr === 0 ? 'X' : 'Y'} — zona maciça (Wood-Armer, face ${f === 'sup' ? 'superior' : 'inferior'})`);
           });
         }
         // ábacos (E3d): reforço negativo nas nervuras sobre o pilar (folha das negativas), estribos da banda maciça (folha das positivas) e armadura base entre nervuras
         const arrAb = arranjoDaLaje(b, l), efsAb = arrAb?.abacos ?? [];
         if (efsAb.length) {
-          const acoSup = acoS, hAb = (id: string) => efsAb.find((e) => e.abaco.id === id)!.abaco.hAbaco;
+          const acoSup = acoDe(b, 'abacoSup').aco, hAb = (id: string) => efsAb.find((e) => e.abaco.id === id)!.abaco.hAbaco;
           for (const n of nv.nervuras) for (const a of n.abacos) {
             const nome = nomeAbaco(efsAb, a.abaco), L = Math.hypot(n.z[0] - n.a[0], n.z[1] - n.a[1]) || 1, pt = (x: number): P => [n.a[0] + ((n.z[0] - n.a[0]) * x) / L, n.a[1] + ((n.z[1] - n.a[1]) * x) / L];
             if (a.barras && fl.faces.includes('sup')) {
@@ -253,7 +253,7 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
             if (!ef) continue;
             for (const x of ab.base) {
               if (!fl.faces.includes(x.face)) continue;
-              const acoB = x.face === 'inf' ? acoI : acoS, C = cmInt(x.comprimento), pos = reg.pos(`AB|${x.face}`, acoB, x.phi, C, x.total * rep);
+              const acoB = x.face === 'inf' ? acoDe(b, 'abacoInf').aco : acoDe(b, 'abacoSup').aco, C = cmInt(x.comprimento), pos = reg.pos(`AB|${x.face}`, acoB, x.phi, C, x.total * rep);
               const [p0, p1] = linhaBaseAbaco(l, ef, x.dir, x.face === 'inf' ? -1.2 * k : 1.2 * k), { ang, n: nn } = angLegivel(p0, p1);
               modelo.push({ t: 'pl', c: x.face === 'inf' ? 'ARMADURA' : 'ARMADURA-NEG', pts: [p0, p1] }, { t: 'txt', c: 'TEXTO', p: [(p0[0] + p1[0]) / 2 + nn[0] * 0.8 * k, (p0[1] + p1[1]) / 2 + nn[1] * 0.8 * k], h: 1.6 * k, s: `${nome}: ${qtd(rep, x.total)} ${pos} ${phiTxt(x.phi)} C=${C} (${x.porVao} por vão × ${x.vaos})`, ang, ah: 'c', av: 'base' });
               linhasAbaco.push([nome, x.dir === 0 ? 'X' : 'Y', x.face === 'inf' ? 'inferior' : 'superior', pos, `${x.porVao} × ${x.vaos}`, phiTxt(x.phi), String(C), String(x.total * rep)]);

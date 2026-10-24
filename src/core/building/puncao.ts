@@ -553,7 +553,7 @@ export function sitiosPuncao(b: BuildingModel, pavId: string, op: Pick<OpcoesCal
 }
 
 /** Grupos de armadura de punção do usuário por pilar (`Laje.puncao`). */
-function gruposDoPilar(b: BuildingModel, pilar: string): { id: string; linhas: number; barras: number; phi: number; s: number }[] {
+export function gruposDoPilar(b: BuildingModel, pilar: string): { id: string; linhas: number; barras: number; phi: number; s: number }[] {
   return b.lajes.flatMap((l) => (l.puncao ?? []).filter((g) => g.pilar === pilar).map((g) => ({ id: g.id, linhas: g.linhas, barras: g.barras, phi: g.phi, s: g.s ?? 0.15 })));
 }
 

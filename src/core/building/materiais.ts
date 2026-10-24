@@ -12,11 +12,14 @@ export type Aco = Norma['aco'];
 /** Tipos de elemento com concreto próprio (fundacao = sapatas e blocos do edifício). */
 export type TipoElemento = 'laje' | 'viga' | 'pilar' | 'fundacao';
 /** Posições de armadura com aço próprio (as que o dimensionamento calcula). */
-export type PosicaoAco = 'pilarLong' | 'pilarEstribo' | 'vigaPos' | 'vigaNeg' | 'vigaMontagem' | 'vigaPele' | 'vigaEstribo' | 'lajeInf' | 'lajeSup' | 'lajePuncao' | 'lajeCortante' | 'escadaInf' | 'escadaSup' | 'fundacao' | 'alvenariaVert' | 'alvenariaHor';
+export type PosicaoAco = 'pilarLong' | 'pilarEstribo' | 'vigaPos' | 'vigaNeg' | 'vigaMontagem' | 'vigaPele' | 'vigaEstribo' | 'lajeInf' | 'lajeSup' | 'nervInf' | 'nervSup' | 'vigotaInf' | 'vigotaSup' | 'abacoInf' | 'abacoSup' | 'lajePuncao' | 'lajeCortante' | 'escadaInf' | 'escadaSup' | 'fundacao' | 'alvenariaVert' | 'alvenariaHor';
 export const POSICOES_ACO: { k: PosicaoAco; rotulo: string }[] = [
   { k: 'pilarLong', rotulo: 'Pilares: longitudinal' }, { k: 'pilarEstribo', rotulo: 'Pilares: estribos' },
   { k: 'vigaPos', rotulo: 'Vigas: positiva (inferior)' }, { k: 'vigaNeg', rotulo: 'Vigas: negativa (superior)' }, { k: 'vigaMontagem', rotulo: 'Vigas: montagem (porta-estribos)' }, { k: 'vigaPele', rotulo: 'Vigas: pele (laterais)' }, { k: 'vigaEstribo', rotulo: 'Vigas: estribos' },
   { k: 'lajeInf', rotulo: 'Lajes: inferior' }, { k: 'lajeSup', rotulo: 'Lajes: superior' },
+  { k: 'nervInf', rotulo: 'Lajes nervuradas: inferior' }, { k: 'nervSup', rotulo: 'Lajes nervuradas: superior' },
+  { k: 'vigotaInf', rotulo: 'Vigotas in loco: inferior' }, { k: 'vigotaSup', rotulo: 'Vigotas in loco: superior' },
+  { k: 'abacoInf', rotulo: 'Ábacos: inferior' }, { k: 'abacoSup', rotulo: 'Ábacos: superior' },
   { k: 'lajePuncao', rotulo: 'Lajes: armadura de punção' }, { k: 'lajeCortante', rotulo: 'Lajes: armadura de cortante' },
   { k: 'escadaInf', rotulo: 'Escadas: inferior' }, { k: 'escadaSup', rotulo: 'Escadas: superior' },
   { k: 'fundacao', rotulo: 'Fundações (sapatas, blocos, tubulões)' },
@@ -42,10 +45,28 @@ export function fckDe(b: BuildingModel, tipo: TipoElemento, pavimento?: string, 
 /** Concreto de um elemento com o γc da obra. */
 export const concretoDe = (b: BuildingModel, tipo: TipoElemento, pavimento?: string, pilar?: Pick<Pilar, 'fck'>): Concrete => concrete(fckDe(b, tipo, pavimento, pilar), gamas(b).c);
 
-/** Aço da posição (padrão: aço da obra), com fyk e fyd (MPa). */
+/**
+ * Posição que fornece o aço enquanto a própria não tem aço próprio (E5f, K1.6.7; CYPECAD: aço distinto por posição).
+ * Montagem e pele seguem a positiva (N2e, K1.6.6); escadas e as posições das nervuradas seguem as lajes; o ábaco segue as nervuras.
+ * Os pais vêm antes dos filhos em `POSICOES_ACO`.
+ */
+export const POSICAO_PAI: Partial<Record<PosicaoAco, PosicaoAco>> = {
+  vigaMontagem: 'vigaPos', vigaPele: 'vigaPos', escadaInf: 'lajeInf', escadaSup: 'lajeSup',
+  nervInf: 'lajeInf', nervSup: 'lajeSup', vigotaInf: 'lajeInf', vigotaSup: 'lajeSup', abacoInf: 'nervInf', abacoSup: 'nervSup',
+};
+/** Ascendentes de uma posição na cadeia de herança do aço (do pai à raiz). */
+export function ascendentesAco(pos: PosicaoAco): PosicaoAco[] {
+  const out: PosicaoAco[] = [];
+  for (let p = POSICAO_PAI[pos]; p; p = POSICAO_PAI[p]) out.push(p);
+  return out;
+}
+
+/** Aço da posição (padrão: o do pai na cadeia de herança, senão o aço da obra), com fyk e fyd (MPa). */
 export function acoDe(b: BuildingModel, pos: PosicaoAco): { aco: Aco; fyk: number; fyd: number } {
-  // montagem e pele seguem a positiva enquanto não tiverem aço próprio (N2e, K1.6.6); as escadas (E4d, C8.57) seguem as lajes
-  const aco = b.norma.acoPos?.[pos] ?? ((pos === 'vigaMontagem' || pos === 'vigaPele') ? b.norma.acoPos?.vigaPos : undefined) ?? (pos === 'escadaInf' ? b.norma.acoPos?.lajeInf : pos === 'escadaSup' ? b.norma.acoPos?.lajeSup : undefined) ?? b.norma.aco, fyk = aco === 'CA-60' ? 600 : 500;
+  let aco: Aco | undefined = b.norma.acoPos?.[pos];
+  for (const p of ascendentesAco(pos)) { if (aco) break; aco = b.norma.acoPos?.[p]; }
+  aco ??= b.norma.aco;
+  const fyk = aco === 'CA-60' ? 600 : 500;
   return { aco, fyk, fyd: fyk / gamas(b).s };
 }
 

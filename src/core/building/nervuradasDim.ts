@@ -211,7 +211,7 @@ export interface ResultadoNervurada {
 export function armaduraNecessariaNervurada(b: BuildingModel, l: Laje, M: number, face: 'inf' | 'sup', dir: 0 | 1): number {
   if (l.tipo.tipo !== 'nervurada') return 0;
   const g = geometriaBidirecional(b, l.tipo), c = concretoDe(b, 'laje'), cob = cobrimentoLaje(b, l.cobrimento);
-  const bw = g.bw[dir], bf = g.i[dir], fyd = acoDe(b, face === 'inf' ? 'lajeInf' : 'lajeSup').fyd;
+  const bw = g.bw[dir], bf = g.i[dir], fyd = acoDe(b, face === 'inf' ? 'nervInf' : 'nervSup').fyd;
   const Mn = Math.abs(M) * bf; // kN·m por nervura
   const AsMin = 0.0015 * (face === 'inf' ? bf * g.capa + bw * g.hEnch : bw * g.h) * 1e4; // cm² por nervura
   const As = Mn > 0.01
@@ -227,7 +227,7 @@ export function armaduraNecessariaNervurada(b: BuildingModel, l: Laje, M: number
  */
 export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, lajes: ResultadoLaje[], op: OpcoesCalculo): ResultadoNervurada[] {
   const out: ResultadoNervurada[] = [];
-  const c = concretoDe(b, 'laje'), gm = gamas(b), aI = acoDe(b, 'lajeInf'), aS = acoDe(b, 'lajeSup'), aV = acoDe(b, 'lajeCortante');
+  const c = concretoDe(b, 'laje'), gm = gamas(b), aI = acoDe(b, 'nervInf'), aS = acoDe(b, 'nervSup'), aAbS = acoDe(b, 'abacoSup'), aAbI = acoDe(b, 'abacoInf'), aV = acoDe(b, 'lajeCortante');
   const obra = casosDaObra(b), nat = an.casos.map((id) => obra.find((x) => x.id === id)?.natureza ?? 'G');
   const fELU = nat.map((n) => (n === 'G' ? gm.g : n === 'H' ? gm.h : n === 'Q' ? gm.q : 0));
   const fFreq = an.casos.map((id, ic) => { const x = obra.find((y) => y.id === id); return nat[ic] === 'G' || nat[ic] === 'H' ? 1 : nat[ic] === 'Q' ? (x?.psi?.[1] ?? b.norma.psiQ?.[1] ?? 0.4) : 0; });
@@ -389,7 +389,7 @@ export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, laj
         const Mneg = Math.min(0, mn(s0), mn(s1), ...dentro.map(mn)), M = -Mneg;
         const bAb = baseAb.get(ef.abaco.id)!.sup, AsBase = bAb ? bAb.n * barArea(bAb.phi) * 1e4 : 0;
         const AsMinN = 0.0015 * bw * g.h * 1e4;
-        const fn = M > 0.05 ? beamFlexure({ kind: 'rect', bw: bf, h: hAb }, false, M, dAb, 0.03, c, aS.fyd) : null;
+        const fn = M > 0.05 ? beamFlexure({ kind: 'rect', bw: bf, h: hAb }, false, M, dAb, 0.03, c, aAbS.fyd) : null;
         const AsNec = fn ? Math.max(fn.As * 1e4, AsMinN) : 0;
         // na borda do ábaco o momento passa só para as nervuras (retângulo bw × h)
         const Mb = -Math.min(0, s0 > 0.01 ? mn(s0) : 0, s1 < rib.L - 0.01 ? mn(s1) : 0);
@@ -517,12 +517,12 @@ export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, laj
     // ábacos (E3d): reforço negativo nas nervuras sobre o pilar, estribos da banda maciça e armadura base entre nervuras
     for (const n of nervuras) for (const a of n.abacos) {
       const hAb = abEf.find((x) => x.abaco.id === a.abaco)!.abaco.hAbaco;
-      if (a.barras) posicoes.push({ tipo: 'abaco', aco: aS.aco, phi: a.barras.phi, n: a.barras.n, comprimento: r3(a.comprimento + Math.max(0.15, hAb - 2 * cob.sup)) });
+      if (a.barras) posicoes.push({ tipo: 'abaco', aco: aAbS.aco, phi: a.barras.phi, n: a.barras.n, comprimento: r3(a.comprimento + Math.max(0.15, hAb - 2 * cob.sup)) });
       if (a.estribo) posicoes.push({ tipo: 'estribo', aco: aV.aco, phi: a.estribo.phi, n: a.estribo.barras, comprimento: r3(2 * (g.i[n.dir] - 2 * cob.inf) + 2 * (hAb - 2 * cob.inf) + 2 * Math.max(0.05, (5 * a.estribo.phi) / 1000)) });
     }
     const abacosRes = abEf.map((ef) => {
       const base = barrasBaseAbaco(b, l, ef, g, baseAb.get(ef.abaco.id)!);
-      for (const x of base) posicoes.push({ tipo: 'abacoBase', aco: x.face === 'inf' ? aI.aco : aS.aco, phi: x.phi, n: x.total, comprimento: x.comprimento });
+      for (const x of base) posicoes.push({ tipo: 'abacoBase', aco: x.face === 'inf' ? aAbI.aco : aAbS.aco, phi: x.phi, n: x.total, comprimento: x.comprimento });
       return { id: ef.abaco.id, hAbaco: ef.abaco.hAbaco, area: ef.area, automatico: ef.abaco.automatico, ...(ef.abaco.pilar ? { pilar: ef.abaco.pilar } : {}), base, padrao: baseAb.get(ef.abaco.id)!.padrao };
     });
     if (!considerarMesa) posicoes.push({ tipo: 'mesa', aco: aS.aco, phi: phiD, n: 1, comprimento: r3((2 * Alaje) / sD) });

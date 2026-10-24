@@ -7,13 +7,14 @@ import type { P } from '../geom/faces';
 import { dentroPoligono } from '../geom/faces';
 import type { AnaliseEdificio } from './analitico';
 import { abacoDoPonto } from './abacos';
-import { acoDe, cobrimentoLaje, concretoDe } from './materiais';
+import { acoDe, cobrimentoLaje, concretoDe, gamas } from './materiais';
+import { barArea } from '../concrete';
 import { arranjoDaLaje, type AbacoEfetivo } from './nervuradas';
 import type { ResultadoNervurada } from './nervuradasDim';
 import type { OpcoesCalculo } from './opcoes';
 import { COMB_ELU_LAJE, origem } from './origem';
 import {
-  BITOLAS_PUNCAO, fatoresPuncao, ladosLivres, polilinhas, sitiosPuncao, solicitacaoPuncao, verificarPuncao,
+  BITOLAS_PUNCAO, fatoresPuncao, gruposDoPilar, ladosLivres, polilinhas, sitiosPuncao, solicitacaoPuncao, verificarPuncao,
   type Apoio, type EntradaPuncao, type ParametrosPuncao, type Regiao, type ResultadoPuncao, type Tensao, type AbacoPuncaoInfo,
 } from './puncao';
 import { dimsSecao, secaoNoLance, type BuildingModel, type Laje } from './types';
@@ -88,9 +89,15 @@ export function puncaoAbacos(b: BuildingModel, an: AnaliseEdificio, nervs: Resul
       }
       const c2NoAbaco = !!ef && extMin >= 2 * dAb - 1e-9;
       const dInt = c2NoAbaco ? dAb : dLaje, hInt = c2NoAbaco ? hAb : hLaje, rhoInt = c2NoAbaco ? tx.rhoAbaco : tx.rhoLaje;
-      const parBase = { c, fywd, tipoArm: op.puncaoTipoArmadura ? 'conector' as const : 'estribo' as const, s0f: Math.min(0.5, op.puncaoS0), srf: Math.min(0.75, op.puncaoSr), passoCortante: 0, furoDist: op.puncaoFuroDist };
-      const parInt: ParametrosPuncao = { ...parBase, rho: rhoInt, bitolas: BITOLAS_PUNCAO.filter((x) => x <= (hInt * 1000) / 20 + 1e-9) };
-      const entInt: EntradaPuncao = { ap, reg, d: dInt, h: hInt, F, M, qd: 0, excluir: cubetas };
+      // cortante nas nervuras que chegam ao ábaco (E5f): varredura com a carga distribuída da laje (peso próprio médio + revestimento + acidental)
+      const grupoLaje = b.grupos.find((x) => x.id === laje.grupo), gm = gamas(b);
+      const qd = op.puncaoNervCortante ? gm.g * g0.pp + gm.g * (grupoLaje?.gRev ?? 0) + gm.q * (grupoLaje?.q ?? 0) : 0;
+      const parBase = { c, fywd, tipoArm: op.puncaoTipoArmadura ? 'conector' as const : 'estribo' as const, s0f: Math.min(0.5, op.puncaoS0), srf: Math.min(0.75, op.puncaoSr), passoCortante: op.puncaoNervCortante ? op.cortanteVarreduraPasso : 0, furoDist: op.puncaoFuroDist };
+      // grupos de estribos informados nas nervuras do ábaco (E5f, C7.139): somados à calculada na região interna (a partir da face do pilar)
+      const manual = gruposDoPilar(b, p.id), pernasM = op.puncaoTipoArmadura ? 1 : 2;
+      const parInt: ParametrosPuncao = { ...parBase, rho: rhoInt, bitolas: BITOLAS_PUNCAO.filter((x) => x <= (hInt * 1000) / 20 + 1e-9),
+        ...(manual.length ? { manual: { Asw: Math.max(...manual.map((q) => q.linhas * pernasM * barArea(q.phi) * 1e4)), aneis: Math.min(...manual.map((q) => q.barras)) } } : {}) };
+      const entInt: EntradaPuncao = { ap, reg, d: dInt, h: hInt, F, M, qd, excluir: cubetas };
       const vi = verificarPuncao(entInt, parInt);
       const prefixo = ef ? ' (ábaco)' : ' (sem ábaco)';
       const msgs = vi.mensagens.map((m) => m.replace(/^(Punção|Cortante da laje)/, `$1 em ${p.nome}${prefixo}`));
@@ -99,16 +106,23 @@ export function puncaoAbacos(b: BuildingModel, an: AnaliseEdificio, nervs: Resul
       if (ef && rect) {
         apAb = { centro: rect.centro, c1: rect.c1, c2: rect.c2, circular: false, angulo: rect.angulo };
         const parExt: ParametrosPuncao = { ...parBase, rho: tx.rhoLaje, bitolas: BITOLAS_PUNCAO.filter((x) => x <= (hLaje * 1000) / 20 + 1e-9) };
-        ve = verificarPuncao({ ap: apAb, reg, d: dLaje, h: hLaje, F, M, qd: 0, excluir: cubetas }, parExt);
+        ve = verificarPuncao({ ap: apAb, reg, d: dLaje, h: hLaje, F, M, qd, excluir: cubetas }, parExt);
         msgs.push(...ve.mensagens.map((m) => m.replace(/^(Punção|Cortante da laje)/, `$1 em ${p.nome} (fora do ábaco, C″ a 2d da borda)`)));
       } else msgs.push(`Ábaco: ${p.nome} apoia a laje nervurada ${laje.nome} sem viga e sem ábaco; punção verificada nas nervuras com a altura da laje (h = ${fm(hLaje * 100, 0)} cm). Gere o ábaco (abaco.gerar) ou lance um manual.`);
       if (vi.armadura && ef && vi.armadura.s0 + (vi.armadura.barras - 1) * vi.armadura.sr > extMin + 1e-9)
         msgs.push(`Ábaco: a armadura de punção de ${p.nome} chega a ${fm((vi.armadura.s0 + (vi.armadura.barras - 1) * vi.armadura.sr) * 100, 0)} cm da face e o ábaco tem ${fm(extMin * 100, 0)} cm até a borda; aumente o ábaco ou a espessura da laje.`);
+      for (const g2 of manual) {
+        if (g2.s > 0.75 * dInt + 1e-9) msgs.push(`Punção em ${p.nome}${prefixo}: espaçamento informado de ${fm(g2.s * 100, 0)} cm maior que 0,75d = ${fm(0.75 * dInt * 100)} cm (NBR 6118, 19.5.3.5).`);
+        const alcance = (g2.barras - 1) * g2.s + Math.min(0.5, op.puncaoS0) * dInt;
+        if (ef && alcance > extMin + 1e-9) msgs.push(`Ábaco: o grupo informado de ${p.nome} (${g2.linhas} linhas × ${g2.barras} barras) chega a ${fm(alcance * 100, 0)} cm da face e o ábaco tem ${fm(extMin * 100, 0)} cm até a borda; as barras devem ficar nas nervuras do ábaco.`);
+        const uC2 = vi.C2.u;
+        if (uC2 > 0 && g2.linhas > Math.max(1, Math.floor(uC2 / 0.05))) msgs.push(`Punção em ${p.nome}${prefixo}: ${g2.linhas} linhas radiais não cabem no contorno C′ útil (u = ${fm(uC2, 2)} m sobre as nervuras, sem as cubetas); posicione as linhas nas nervuras.`);
+      }
       if (Math.max(w, hh) > 5 * Math.min(w, hh)) msgs.push(`Pilar-parede ${p.nome} (${(w * 100).toFixed(0)}×${(hh * 100).toFixed(0)} cm): a distribuição de tensões no contorno não é uniforme; punção verificada no contorno completo [a confirmar].`);
       const mk = (nome: 0 | 1 | 2, t: Tensao, lim: number, limNome: string) => ({ nome: NOMES_C[nome], a: t.a, u: t.u, tau: t.tau, limite: lim, limiteNome: limNome, ok: t.tau <= lim + 1e-9, Wp: t.Wp, e: t.e, M1: t.M1, pontos: polilinhas(t.pecas) });
-      const lim2 = vi.armadura ? vi.tauRd3 ?? vi.tauRd1 : vi.tauRd1;
-      const contornos = [mk(0, vi.C, vi.tauRd2, 'τRd2'), mk(1, vi.C2, lim2, vi.armadura ? 'τRd3' : 'τRd1')];
-      if (ve) contornos.push(mk(2, ve.C2, ve.armadura ? ve.tauRd3 ?? ve.tauRd1 : ve.tauRd1, ve.armadura ? 'τRd3' : 'τRd1'));
+      const lim2 = vi.tauRd3 ?? vi.tauRd1;
+      const contornos = [mk(0, vi.C, vi.tauRd2, 'τRd2'), mk(1, vi.C2, lim2, vi.tauRd3 !== undefined ? 'τRd3' : 'τRd1')];
+      if (ve) contornos.push(mk(2, ve.C2, ve.tauRd3 ?? ve.tauRd1, ve.tauRd3 !== undefined ? 'τRd3' : 'τRd1'));
       else if (vi.C3) contornos.push(mk(2, vi.C3, vi.tauRd1, 'τRd1'));
       const info: AbacoPuncaoInfo = {
         ...(ef ? { id: ef.abaco.id } : {}), hAbaco: hAb, hLaje, dAbaco: dAb, dLaje, rhoAbaco: tx.rhoAbaco, rhoLaje: tx.rhoLaje, extensaoMin: Number.isFinite(extMin) ? extMin : 0, c2NoAbaco,
@@ -121,7 +135,7 @@ export function puncaoAbacos(b: BuildingModel, an: AnaliseEdificio, nervs: Resul
         tipo: vi.tipo, livres: vi.livres, c1: ap.c1, c2: ap.c2, circular, angulo, centro: st.centro, h: hInt, d: dInt, rho: rhoInt, fck: c.fck, F, M, K: vi.C.K,
         contornos, tauRd1: vi.tauRd1, tauRd2: vi.tauRd2, ...(vi.tauRd3 !== undefined ? { tauRd3: vi.tauRd3 } : {}),
         ...(vi.armadura ? { armadura: vi.armadura } : {}), ...(ve?.armadura ? { armaduraExterna: ve.armadura } : {}), abaco: info,
-        manual: [], cortante: vi.cortante, status, mensagens: msgs,
+        manual: manual.map(({ id, linhas, barras, phi, s }) => ({ id, linhas, barras, phi, s })), cortante: vi.cortante, status, mensagens: msgs,
         origens: [origem('Punção na nervurada (ábaco)', COMB_ELU_LAJE, 'puncao')],
       };
       ja.set(chave, r);
@@ -129,4 +143,16 @@ export function puncaoAbacos(b: BuildingModel, an: AnaliseEdificio, nervs: Resul
     }
   }
   return out;
+}
+
+/**
+ * Resultado de punção que recebe (ou perde) os grupos de estribos num clique da planta (E5f, C7.139 e C7.141): o do pilar sob o ponto
+ * ou, na falta de pilar, o do ábaco das nervuradas que contém o ponto (o ábaco sob o cursor escurece e recebe as barras do seu pilar).
+ */
+export function alvoPuncaoNoPonto(rs: ResultadoPuncao[], pavimentoId: string, ponto: P, pilarId?: string): { r: ResultadoPuncao; via: 'pilar' | 'abaco' } | null {
+  const doPav = rs.filter((r) => r.pavimentoId === pavimentoId);
+  const rp = pilarId ? doPav.find((r) => r.pilar === pilarId) : undefined;
+  if (rp) return { r: rp, via: 'pilar' };
+  const ra = doPav.find((r) => r.abaco?.poligono && dentroPoligono(ponto, r.abaco.poligono));
+  return ra ? { r: ra, via: 'abaco' } : null;
 }

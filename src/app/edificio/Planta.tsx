@@ -44,6 +44,7 @@ import { contornoDoLado, ladosDoPP, lancesDoPP } from '../../core/building/pilar
 import { niveisDaParede, paredeDoPP, ppDaParede } from '../../core/building/paredesBase';
 import { aberturasNaPlanta } from './paredesLista';
 import { expandirDiagonais } from '../../core/building/diagonais';
+import { alvoPuncaoNoPonto } from '../../core/building/abacosPuncao';
 import { abacoAjustadoAosCaixotes, consoloNaFace, linhasMagenta, moverPontoDoPlano, nervuradaSob, paramsDiagonalPlanta, reescreverCotaDoPlano, reescreverInclinacaoDoPlano, retanguloNasNervuras, rotulosDoPlano, type ParamsEdicaoPlano } from '../../core/building/ferramentasMouse';
 import type { Plano, PilarParede } from '../../core/building/types';
 import { useStore } from '../store';
@@ -196,7 +197,7 @@ const PASSOS: Record<Ferramenta, string[]> = {
   secao: ['Primeiro ponto da linha de seção do pavimento.', 'Segundo ponto: a seção abre em uma janela.'],
   zonaLaje: ['Primeiro ponto da zona de uniformização das armaduras das lajes (linha ou canto do retângulo; forma, face e direção na barra).', 'Segundo ponto (outro canto, ou o fim da linha).'],
   linhaDobra: ['Primeiro ponto da linha de dobra das lajes (negativo máximo e emenda preferencial da armadura inferior).', 'Segundo ponto da linha.'],
-  puncao: ['Clique num pilar que apoia a laje sem viga: adiciona (ou apaga, conforme o modo da barra) o grupo de armadura de punção informado. Calcule o dimensionamento antes; Esc volta a Selecionar.'],
+  puncao: ['Clique num pilar que apoia a laje sem viga (ou no ábaco da laje nervurada, que escurece sob o cursor): adiciona (ou apaga, conforme o modo da barra) o grupo de armadura de punção informado. Calcule o dimensionamento antes; Esc volta a Selecionar.'],
   radier: ['Primeiro vértice do contorno do radier (placa sobre base elástica; os pilares dentro dele nascem na malha).', 'Próximo vértice; Enter, duplo clique ou botão direito fecha o contorno; Esc cancela.'],
   corrida: ['Primeiro ponto do eixo da sapata corrida (sob parede, viga de fundação ou alinhamento de pilares; largura do apoio, aba e opções no grupo Fundação).', 'Próximo ponto; Enter, duplo clique ou botão direito termina; Esc cancela.'],
   vigaElastica: ['Primeiro ponto do eixo da viga sobre base elástica (os pilares sobre ela nascem na viga).', 'Próximo ponto; Enter, duplo clique ou botão direito termina; Esc cancela.'],
@@ -1388,6 +1389,16 @@ export function Planta() {
         ctx.save(); ctx.strokeStyle = cores.captura; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(z[0], z[1]); ctx.stroke(); ctx.restore();
       }
     } else if (wrap.current && wrap.current.dataset.consoloFace) wrap.current.dataset.consoloFace = '';
+    if (pl.ferramenta === 'puncao' && !nivelFund && !s.pan && pav && dimPuncao) {
+      // E5f (C7.139): o ábaco sob o cursor escurece; o clique recebe (ou apaga) os grupos do pilar dele
+      const alvo = alvoPuncaoNoPonto(dimPuncao, pav.id, s.cursor, pilarSob(s.cursor)?.p.id);
+      if (wrap.current) wrap.current.dataset.puncaoAlvo = alvo ? `${alvo.via}|${alvo.r.pilar}` : '';
+      const poli = alvo?.via === 'abaco' ? alvo.r.abaco?.poligono : undefined;
+      if (poli) {
+        ctx.save(); ctx.beginPath(); poli.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.closePath();
+        ctx.globalAlpha = 0.35; ctx.fillStyle = cores.captura; ctx.fill(); ctx.globalAlpha = 1; ctx.strokeStyle = cores.captura; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
+      }
+    } else if (wrap.current && wrap.current.dataset.puncaoAlvo) wrap.current.dataset.puncaoAlvo = '';
     if (pl.ferramenta === 'abaco' && !nivelFund && !s.pan && pontos.length) {
       const l = nervuradaSob(b, grupo, pontos[0]), ret = pl.abacoDef.forma === 'ret';
       const pts = ret ? (l ? retanguloNasNervuras(l, pontos[0], s.ponto) : []) : [...pontos, s.ponto];
@@ -1674,12 +1685,12 @@ export function Planta() {
     }
     if (f === 'puncao') {
       if (nivelFund) { msg('A armadura de punção é lançada nas plantas dos pavimentos.'); return; }
-      const q = pilarSob(it.current.cursor);
-      if (!q) { msg('Clique dentro de um pilar.'); return; }
-      const r = dimPuncao?.find((x) => x.pilar === q.p.id && x.pavimentoId === pav?.id);
-      if (!r) { msg(`${q.p.nome} não tem verificação de punção neste pavimento (calcule o dimensionamento; só pilares que apoiam a laje maciça sem viga e vigas chatas largas).`); return; }
-      const g = pl.puncaoGrupo;
-      void executarERecalcular('laje.puncao', pl.puncaoModo === 'apagar' ? { id: r.laje, pilares: [q.p.id] } : { id: r.laje, adicionar: [{ pilar: q.p.id, linhas: g.linhas, barras: g.barras, phi: g.phi, s: g.s }] });
+      // E5f (C7.139, C7.141): o clique vale para o pilar sob o cursor ou, nas nervuradas, para o ábaco sob o cursor (o pilar dele)
+      const cur = it.current.cursor, q = pilarSob(cur);
+      const alvo = pav && dimPuncao ? alvoPuncaoNoPonto(dimPuncao, pav.id, cur, q?.p.id) : null;
+      if (!alvo) { msg(q ? `${q.p.nome} não tem verificação de punção neste pavimento (calcule o dimensionamento; só pilares que apoiam a laje sem viga, com ou sem ábaco, e vigas chatas largas).` : 'Clique dentro de um pilar ou de um ábaco.'); return; }
+      const { r } = alvo, g = pl.puncaoGrupo;
+      void executarERecalcular('laje.puncao', pl.puncaoModo === 'apagar' ? { id: r.laje, pilares: [r.pilar] } : { id: r.laje, adicionar: [{ pilar: r.pilar, linhas: g.linhas, barras: g.barras, phi: g.phi, s: g.s }] });
       return;
     }
     if (f === 'vigaFund') {

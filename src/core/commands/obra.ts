@@ -6,7 +6,7 @@ import type { Diagnostico } from '../building/verify';
 import { abacoCaPreenchido, abacoVizPreenchido, validarAbacos } from '../building/abacosVento';
 import { OPCOES_INFO, efeitoDaOpcao, padraoDe, perfilDe, type OpcoesCalculo, type PerfilOpcoes } from '../building/opcoes';
 import { gamaCDoControle } from '../building/acoes';
-import { GAMAS_PADRAO, POSICOES_ACO, type PosicaoAco } from '../building/materiais';
+import { ascendentesAco, GAMAS_PADRAO, POSICOES_ACO, type PosicaoAco } from '../building/materiais';
 import { detalheDeDxf } from '../sheets/saidas';
 import { validarEstilo } from '../sheets/estilo';
 import { registrar } from './registry';
@@ -255,7 +255,7 @@ registrar<{ fck?: Partial<Record<Elem, number>>; fckPilarPav?: { pavimento: stri
     if (p.aco) { n.acoPos ??= {}; for (const x of POSICOES_ACO) {
       const v = p.aco[x.k]; if (!v) continue;
       // montagem e pele seguem a positiva enquanto não têm aço próprio: com a positiva diferente da obra, o valor da obra fica registrado
-      const segue = ((x.k === 'vigaMontagem' || x.k === 'vigaPele') && !!n.acoPos[ 'vigaPos' ]) || (x.k === 'escadaInf' && !!n.acoPos.lajeInf) || (x.k === 'escadaSup' && !!n.acoPos.lajeSup);
+      const segue = ascendentesAco(x.k).some((q) => !!n.acoPos![q]);
       if (v === n.aco && !segue) delete n.acoPos[x.k]; else n.acoPos[x.k] = v;
     } }
     if (p.gamas) { n.gamas ??= {}; for (const k of ['c', 's', 'g', 'q', 'h'] as const) { const v = p.gamas[k]; if (v === undefined) continue; if (v === (k === 'c' ? gamaCDoControle(n.controle) : GAMAS_PADRAO[k])) delete n.gamas[k]; else n.gamas[k] = v; } }
