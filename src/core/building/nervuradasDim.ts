@@ -545,12 +545,12 @@ export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, laj
         for (const k of [0, 1] as const) { Minf[k] = Math.max(Minf[k], x.inf[k]); Msup[k] = Math.min(Msup[k], x.sup[k]); }
       }
       if (nNos > 0) {
-        const amin = (op.lajeTaxaMin > 0 ? op.lajeTaxaMin / 100 : 0.0015) * g.h * 1e4, dI2 = g.h - cob.inf - 0.005, dS2 = g.h - cob.sup - 0.005;
+        const amin = (op.lajeTaxaMin > 0 ? op.lajeTaxaMin / 100 : 0.0015) * g.h * 1e4, aminFace = { inf: 0.67 * amin, sup: amin }, dI2 = g.h - cob.inf - 0.005, dS2 = g.h - cob.sup - 0.005;
         const nec = (M: number, face: 'inf' | 'sup'): number => {
-          if (Math.abs(M) < 1e-3) return amin;
+          if (Math.abs(M) < 1e-3) return aminFace[face];
           const f = beamFlexure({ kind: 'rect', bw: 1, h: g.h }, false, Math.abs(M), face === 'inf' ? dI2 : dS2, 0.02, c, face === 'inf' ? aI.fyd : aS.fyd);
           if (f.double) erro(`Nervuradas: zona maciça de ${tag}: momento ${face === 'inf' ? 'positivo' : 'negativo'} de Wood-Armer ${fmt(Math.abs(M))} kN·m/m exige armadura dupla; aumente a altura da laje.`);
-          return Math.max(amin, f.As * 1e4);
+          return Math.max(aminFace[face], f.As * 1e4);
         };
         const AsNecInf = [nec(Minf[0], 'inf'), nec(Minf[1], 'inf')] as [number, number], AsNecSup = [nec(Msup[0], 'sup'), nec(Msup[1], 'sup')] as [number, number];
         const compI = AsNecInf.map((v, k) => Math.max(0, v - malhaInf[k])) as [number, number], compS = AsNecSup.map((v, k) => Math.max(0, v - malhaSup[k])) as [number, number];
@@ -709,7 +709,7 @@ function criteriosE5g(b: BuildingModel, l: Laje, r: ResultadoNervurada, op: Opco
     : 'Malha da base da mesa e das zonas maciças não considerada no dimensionamento (só descrita e desenhada); a mesa recebe a armadura calculada inteira.');
   const z = r.zonaMacica;
   out.push(z
-    ? `Zona maciça (${fmt(z.area)} m², fora dos ábacos) por Wood-Armer (mx* = mx + |mxy|, média em faixa de 1 m): positivo ${fmt(z.Minf[0])} / ${fmt(z.Minf[1])} kN·m/m e negativo ${fmt(z.Msup[0])} / ${fmt(z.Msup[1])} kN·m/m (X / Y); armadura necessária ${fmt(z.AsNecInf[0])} / ${fmt(z.AsNecInf[1])} cm²/m inferior e ${fmt(z.AsNecSup[0])} / ${fmt(z.AsNecSup[1])} cm²/m superior (mínimo de 0,15 % da seção maciça) [a confirmar: mínimo e aplicação do Wood-Armer às zonas maciças das nervuradas]; complemento além da malha: ${fmt(Math.max(...z.complementoInf))} cm²/m inferior e ${fmt(Math.max(...z.complementoSup))} cm²/m superior.`
+    ? `Zona maciça (${fmt(z.area)} m², fora dos ábacos) por Wood-Armer (mx* = mx + |mxy|, média em faixa de 1 m): positivo ${fmt(z.Minf[0])} / ${fmt(z.Minf[1])} kN·m/m e negativo ${fmt(z.Msup[0])} / ${fmt(z.Msup[1])} kN·m/m (X / Y); armadura necessária ${fmt(z.AsNecInf[0])} / ${fmt(z.AsNecInf[1])} cm²/m inferior e ${fmt(z.AsNecSup[0])} / ${fmt(z.AsNecSup[1])} cm²/m superior (mínimo da laje armada em duas direções, NBR 6118 Tabela 19.1: negativo ρmín·h e positivo 0,67·ρmín·h; ρmín da opção das lajes maciças, 0,15 % para fck ≤ 30) [a confirmar: ρmín por fck e aplicação do Wood-Armer às zonas maciças das nervuradas]; complemento além da malha: ${fmt(Math.max(...z.complementoInf))} cm²/m inferior e ${fmt(Math.max(...z.complementoSup))} cm²/m superior.`
     : 'Zona maciça sem dimensionamento por Wood-Armer (opção desligada ou sem zona maciça fora dos ábacos).');
   const conc = r.nervuras.filter((n) => n.concentracao === 'recebe');
   if (conc.length) out.push(`Armadura concentrada nas nervuras ${conc.map((n) => `${n.dir === 0 ? 'X' : 'Y'}${n.indice + 1}`).join(', ')}: levam a armadura do grupo uniformizado menos o mínimo das demais [a confirmar: distribuição transversal pela mesa].`);

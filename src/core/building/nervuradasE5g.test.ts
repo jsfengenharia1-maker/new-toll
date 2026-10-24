@@ -209,14 +209,18 @@ describe('E5g: Wood-Armer nas zonas maciças', () => {
     expect(on.nervuras.map((r) => r.inf.total)).toEqual(off.nervuras.map((r) => r.inf.total));
   });
 
-  it('armadura da zona = máx(mínimo 0,15 % h, flexão do momento de Wood-Armer); a malha considerada é descontada', () => {
+  it('armadura da zona = máx(mínimo da Tabela 19.1: negativo 0,15 % h e positivo 0,67 × 0,15 % h, flexão do momento de Wood-Armer); a malha considerada é descontada', () => {
     const s = predio({ nervuradaWoodArmer: 1 });
     const n0 = calcular(s.modelo).d.nervuradas![0], z0 = n0.zonaMacica!;
     const b = s.modelo, c = concretoDe(b, 'laje'), g = geometriaBidirecional(b, b.lajes[0].tipo as never), cob = cobrimentoLaje(b, undefined);
-    const amin = 0.0015 * g.h * 1e4, dI = g.h - cob.inf - 0.005;
+    const aminSup = 0.0015 * g.h * 1e4, aminInf = 0.67 * aminSup, dI = g.h - cob.inf - 0.005, dS = g.h - cob.sup - 0.005;
+    expect(aminSup).toBeCloseTo(5.25, 9); // 0,15 % × 35 cm
+    expect(aminInf).toBeCloseTo(3.5175, 9);
     for (const k of [0, 1] as const) {
       const flex = ((c.sigmaCd * yRect(z0.Minf[k], 1, dI, c.sigmaCd)) / acoDe(b, 'lajeInf').fyd) * 1e4;
-      expect(z0.AsNecInf[k]).toBeCloseTo(Math.max(amin, flex), 6);
+      const flexS = ((c.sigmaCd * yRect(-z0.Msup[k], 1, dS, c.sigmaCd)) / acoDe(b, 'lajeSup').fyd) * 1e4;
+      expect(z0.AsNecInf[k]).toBeCloseTo(Math.max(aminInf, flex), 6);
+      expect(z0.AsNecSup[k]).toBeCloseTo(Math.max(aminSup, flexS), 6);
       expect(z0.complementoInf[k]).toBeCloseTo(z0.AsNecInf[k], 9); // sem malha considerada: tudo calculado
     }
     ok(s, 'laje.armaduraBase', { ids: [b.lajes[0].id], considerarMesa: true, inf: { barras: [{ dir: 0, phi: 12.5, s: 15 }, { dir: 1, phi: 12.5, s: 15 }] }, sup: { barras: [{ dir: 0, phi: 8, s: 15 }, { dir: 1, phi: 8, s: 15 }] } });
@@ -227,7 +231,7 @@ describe('E5g: Wood-Armer nas zonas maciças', () => {
       expect(z1.complementoInf[k]).toBeCloseTo(Math.max(0, z1.AsNecInf[k] - Ai), 9);
       expect(z1.complementoSup[k]).toBeCloseTo(Math.max(0, z1.AsNecSup[k] - As), 9);
     }
-    expect(z1.complementoInf[0]).toBe(0); // φ12,5 c/15 (8,18 cm²/m) cobre os 5,25 cm²/m do mínimo
+    expect(z1.complementoInf[0]).toBe(0); // φ12,5 c/15 (8,18 cm²/m) cobre o mínimo positivo de 3,52 cm²/m
   });
 
   it('pano inteiro maciço (zona manual, inércia da laje maciça): mesmos momentos de Wood-Armer que a laje maciça de 35 cm equivalente (modelo já validado), erro < 1 %', () => {
@@ -269,5 +273,12 @@ describe('E5g: baselines — opções novas desligadas reproduzem o resultado an
   it('carga variável de 25 kN/m²: aço 585,2554 kg', () => {
     const n = calcular(predio(off, 25).modelo).d.nervuradas![0];
     expect(n.peso).toBeCloseTo(585.2553550361156, 6);
+  });
+});
+
+describe('E5g: peso do pano de exemplo com as opções no padrão', () => {
+  it('pano 6 × 6: aço por pavimento com o mínimo da Tabela 19.1 nas zonas maciças', () => {
+    const n = calcular(predio().modelo).d.nervuradas![0];
+    expect(n.peso).toBeCloseTo(395.7095944226257, 3); // antes 208,5085 (sem Wood-Armer) e 436,8 (mínimo de 0,15 % nas duas faces)
   });
 });
