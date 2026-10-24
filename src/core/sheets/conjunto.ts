@@ -9,6 +9,7 @@ import { numerarPrancha, type OpcoesCarimbo } from './armacao';
 import { acharGrupo, montarPranchasVigas } from './armacaoVigas';
 import { montarPranchasPilares } from './armacaoPilares';
 import { montarPranchasLajes } from './armacaoLajes';
+import { montarPranchasAlvenaria } from './armacaoAlvenaria';
 import { montarPranchasParedes } from './armacaoParedes';
 import { montarPranchasEscadas } from './escadasDetalhe';
 import { montarPranchaLocacao } from './locacao';
@@ -63,7 +64,7 @@ export function montarConjunto(b: BuildingModel, an: AnaliseEdificio | null, dim
   for (const t of tipos) {
     if (t === 'fundacao' && pedeTodas && !b.fundacao?.elementos.length && !b.fundacao?.corridas?.length) continue;
     if (t === 'escadas' && pedeTodas && !dim?.escadasArmadura?.length) continue;
-    if (t === 'paredes' && pedeTodas && !dim?.armaduraParedes?.length) continue;
+    if (t === 'paredes' && pedeTodas && !dim?.armaduraParedes?.length && !dim?.alvenaria?.paredes.length) continue;
     if (PRECISA_CALCULO.includes(t) && !dim) { avisos.push(`Pranchas de ${t}: calcule e dimensione o edifício antes.`); continue; }
     if (t === 'fundacao' && !dim?.fundacoes?.length && !dim?.radiers?.length && !dim?.vigasElasticas?.length && !dim?.corridas?.length) { if (!pedeTodas) avisos.push('Pranchas de fundação: lance fundações no nível de fundação e calcule o edifício.'); continue; }
     if (t === 'locacao') { const pr = montarPranchaLocacao(b, an, oa); if (pr) out.push(pr); }
@@ -80,7 +81,7 @@ export function montarConjunto(b: BuildingModel, an: AnaliseEdificio | null, dim
     } else if (t === 'fundacao') out.push(...montarPranchasFundacao(b, an, dim!, oa));
     else if (t === 'vigas') out.push(...montarPranchasVigas(b, an, dim!, oa));
     else if (t === 'pilares') out.push(...montarPranchasPilares(b, an, dim!, oa));
-    else if (t === 'paredes') { const pr = montarPranchasParedes(b, an, dim!, oa); if (!pr.length && !pedeTodas) avisos.push('Pranchas de paredes: não há paredes ou pilares-parede calculados.'); out.push(...pr); }
+    else if (t === 'paredes') { const pr = [...montarPranchasParedes(b, an, dim!, oa), ...montarPranchasAlvenaria(b, an, dim!, oa)]; if (!pr.length && !pedeTodas) avisos.push('Pranchas de paredes: não há paredes, pilares-parede ou alvenaria calculados.'); out.push(...pr); }
     else if (t === 'lajes') out.push(...montarPranchasLajes(b, an, dim!, oa));
     else if (t === 'escadas') { const pr = montarPranchasEscadas(b, dim!, oa); if (!pr.length && !pedeTodas) avisos.push('Pranchas de escadas: não há escadas calculadas e armadas.'); out.push(...pr); }
     else if (t === 'cargas') { const prs = montarPranchasCargas(b, { ...oa, escadas: an?.escadas }); if (!prs.length) avisos.push('Pranchas de cargas: não há cargas lançadas.'); out.push(...prs); }

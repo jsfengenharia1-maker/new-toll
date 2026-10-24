@@ -12,9 +12,9 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 44 | 0 | 1 | 11 |
 | 2. Gabaritos DXF/DWG | 22 | 19 | 0 | 0 | 3 |
 | 3. Grupos e pavimentos | 41 | 36 | 1 | 1 | 3 |
-| 4. Pilares | 63 | 52 | 4 | 0 | 7 |
+| 4. Pilares | 63 | 54 | 2 | 0 | 7 |
 | 5. Muros e paredes estruturais | 30 | 25 | 1 | 0 | 4 |
-| 6. Vigas | 108 | 76 | 7 | 0 | 25 |
+| 6. Vigas | 108 | 77 | 6 | 0 | 25 |
 | 7. Lajes | 195 | 106 | 22 | 0 | 67 |
 | 8. Escadas | 65 | 65 | 0 | 0 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
@@ -22,7 +22,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 11. Fundações | 70 | 64 | 0 | 1 | 5 |
 | 12. Isovalores e deformada | 22 | 19 | 2 | 1 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **535** | **38** | **4** | **186** |
+| **Total** | **763** | **538** | **35** | **4** | **186** |
 
 ## Pendências por frente
 
@@ -30,7 +30,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 25 | 1 | 26 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 22 | 1 | 23 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 0 | 0 | 0 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 11 | 3 | 14 |
@@ -250,8 +250,8 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C4.60 | Envoltórias de esforços em pilares e pilares-parede (momentos, cortantes, torção) por hipótese ou por combinação. | Parcial | V | combinações determinantes por lance na janela do pilar (R1); [V5] núcleo: `diagramaPilar` (N, V, M e T por lance e em qualquer altura, por caso, combinação ou envoltória, em `src/core/resultados/esforcosCaso.ts`) e aba Esforços em AbaEsforcos.tsx; falta o seletor na janela do pilar |
 | | **4.3 Desenhos e relatórios de pilares** | | | |
 | C4.61 | Mostrar ou ocultar o ponto fixo dos pilares nas pranchas. | Feito | — | opção de prancha `pontoFixo` (`marcasPontoFixo` em `sheets/gabarito.ts`): cruz com círculo no ponto lançado, camada PONTO-FIXO, nas formas e nas lajes; padrão oculto (R7g) |
-| C4.62 | Detalhe das condições de estribos (configuradas em pilares, muros e consolos) desenhado no quadro de pilares. | Parcial | E | pilares-parede e muros: quadro de pilares com os trechos em casca e os lados curtos (malha, barras, estribos; `linhasQuadroPilares`) e a seção do estribo à parte na prancha de paredes (`armacaoParedes.ts`); falta o desenho das condições de estribos dos consolos [E2] — E5i: desenhar no quadro de pilares as condições de estribos dos consolos (hoje só os estribos verticais na vista do consolo, `blocoConsolo`) |
-| C4.63 | Relatório de esforços e armaduras de pilares, pilares-parede e muros, com a verificação de cortante dos pilares de concreto. | Parcial | E | relatório de esforços e armaduras dos pilares em HTML e CSV (`relatorioPilaresHtml`/`relatorioPilaresCsv`, `RelatoriosUI.tsx`): combinações determinantes, Md,tot, armadura, taxa, estribo, cortante, utilização (R7g); faltam pilares-parede (E1b) e muros — E5i: acrescentar pilares-parede e muros ao relatório de esforços e armaduras |
+| C4.62 | Detalhe das condições de estribos (configuradas em pilares, muros e consolos) desenhado no quadro de pilares. | Feito | — | pilares-parede e muros: quadro de pilares com os trechos em casca e os lados curtos (malha, barras, estribos; linhasQuadroPilares) e a seção do estribo à parte na prancha de paredes (armacaoParedes.ts); consolos (E5i): o quadro traz a linha de cada consolo com tirante, estribos verticais (φ c/s) e costura (n φ em 2/3 d) e o desenho do consolo mostra os mesmos estribos; armacaoConsolos.test.ts |
+| C4.63 | Relatório de esforços e armaduras de pilares, pilares-parede e muros, com a verificação de cortante dos pilares de concreto. | Feito | — | relatório de esforços e armaduras dos pilares em HTML e CSV (relatorioPilaresHtml/relatorioPilaresCsv, RelatoriosUI.tsx): combinações determinantes, Md,tot, armadura, taxa, estribo, cortante, utilização (R7g); pilares-parede, paredes de concreto e muros de arrimo (E5i: relatorioParedes, relatorioParedesHtml/Csv): esforços ELU por lado e lance, cargas na base, armadura por pano com V, VRd1 e VRd2, lados curtos em barra e estabilidade dos muros; saidasParedes.test.ts |
 
 ## 5. Muros e paredes estruturais
 
@@ -262,7 +262,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C5.3 | Bloco escolhido da biblioteca, com cadastro de blocos novos. | Feito | — | núcleo: biblioteca de blocos da obra (`TipoBloco`, comando `bloco.tipo`: dimensões modulares, fbk, canto); interface: AlvenariaUI.tsx (blocos e biblioteca do usuário) [E1e] |
 | C5.4 | Série de blocos genéricos com opção de peça de canto, para quando a largura não é metade do comprimento. | Feito | — | núcleo: peça de canto automática quando a largura não é metade do comprimento (`precisaCanto`) ou por `TipoBloco.canto`, contada por fiada e canto no quantitativo (`quantitativoParede`); interface: AlvenariaUI.tsx (editor de blocos com peça de canto) [E1e] |
 | C5.5 | Muros de blocos de fabricante: dimensionamento e verificação pelo Eurocódigo 6, com armadura vertical e/ou horizontal opcional. | Fora | — | Eurocódigo 6 |
-| C5.6 | Saídas dos muros de blocos: relatório de cálculo, quantitativo, plantas e esquema em planta dos blocos e das armaduras. | Parcial | E | núcleo: dados do memorial (`memorialAlvenaria.ts`: materiais, verificação por pano, armadura, vergas, blocos por parede e pavimento, desligamentos, vigas) e quantitativo (`quantitativoAlvenaria`); memorial e quantitativo na interface (AlvenariaResumo.tsx, ArmaduraAlvenariaUI.tsx); faltam as plantas com esquema dos blocos nas pranchas [E1e] — E5i: plantas com o esquema dos blocos e das armaduras nas pranchas |
+| C5.6 | Saídas dos muros de blocos: relatório de cálculo, quantitativo, plantas e esquema em planta dos blocos e das armaduras. | Parcial | E | núcleo: dados do memorial (memorialAlvenaria.ts) e quantitativo (quantitativoAlvenaria); memorial e quantitativo na interface (AlvenariaResumo.tsx, ArmaduraAlvenariaUI.tsx); plantas (E5i): armacaoAlvenaria.ts, folha por lance (tipo paredes, SCM) com contorno, aberturas, cotas, esquema das fiadas 1 e 2 (mesma regra do quantitativo), barras verticais nas células grauteadas e quadros de blocos e de armadura; aço da alvenaria armada sem tabela própria na prancha; armacaoAlvenaria.test.ts — Parcial (orquestrador 25/10): falta a tabela/resumo de aço da alvenaria armada na prancha (E5i resíduo). |
 | C5.7 | Escolha de fabricante e modelo de bloco. Peças especiais de canto usadas automaticamente quando o fabricante as tem. | Fora | — | catálogo de fabricante europeu |
 | C5.8 | Alvenaria genérica: módulo de elasticidade, módulo de cisalhamento, peso específico, resistência de cálculo à compressão e à tração, e opção de considerar a rigidez ao cisalhamento. | Feito | — | núcleo: alvenaria genérica (`TipoAlvenaria` modelo 'generica': E, G, γ, fd, ftd, fvd e `considerarG`, que dá o ν da casca por G = E/2(1+ν)), `resistenciaAlvenaria`, casca com o material do tipo (`materialParede` em `pilarParedeModelo.ts`); interface: AlvenariaUI.tsx (editor do tipo de alvenaria genérica) [E1e] |
 | C5.9 | Aberturas (portas e janelas) em muros de concreto, de alvenaria genérica e de blocos. | Feito | — | parede.abertura em concreto (células da malha removidas) e em alvenaria/blocos com ajuste modular (`parede.modularAbertura`); editor de aberturas em ParedesUI.tsx [E1e; Feito 23/10/2026] |
@@ -402,7 +402,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.106 | Diagramas consultados por clique em alinhamentos de vigas, lajes alveolares ou lajes mistas. | Feito | — | diagramas da viga por clique duplo na planta, nas tabelas ou na lista de erros (R1); alveolares e mistas não existem no edifício |
 | | **6.3 Desenhos de vigas** | | | |
 | C6.107 | Desenho da armadura de vigas inclinadas. | Feito | — | núcleo: `blocoInclinada` (`sheets/armacaoVigas.ts`): elevação desenvolvida com barras superiores, inferiores e de pele, estribos e seção na prancha de vigas do grupo do pavimento inicial, com tabela de aço (teste `inclinadas.test.ts`: título VIGA INCLINADA DESENVOLVIDA na prancha) [E2c; representação a confirmar; conferido 24/10/2026, auditoria E] |
-| C6.108 | Desenho de consolos: vistas frontal e lateral cotadas, armadura principal e estribos, medidas e referências do pórtico e do pilar. | Parcial | E | núcleo: `blocoConsolo` (`sheets/armacaoConsolos.ts`) na prancha de pilares: vistas frontal (perfil) e lateral cotadas, tirante, costura e estribos verticais com posições, referências do pilar e da viga; representação a confirmar com folhas de referência [E2e] — E5i: nenhum teste cobre o desenho (`armacaoConsolos.ts`): acrescentar teste com valores esperados e conferir a representação |
+| C6.108 | Desenho de consolos: vistas frontal e lateral cotadas, armadura principal e estribos, medidas e referências do pórtico e do pilar. | Feito | — | núcleo: blocoConsolo (sheets/armacaoConsolos.ts) na prancha de pilares: vistas frontal (perfil) e lateral cotadas, tirante, costura e estribos verticais com posições, referências do pilar e da viga; E5i: armacaoConsolos.test.ts confere barras (n, C), posições, cotas e o aço da prancha (resumo dos pilares + consolo); representação a confirmar com folhas de referência de consolos |
 
 ## 7. Lajes
 
