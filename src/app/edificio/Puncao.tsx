@@ -10,6 +10,8 @@ import { Button, Hint, KV, NumField, Pill, Select } from '../ui';
 import type { P } from '../../core/geom/faces';
 import type { ResultadoPuncao } from '../../core/building/puncao';
 import { BITOLAS_PUNCAO } from '../../core/building/puncao';
+import { arranjoDaLaje } from '../../core/building/nervuradas';
+import { nomeAbaco } from '../../core/sheets/abacoDesenho';
 
 const TIPO_TXT = { interno: 'interno', borda: 'de borda', canto: 'de canto' } as const;
 const ST_PUN = { ok: 'sem armadura', armadura: 'com armadura', fail: 'não atende' } as const;
@@ -74,6 +76,34 @@ function EditorGrupos({ r }: { r: ResultadoPuncao }) {
   );
 }
 
+/** Ábaco do pilar numa nervurada bidirecional (E3d): alturas, taxas e extensão; sem ábaco, a ação "Gerar ábaco neste pilar". */
+function BlocoAbaco({ r, semEditor }: { r: ResultadoPuncao; semEditor?: boolean }) {
+  const b = useBuilding((s) => s.sessao.modelo), calculando = useBuilding((s) => s.calculando);
+  const ab = r.abaco!;
+  if (ab.id === undefined) {
+    return (
+      <div data-puncao-sem-abaco={r.pilar}>
+        <p className="hint">Pilar sem ábaco: a punção é verificada só nas nervuras, com a altura da laje (h = {fmt(ab.hLaje * 100, 1)} cm, d = {fmt(ab.dLaje * 100, 1)} cm).</p>
+        {!semEditor && <Button disabled={calculando} onClick={() => executarERecalcular('abaco.gerar', { lajes: [r.laje], pilares: [r.pilar], substituir: false })}>Gerar ábaco neste pilar</Button>}
+      </div>
+    );
+  }
+  const l = b.lajes.find((x) => x.id === r.laje);
+  const nome = l ? nomeAbaco(arranjoDaLaje(b, l)?.abacos ?? [], ab.id) : ab.id;
+  return (
+    <div data-puncao-abaco={ab.id}>
+      <KV rows={[
+        ['Ábaco', nome], ['h / d do ábaco (cm)', `${fmt(ab.hAbaco * 100, 1)} / ${fmt(ab.dAbaco * 100, 1)}`], ['h / d da laje (cm)', `${fmt(ab.hLaje * 100, 1)} / ${fmt(ab.dLaje * 100, 1)}`],
+        ['ρ negativo no ábaco / fora (%)', `${fmt(ab.rhoAbaco * 100, 3)} / ${fmt(ab.rhoLaje * 100, 3)}`],
+        ['Extensão mínima da face do pilar à borda do ábaco (cm)', fmt(ab.extensaoMin * 100, 0)],
+        ['C′ dentro do ábaco', ab.c2NoAbaco ? 'sim' : 'não: a região interna usa a altura útil da laje'],
+        ...(ab.externa ? [['C″ fora do ábaco', ST_PUN[ab.externa.status]] as [string, string]] : []),
+      ]} />
+      {r.armaduraExterna && <p className="small">Armadura de punção fora do ábaco (C″): {r.armaduraExterna.linhas} linhas × {r.armaduraExterna.barras} barras {phiTxt(r.armaduraExterna.phi)} = {r.armaduraExterna.total}.</p>}
+    </div>
+  );
+}
+
 /** Cartão de um apoio: figura, tensões por contorno, armadura e cortante; `semEditor` no radier (sem grupos informados). */
 export function CartaoPuncao({ r, semEditor }: { r: ResultadoPuncao; semEditor?: boolean }) {
   const tom = r.status === 'fail' ? 'bad' : r.status === 'armadura' ? 'warn' : 'ok';
@@ -83,6 +113,7 @@ export function CartaoPuncao({ r, semEditor }: { r: ResultadoPuncao; semEditor?:
     <section className="rev-lance" data-puncao={r.pilar} data-status={r.status} data-tipo-apoio={r.tipo}>
       <h4>{r.nome} {dim1} cm · pilar {TIPO_TXT[r.tipo]}{r.origem === 'viga' ? ' (viga chata)' : r.origem === 'radier' ? ` (radier ${r.lajeNome}${r.combinacao ? `, ${r.combinacao}` : ''})` : ''} · <Pill tone={tom}>{ST_PUN[r.status]}</Pill></h4>
       <FiguraPuncao r={r} />
+      {r.abaco && <BlocoAbaco r={r} semEditor={semEditor} />}
       <div className="tablewrap">
         <table className="data quadro" data-contornos-puncao>
           <thead><tr><th>Contorno</th><th>Afastamento (m)</th><th>u (m)</th><th>τSd (MPa)</th><th>Resistência</th><th>Valor (MPa)</th><th></th></tr></thead>
