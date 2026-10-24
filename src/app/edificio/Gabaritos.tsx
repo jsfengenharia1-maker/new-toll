@@ -40,7 +40,7 @@ function Vista({ m }: { m: Mascara }) {
               onChange={(v) => exec('mascara.editar', { id: m.id, grupos: v ? [...gruposDaMascara(m), g.id] : gruposDaMascara(m).filter((x) => x !== g.id) })} />
           ))}
         </div>
-        <table className="data camadas">
+        <table className="data camadas" aria-label={`Camadas de ${m.nome}`}>
           <thead><tr><th>Camada</th><th title="Visível">vis.</th><th title="Capturável">capt.</th><th title="Textos">txt.</th><th>Apelido</th><th>Cor</th><th>Linha (px)</th></tr></thead>
           <tbody>
             {m.camadas.map((c) => (

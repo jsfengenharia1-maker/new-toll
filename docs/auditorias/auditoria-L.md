@@ -29,3 +29,12 @@ Nenhum.
 - (6) Repositório público: único fixture versionado é `edificio.ifc`. Cabeçalho: FILE_DESCRIPTION 'ViewDefinition [CoordinationView]', FILE_NAME 'edificio-ficticio.ifc' com autor/organização vazios e aplicativo 'Statikos teste'; IfcProject 'Edificio Ficticio', IfcSite 'Terreno', IfcBuilding 'Bloco A'; sem IfcOrganization, IfcPerson nem endereço postal. Nenhum .dxf/.dwg versionado (gerados em código nos testes).
 - (7) Licenças: `web-ifc-LICENSE.txt` (MPL-2.0 completo) e `web-ifc-NOTICE.txt` (origem, versão fixa 0.0.78, arquivos sem modificação, carga sob demanda); `nasjidwg-LICENSE.txt` (MIT) e `nasjidwg-NOTICE.txt`; `three-LICENSE.txt`.
 - (8) Regressões: nenhuma encontrada nos testes e fluxos rodados.
+
+## Correções
+Data: 24/10/2026. Fatia de correção sobre a L3 (branch `worktree-agent-a572e1e151e765232`). Sem mudança de cálculo nem de interface visível.
+- **Corrigir 1 (corrigido, parcial):** C7.5 → Parcial, frente E (nota E3b). K1.9.103 → Parcial, frente E (grelha que ignora os furos, E3b); a cruz tracejada ("apagar o pano = abertura") ficou com a subfatia L7 na nota. C7.2 → Parcial, frente L, nota "L7 (pano automático e cruz tracejada)". C6.3 → Feito com decisão (painel flutuante substituído pelo grupo "Ferramentas de lançamento" da barra lateral, fechado por padrão). C6.6 → Feito com decisão (Ctrl+T/Ctrl+B não copiados; Enter, Esc e Backspace cobrem a funcionalidade na ferramenta Viga). A subfatia L7 ainda não tem cartão nem código.
+- **Corrigir 2 (corrigido):** nota de C2.21 sem "tecla própria a conferir"; F3 citada como coberta por L2.
+- **Corrigir 3 (não corrigido aqui):** `CLAUDE.md` (linha do DWG/nasjidwg) é do orquestrador; pendente.
+- **Corrigir 4 (corrigido):** `docs/plano-frentes.md`, linha E1, cita "E1c" e o passo "Muros e paredes" (`etapas.ts`, C1.29).
+- **Sugestão 2 (parcial):** `aria-label` nas quatro tabelas de `LancamentoIfc.tsx` e na de `Gabaritos.tsx`. `GruposL4.tsx` já tinha `<caption>` visível (linha 27); nada a fazer nele. Não tratados: `LancamentoL5.tsx`, `GuiaRapido.tsx`, `DadosL4.tsx` e `MemorialIfc.tsx` (sem tabelas crus; rótulos vêm de `src/app/ui`). O design system não tem classe de texto oculto, então usou-se `aria-label`.
+- **Sugestão 1 e 3:** sem alteração (sugestão 1 já está em `docs/pendencias-usuario.md`; sugestão 3 é só registro).

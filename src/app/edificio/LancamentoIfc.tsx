@@ -69,7 +69,7 @@ export function LancamentoIfc({ onClose, onCriada }: { onClose(): void; onCriada
             {lido && (
               <div className="masc" data-ifc-resumo>
                 <div className="row wrap"><b>{nomeArq}</b><Pill>{lido.esquema}</Pill><span className="muted small">unidade do arquivo: {lido.unidade === 1 ? 'm' : lido.unidade === 0.001 ? 'mm' : lido.unidade === 0.01 ? 'cm' : `${lido.unidade} m`}</span></div>
-                <table className="data">
+                <table className="data" aria-label="Quantidade de elementos por classe IFC">
                   <thead><tr><th>Classe IFC</th><th>Quantidade</th></tr></thead>
                   <tbody>
                     <tr><td className="tl">IfcBuildingStorey</td><td className="num">{lido.pavimentos.length}</td></tr>
@@ -89,7 +89,7 @@ export function LancamentoIfc({ onClose, onCriada }: { onClose(): void; onCriada
               <TextField label="Nome da obra" value={mapa.obra.nome} onChange={(v) => setMapa({ ...mapa, obra: { ...mapa.obra, nome: v } })} />
               <TextField label="Cidade" value={mapa.obra.cidade ?? ''} onChange={(v) => setMapa({ ...mapa, obra: { ...mapa.obra, cidade: v || undefined } })} />
             </div>
-            <table className="data" data-ifc-pavimentos>
+            <table className="data" data-ifc-pavimentos aria-label="Pavimentos do arquivo IFC">
               <thead><tr><th>Incluir</th><th>Pavimento</th><th>Cota (m)</th><th>Pé-direito (m)</th><th>Uso</th><th>Grupo</th><th title="pilares / vigas / lajes / paredes no pavimento">Elementos</th></tr></thead>
               <tbody>
                 {mapa.pavimentos.map((p) => {
@@ -117,7 +117,7 @@ export function LancamentoIfc({ onClose, onCriada }: { onClose(): void; onCriada
         {passo === 'materiais' && mapa && lido && (
           <>
             <Hint>Os materiais do arquivo são ligados a tipos de elemento estrutural: o fck e o aço atribuídos a cada tipo aparecem ao lado da propriedade lida. Sem material no arquivo, vale o da obra.</Hint>
-            <table className="data" data-ifc-materiais-arquivo>
+            <table className="data" data-ifc-materiais-arquivo aria-label="Materiais do arquivo IFC">
               <thead><tr><th>Material do arquivo</th><th>Classe lida</th><th>Pilares</th><th>Vigas</th><th>Lajes</th><th>Paredes</th></tr></thead>
               <tbody>
                 {lido.materiais.length === 0 && <tr><td className="tl" colSpan={6}>O arquivo não traz materiais.</td></tr>}
@@ -147,7 +147,7 @@ export function LancamentoIfc({ onClose, onCriada }: { onClose(): void; onCriada
               <Check label="Lançar paredes de concreto" checked={mapa.paredes} onChange={(v) => setMapa({ ...mapa, paredes: v })} />
               <Check label="Criar lajes nos panos fechados por vigas" checked={lajes} onChange={setLajes} />
             </div>
-            <table className="data" data-ifc-revisao>
+            <table className="data" data-ifc-revisao aria-label="Revisão dos elementos a lançar do IFC">
               <thead><tr><th>Elemento</th><th>Quantidade</th><th>Lançar</th></tr></thead>
               <tbody>
                 {([['Pavimentos', proposta.contagens.pavimentos, null], ['Grupos', proposta.contagens.grupos, null], ['Pilares', proposta.contagens.pilares, proposta.pilares.map((q) => q.origem)],
