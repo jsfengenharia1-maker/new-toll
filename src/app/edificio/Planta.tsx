@@ -1,5 +1,6 @@
 // Planta do pavimento em Canvas 2D, em três camadas: máscara (com cache durante pan/zoom), modelo e interação.
 // Toda alteração vira comando do registro; a planta só calcula pontos (capturas, ortogonal/polar, digitação).
+import { acharPilar } from '../../core/building/fundacaoPilarParede';
 import { legendaVigotas, rotulosDeVigotas } from '../../core/resultados/vigotasVista';
 import { faixasVisiveis, larguraGrupo } from './vigotasFaixas';
 import { ehNervurada, rotuloLaje } from '../../core/building/tiposLaje';
@@ -903,7 +904,7 @@ export function Planta() {
         }
       }
       if (calculado && r) {
-        const [px, py] = paraTela(...centro), pc = b.pilares.find((x) => x.id === el.pilares[0]);
+        const [px, py] = paraTela(...centro), pc = acharPilar(b, el.pilares[0]);
         ctx.strokeStyle = cores.cota; ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(px - 5, py); ctx.lineTo(px + 5, py); ctx.moveTo(px, py - 5); ctx.lineTo(px, py + 5); ctx.stroke();
         const e = Math.hypot(r.excentricidade[0], r.excentricidade[1]);

@@ -4,7 +4,8 @@ import { compactarLog, lerEdificio, WORKSPACE_FORMAT } from '../core/building/fi
 import { edificioVazio, ehArranque, pavimentosOrdenados, peDireito, type BuildingModel, type Formato } from '../core/building/types';
 import { emptyModel } from '../core/types';
 import type { Diagnostico } from '../core/building/verify';
-import { analisarEdificio, type AnaliseEdificio } from '../core/building/analitico';
+import { type AnaliseEdificio } from '../core/building/analitico';
+import { analisarEdificioIterado } from '../core/building/analiseIterada';
 import { resumoAnalise } from '../core/building/resumo';
 import { cargasParaFundacao, comFundacao, dimensionarEdificio, type Dimensionamento } from '../core/building/dimensionamento';
 import type { FLoad } from '../core/piles';
@@ -38,7 +39,7 @@ export function gravarPranchas(b: BuildingModel, o: OpcoesSaidaPranchas, io: Io,
   const tipos = tiposDe(o.tipo);
   if (o.grupo && !b.grupos.some((x) => x.id === o.grupo || x.nome.toLowerCase() === o.grupo!.toLowerCase())) throw new Error(`Grupo ${o.grupo} não existe.`);
   const calc = tipos.some((t) => PRECISA_CALCULO.includes(t) || t === 'locacao');
-  const an = calc ? analisarEdificio(b) : null, dim = an && tipos.some((t) => PRECISA_CALCULO.includes(t) || t === 'formas') ? dimensionarEdificio(b, an) : null;
+  const an = calc ? analisarEdificioIterado(b) : null, dim = an && tipos.some((t) => PRECISA_CALCULO.includes(t) || t === 'formas') ? dimensionarEdificio(b, an) : null;
   const cj = montarConjunto(b, an, dim, { tipos, grupo: o.grupo, formato: o.formato, escala: o.escala, armaduras, carimbo: { data: b.prancha?.carimbo.data || hoje } });
   const prs = cj.pranchas;
   if (!prs.length) throw new Error(`Nenhuma prancha: ${cj.avisos.join(' ') || 'lance vigas ou lajes em algum grupo.'}`);
@@ -99,7 +100,7 @@ export function novoTrabalho(vazio: boolean): Sessao {
  * Análise + dimensionamento + cargas para o módulo Fundações + fundações lançadas (para a linha de comando e o MCP).
  * Obra só com arranques: calcula só a fundação.
  */
-export function dimensionar(b: BuildingModel, an: AnaliseEdificio = analisarEdificio(b)) {
+export function dimensionar(b: BuildingModel, an: AnaliseEdificio = analisarEdificioIterado(b)) {
   if (an.erro || !an.portico.res) {
     if (b.pilares.every(ehArranque) && (b.fundacao?.elementos.length || b.fundacao?.corridas?.length))
       return { vigas: [], pilares: [], lajes: [], quantitativos: [], combinacoes: 0, fundacao: cargasParaFundacao(b, an), ...comFundacao(b, an) } as Dimensionamento & { fundacao: FLoad[] };
@@ -181,7 +182,7 @@ export function runCli(args: string[], io: Io): number {
       case 'calc': {
         if (!pos[0]) break;
         const { sessao } = abrirSessao(io.ler(pos[0]));
-        const r = resumoAnalise(sessao.modelo, analisarEdificio(sessao.modelo));
+        const r = resumoAnalise(sessao.modelo, analisarEdificioIterado(sessao.modelo));
         if (json) io.out(JSON.stringify(r, null, 1));
         else if (r.erro) io.err(r.erro);
         else {

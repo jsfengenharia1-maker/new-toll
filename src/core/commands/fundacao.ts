@@ -5,6 +5,7 @@
 // Todos sem ferramenta própria no MCP (`mcp: false`) e fora da revisão de cálculo da estrutura (`calculo: 'fundacao'`).
 import { current, type Draft } from 'immer';
 import { FUNDACAO_VAZIA, type BuildingModel, type ElementoFundacao, type EstacaTerreno, type FundacaoEdificio, type ImpostasFundacao, type LimiteFundacao, type PosicaoFundacao, type TipoFundacao, type VigaFundacao } from '../building/types';
+import { acharPilar } from '../building/fundacaoPilarParede';
 import { nomeVigaFundacao, pontaVF } from '../building/vigasFundacao';
 import type { Diagnostico } from '../building/verify';
 import { ladoDoAjuste, nomeFundacao } from '../building/fundacao';
@@ -35,7 +36,7 @@ function validarElemento(b: BuildingModel, e: Required<Pick<ElementoIn, 'pilares
   if (!e.pilares.length) return err('SEM_PILAR', 'Informe ao menos um pilar (`pilar` ou `pilares`).');
   if (new Set(e.pilares).size !== e.pilares.length) return err('PILAR_REPETIDO', 'Pilar repetido na lista.');
   for (const id of e.pilares) {
-    const p = b.pilares.find((x) => x.id === id);
+    const p = acharPilar(b, id);
     if (!p) return err('PILAR_INEXISTENTE', `Pilar ${id} não existe.`);
     if (p.nasce !== 'fundacao') return err('PILAR_NAO_NASCE_FUNDACAO', `${p.nome} não nasce na fundação.`, [p.id]);
     const naBase = pilaresNaBase(b).find((x) => x.pilar === p.id);
@@ -68,7 +69,7 @@ function validarElemento(b: BuildingModel, e: Required<Pick<ElementoIn, 'pilares
 function ladoPadrao(b: BuildingModel, pilar: string, posicao: PosicaoFundacao, l?: [number, number]): [number, number] | undefined {
   if (posicao !== 'divisa' && posicao !== 'canto') return undefined;
   if (l) return l;
-  const p = b.pilares.find((x) => x.id === pilar);
+  const p = acharPilar(b, pilar);
   if (!p) return undefined;
   const a = ladoDoAjuste(p), nz = a.filter((v) => v !== 0).length;
   return (posicao === 'divisa' && nz === 1) || (posicao === 'canto' && nz === 2) ? a : undefined;
@@ -110,7 +111,7 @@ registrar<CriarIn>({
     return validarElemento(b, { ...p, pilares, estaca: est, lado: ladoPadrao(b, pilares[0], p.posicao, p.lado) });
   },
   aplicar(d, p) {
-    const b = d as BuildingModel, pilares = listaPilares(p), pils = pilares.map((id) => b.pilares.find((x) => x.id === id)!);
+    const b = d as BuildingModel, pilares = listaPilares(p), pils = pilares.map((id) => acharPilar(b, id)!);
     const f = fund(d);
     const nome = p.nome?.trim() || nomeFundacao(b, p.tipo);
     const l = ladoPadrao(b, pilares[0], p.posicao, p.lado);
@@ -208,7 +209,7 @@ registrar<{ ids: string[]; angulo?: number; pontos?: [number, number][]; doPilar
   aplicar(d, p) {
     for (const e of d.fundacao!.elementos) {
       if (!p.ids.includes(e.id)) continue;
-      const a = p.angulo ?? (p.pontos ? (Math.atan2(p.pontos[1][1] - p.pontos[0][1], p.pontos[1][0] - p.pontos[0][0]) * 180) / Math.PI : d.pilares.find((x) => x.id === e.pilares[0])?.angulo ?? e.angulo);
+      const a = p.angulo ?? (p.pontos ? (Math.atan2(p.pontos[1][1] - p.pontos[0][1], p.pontos[1][0] - p.pontos[0][0]) * 180) / Math.PI : acharPilar(d as BuildingModel, e.pilares[0])?.angulo ?? e.angulo);
       e.angulo = +a.toFixed(6);
     }
     return `${p.ids.length} elemento(s) de fundação girado(s).`;
@@ -264,7 +265,7 @@ function aplicarUniao(d: Draft<BuildingModel>, idsEl: string[]): string {
   const els = idsEl.map((id) => f.elementos.find((x) => x.id === id)!);
   const base = els[0];
   const pilares = [...new Set(els.flatMap((e) => e.pilares))];
-  const pils = pilares.map((id) => d.pilares.find((x) => x.id === id)!);
+  const pils = pilares.map((id) => acharPilar(d as BuildingModel, id)!);
   const todosSimples = els.every((e) => e.simples);
   const sai = new Set(idsEl.slice(1));
   base.pilares = pilares;
@@ -407,9 +408,9 @@ registrar<GerarIn>({
     cargas: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['pilar', 'Nk'], properties: { pilar: { type: 'string' }, Nk: { type: 'number', minimum: 0 } } } },
   } },
   validar(b, p) {
-    const falta = (p.pilares ?? []).filter((id) => !b.pilares.some((x) => x.id === id));
+    const falta = (p.pilares ?? []).filter((id) => !acharPilar(b, id));
     if (falta.length) return err('PILAR_INEXISTENTE', `Pilar(es) inexistente(s): ${falta.join(', ')}.`);
-    const nao = (p.pilares ?? []).map((id) => b.pilares.find((x) => x.id === id)!).filter((q) => q.nasce !== 'fundacao');
+    const nao = (p.pilares ?? []).map((id) => acharPilar(b, id)!).filter((q) => q.nasce !== 'fundacao');
     if (nao.length) return err('PILAR_NAO_NASCE_FUNDACAO', `${nao.map((q) => q.nome).join(', ')} não nasce(m) na fundação.`, nao.map((q) => q.id));
     const pl = planejarFundacoes(b, p);
     if (!pl.passos.length) return err('NADA_A_GERAR', 'Nenhum pilar sem fundação: todos os pilares que nascem na fundação já têm elemento (ou nenhum nasce nela).');

@@ -758,6 +758,12 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
                 deslocamentos horizontais e giro em planta presos. A base em viga de fundação é uma viga sobre base elástica sob o eixo da parede, cujos nós são os da base da casca (a rigidez da viga redistribui a carga). Viga embutida
                 em parede de concreto: {opc.paredeVigaEmbutida === 1 ? 'armadura própria, mínima (As,mín da NBR 6118, 17.3.5.2.1, e ρsw,mín = 0,2·fctm/fywk, 17.4.1.1.1), porque a parede a apoia em todo o comprimento' : 'dimensionada como viga comum'}.
               </p>
+              {!!analise?.baseIterada && (
+                <p data-memorial-fu7d>
+                  Iteração de B das molas do pilar-parede (FU7d; a confirmar): {analise.baseIterada.convergiu ? 'convergiu' : 'não convergiu'} em {analise.baseIterada.iteracoes} análise(s) (máximo {analise.baseIterada.maximo}; tolerância {fmt(analise.baseIterada.tolerancia * 100, 0)} cm).
+                  {Object.entries(analise.baseIterada.dims).map(([id, d]) => ` ${b.pilaresParede?.find((q) => q.id === id)?.nome ?? id}: sapata ${fmt(d.A * 100, 0)} × ${fmt(d.B * 100, 0)} cm.`).join('')}
+                </p>
+              )}
               {!!dim.vigasElasticas?.some((x) => x.parede) && <table data-memorial-vigas-parede>
                 <thead><tr><th className="l">Viga de fundação</th><th className="l">Parede</th><th>b × h (cm)</th><th>k (kN/m³)</th><th>σ máx. (kN/m²)</th><th>Recalque (mm)</th><th>Md inf. / sup. (kN·m)</th><th>Vd (kN)</th></tr></thead>
                 <tbody>{dim.vigasElasticas.filter((x) => x.parede).map((x) => <tr key={x.id}><td className="l">{x.nome}</td><td className="l">{b.paredes?.find((w) => w.id === x.parede)?.nome ?? x.parede}</td><td>{fmt(x.b * 100, 0)} × {fmt(x.h * 100, 0)}</td><td>{fmt(x.k, 0)}</td><td>{fmt(x.sigmaMax, 1)}</td><td>{fmt(x.recalque * 1000, 2)}</td><td>{fmt(x.Md.inf, 1)} / {fmt(x.Md.sup, 1)}</td><td>{fmt(x.Vd, 1)}</td></tr>)}</tbody>

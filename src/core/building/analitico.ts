@@ -26,7 +26,8 @@ import { concretoDe, flambagemLance, gamas } from './materiais';
 import { barrasGeo, iterarPDelta, normalMedia } from '../pdelta3';
 import { combinacoesDoEstado } from './combinacoes';
 import { apoiosDosPilares, pilaresSobre } from './transicao';
-import { geometriaParedes } from './pilarParede';
+import { ehVirtual, geometriaParedes, ladosDoPP } from './pilarParede';
+import { larguraDosLados, molasDaBarra, type DimsSapataPP, type IteracaoBaseMolas } from './baseMolasPP';
 import { ppDaObra } from './paredesBase';
 import { blocoDe, ehAlvenaria, resistenciaAlvenaria, tipoAlvenariaDe } from './alvenaria';
 import { incluirParedes, axialCascas, axiaisDasFaixas, pontosBaseDasParedes, reduzirCascas, type BaseWinkler, type ParedesNoPortico } from './pilarParedeModelo';
@@ -37,7 +38,11 @@ import { chaveDesnivel, desniveisDaObra, nosDoLance, representante, type Desnive
 import { pavimentosDoGrupo, anguloNoLance, centroPilar, contornoNoLance, contornoPilar, cotaFundacao, dimsSecao, ehArranque, engasteNoLance, geoLance, inicioDe, lanceNoPavimento, lancesDoPilar, pavimentosOrdenados, secaoNoLance, casosDaObra, casoUsoDoGrupo, type BuildingModel, type Laje, type Pilar, type SecaoPilar, type Viga, centroNoLance } from './types';
 
 /** Opções de cálculo em uso + coeficiente de Poisson (NBR 6118, 8.2.9). */
-export type OpcoesAnalise = OpcoesCalculo & { nu: number };
+export type OpcoesAnalise = OpcoesCalculo & {
+  nu: number;
+  /** Sapata (A × B, m, nos eixos do pilar-parede) sob cada pilar-parede de base sobre molas (FU7d): dá a largura B das molas no lugar de espessura + 2 × balanço. */
+  baseMolasPP?: Record<string, DimsSapataPP>;
+};
 
 /** Caso de carga: G, Q ou id de um caso adicional (casosDaObra). */
 export type CasoAnalise = string;
@@ -441,6 +446,8 @@ export interface AnaliseEdificio {
   erro?: string;
   avisos: string[];
   opcoes: OpcoesAnalise;
+  /** Iteração de B das molas dos pilares-parede com a sapata calculada (FU7d; `analisarEdificioIterado`). */
+  baseIterada?: IteracaoBaseMolas;
   grelhas: GrelhaPavimento[];
   portico: {
     modelo: Modelo3; barras: BarraPortico[]; mestres: Record<string, number>; zonas: Record<string, ZonaPortico[]>; res: Resultado3 | null; resVento?: Resultado3 | null; casos?: Caso3[]; casosVento?: Caso3[];
@@ -1200,6 +1207,16 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
     const ok = op.modeloGlobal === 1 ? integPav.get(pa.nasce)?.ig.pils.includes(id) : geoPav.get(pa.nasce)?.grosso.nos.some((n) => n.pilar === id);
     if (ok) baseLigada.set(id, a.tipo);
   }
+  // pilares-parede com a base em molas (FU7c/FU7d): k das opções (ou o da base elástica, se aquele for 0) e a largura B de cada lado
+  // pela sapata calculada (iteração de B) ou espessura + 2 × balanço
+  const molasPP: Record<string, BaseWinkler> = {};
+  for (const q of b.pilaresParede ?? []) {
+    if (q.nasce !== 'fundacao' || q.vinculoBase !== 'molas') continue;
+    const w: BaseWinkler = { k: op.fundParedeK > 0 ? op.fundParedeK : op.radierK, aba: op.fundParedeAba / 100, rotula: false };
+    const sap = op.baseMolasPP?.[q.id];
+    if (sap) w.largura = larguraDosLados(ladosDoPP(b, q).map((g) => ({ id: g.id, L: g.L, u: g.u, n: g.n })), { A: sap.A, B: sap.B, angulo: sap.angulo ?? q.angulo });
+    molasPP[q.id] = w;
+  }
   for (const p of pilaresA) {
     const l = lancesDoPilar(b, p);
     if (!l.length) continue;
@@ -1215,7 +1232,12 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
       const nb = pm.nos.length;
       noPilar.set(baseKey, nb); pm.nos.push([c[0], c[1], i0 === 0 ? (p.nasce === 'fundacao' && p.cotaBase !== undefined ? p.cotaBase : zf) : ps[i0 - 1].cota]);
       // vínculo externo (N2c): engaste (padrão), rótula (giros de flexão livres) ou molas por gdl (ausente = preso, 0 = livre)
-      const vb = p.nasce === 'fundacao' ? p.vinculoBase : undefined;
+      let vb = p.nasce === 'fundacao' ? p.vinculoBase : undefined;
+      // lado curto em barra de pilar-parede sobre molas (FU7d): molas de Winkler no nó da base
+      if (ehVirtual(p) && p.origem.tipo === 'lado' && !p.origem.casca && op.fundParedeBarraMola) {
+        const w = molasPP[p.origem.pp];
+        if (w) { const t = p.secao.tipo === 'ret' ? p.secao : { b: 0, h: 0 }, u = [Math.cos((p.angulo * Math.PI) / 180), Math.sin((p.angulo * Math.PI) / 180)] as [number, number], m = molasDaBarra(w.k, w.largura?.get(p.id) ?? t.h + 2 * (w.aba ?? 0.3), t.b, u); vb = { tipo: 'molas', kz: m.kz, krx: m.krx, kry: m.kry }; }
+      }
       if (!vb || vb.tipo === 'engaste') pm.apoios.set(nb, [0, 1, 2, 3, 4, 5]);
       else if (vb.tipo === 'rotula') pm.apoios.set(nb, [0, 1, 2, 5]);
       else {
@@ -1380,7 +1402,7 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
     }
   }
   // pilares-parede com a base em molas (FU7c): k das opções (ou o da base elástica, se aquele for 0)
-  for (const q of b.pilaresParede ?? []) if (q.nasce === 'fundacao' && q.vinculoBase === 'molas') baseWinkler[q.id] = { k: op.fundParedeK > 0 ? op.fundParedeK : op.radierK, aba: op.fundParedeAba / 100, rotula: false };
+  Object.assign(baseWinkler, molasPP);
   const noParedes: ParedesNoPortico | undefined = paredes ? incluirParedes({
     baseWinkler, baseViga: baseVigaNos,
     b, geo: paredes, pm, casosV, noPilar, Ec: (pav) => Em('pilar', pav), Ev, Gv, nu: op.nu, gama: GAMA_CONCRETO, ret, iG: CASOS.indexOf('G'),

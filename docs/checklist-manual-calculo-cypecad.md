@@ -18,14 +18,14 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.6 Materiais (págs. 37–38) | 11 | 8 | 0 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
-| 1.9 Entrada de dados (págs. 41–65) | 116 | 101 | 2 | 0 | 13 |
+| 1.9 Entrada de dados (págs. 41–65) | 116 | 102 | 1 | 0 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 9 | 0 | 0 | 2 |
 | 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 53 | 6 | 0 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 97 | 0 | 0 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 40 | 1 | 0 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 23 | 1 | 0 | 19 |
-| **Total** | **661** | **534** | **16** | **0** | **111** |
+| **Total** | **661** | **535** | **15** | **0** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -34,10 +34,10 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 7 | 0 | 7 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 0 | 0 | 0 |
-| FU — Fundações | 1 | 0 | 1 |
+| FU — Fundações | 0 | 0 | 0 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 0 | 0 | 0 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 8 | 0 | 8 |
-| **Total** | **16** | **0** | **16** |
+| **Total** | **15** | **0** | **15** |
 
 ## Divergências de premissa
 
@@ -503,7 +503,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.108 | Versões < 2012.a: vigas livres perpendiculares à parede junto a vazios devem virar vigas inclinadas para dimensionar à flexo-compressão (vigas e lajes comuns só à flexão simples); ≥ 2012.a ver capítulo de diafragma rígido. | Fora | — | versões antigas do outro programa |
 | K1.9.109 | Estruturas 3D integradas podem ligar zonas independentes. | Fora | — | estruturas 3D integradas |
 | | **Fundações (na entrada de lajes)** | | | |
-| K1.9.110 | Pilares e pilares-parede com vinculação externa podem ter sapatas e blocos sobre estacas; entre eles vigas de equilíbrio (centradoras) e vigas de travamento, que também ligam sapatas corridas de paredes. | Parcial | FU | sapatas, blocos e tubulões (FU1), vigas de equilíbrio e de travamento com cruzamento (FU2/FU3) e sapatas corridas (FU7a); FU8a: cintas que ligam a sapata corrida de aba única às sapatas internas (alavanca e alívio); FU7b: parede de concreto com sapata corrida sob o eixo e pilares sobre ela (sapata isolada equivalente); FU7c: pilar-parede com vinculação externa sobre molas de Winkler (`PilarParede.vinculoBase = 'molas'`, k das opções, B = espessura de cada lado + 2 × balanço; os lados curtos em barra ficam engastados; `pilarParedeModelo.ts`, `PilarParedeUI.tsx`, `baseParede.test.ts`); falta o dimensionamento da sapata ou do bloco do próprio pilar-parede (reações da base no centro do pilar-parede → sapata envolvente ou bloco) e as vigas de equilíbrio e de travamento ligadas a pilares-parede [FU7d] |
+| K1.9.110 | Pilares e pilares-parede com vinculação externa podem ter sapatas e blocos sobre estacas; entre eles vigas de equilíbrio (centradoras) e vigas de travamento, que também ligam sapatas corridas de paredes. | Feito | — | sapatas, blocos e tubulões (FU1), vigas de equilíbrio e de travamento com cruzamento (FU2/FU3) e sapatas corridas (FU7a); FU8a: cintas que ligam a sapata corrida de aba única às sapatas internas (alavanca e alívio); FU7b: parede de concreto com sapata corrida sob o eixo e pilares sobre ela (sapata isolada equivalente); FU7c: pilar-parede com vinculação externa sobre molas de Winkler (PilarParede.vinculoBase = molas, k das opções, B = espessura de cada lado + 2 × balanço; pilarParedeModelo.ts, PilarParedeUI.tsx, baseParede.test.ts); FU7d: fundação própria do pilar-parede (pilar equivalente = retângulo envolvente centrado no centroide das reações da base; sapata, bloco e tubulão pelo núcleo dos pilares; vigas de equilíbrio e de travamento ligadas a ele; fundacaoPilarParede.ts e acharPilar em fundacao.ts, vigasFundacao.ts e nos comandos), molas dos lados curtos em barra (opção fundParedeBarraMola, baseMolasPP.ts) e iteração de B das molas com a sapata calculada (opção fundBaseIterada, analiseIterada.ts, fundacaoPilarParede.test.ts, e2e FU7d); a confirmar: retângulo envolvente para pilar-parede com vários lados, B por lado, tolerância e máximo de iterações |
 | K1.9.111 | Sapatas retangulares calculadas como sólido rígido; podem receber vários pilares e/ou pilares-parede; blocos idem conforme tipologia. | Feito | — | FU3: sapata associada rígida (faixas pelo diagrama de momentos, `footingsGroup.ts`) e bloco com vários pilares (bielas e tirantes por pilar, `caps.ts`, extensão de Blévot a confirmar); FU8d: conferidos contra cálculo manual (`capsGroup.validacao.test.ts`, `footingsGroup.test.ts`) e contra o OpenSees (`validation/opensees/sapata_associada.py`, placa sobre molas: erros ≤ 1,5 % em pressão e momentos; `bloco_multi.py`, sólido: tirante do Statikos +14 a +16 % com pilares iguais e +25 % / +132 % com 1000 + 400 kN, sempre a favor da segurança); pilares-parede com a E1 |
 | K1.9.112 | Vigas centradoras absorvem os momentos transmitidos à sapata/bloco; várias numa direção dividem o momento proporcionalmente às rigidezes. | Feito | — | FU2: alavanca com várias vigas repartindo o momento pela rigidez EI/ℓ (`alavanca` em `vigasFundacao.ts`); componente que nenhuma viga equilibra fica no elemento; alívio e alavanca na janela do elemento; momentos do pilar ficam no elemento (a confirmar) |
 | | **1.9.10–1.9.11 Cargas, vigas inclinadas, contraventamentos, escadas (pág. 65)** | | | |

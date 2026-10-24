@@ -6,6 +6,7 @@
 import type { AnaliseEdificio } from '../building/analitico';
 import type { Dimensionamento } from '../building/dimensionamento';
 import { cotaTerreno, parametrosFundacao, secaoBase, type ResultadoFundacao } from '../building/fundacao';
+import { acharPilar } from '../building/fundacaoPilarParede';
 import { acoDe, cobrimentoFundacao, fckDe } from '../building/materiais';
 import { centroPilar, dimsSecao, secaoNoLance, type BuildingModel, type Pilar, type TipoFundacao } from '../building/types';
 import { geometriaVF, type ResultadoVigaFundacao } from '../building/vigasFundacao';
@@ -159,7 +160,7 @@ const secTxt = (b: BuildingModel, p: Pilar) => { const s = secaoBase(b, p); retu
 
 function rotuloElemento(b: BuildingModel, r: ResultadoFundacao): string[] {
   const ps = r.pilares.join('+');
-  const sec = r.pilarIds.length === 1 ? ` / ${secTxt(b, b.pilares.find((p) => p.id === r.pilarIds[0])!)} cm` : '';
+  const sec = r.pilarIds.length === 1 ? ` / ${secTxt(b, acharPilar(b, r.pilarIds[0])!)} cm` : '';
   if (r.tipo === 'sapata') { const f = sapataDe(r); return f ? [`${ps}${sec}`, `h0 = ${cm(f.h0)} cm`, `h1 = ${cm(f.h - f.h0)} cm`, `df = ${cm(r.profundidade)} cm`] : [ps]; }
   if (r.tipo === 'bloco') { const cap = blocoDe(r), est = estacasDe(r); return cap && est ? [`${ps}${sec}`, `ha = 0 cm`, `hb = ${cm(cap.h)} cm`, `${est.coords.length}×ø${cm(est.D)}`] : [ps]; }
   const t = tubulaoDe(r);
@@ -200,7 +201,7 @@ export function montarLocacaoFundacao(b: BuildingModel, an: AnaliseEdificio | nu
     const nx = -g.u[1] * (v.bAdot / 2), ny = g.u[0] * (v.bAdot / 2);
     return [[g.a[0] + nx, g.a[1] + ny], [g.z[0] + nx, g.z[1] + ny], [g.z[0] - nx, g.z[1] - ny], [g.a[0] - nx, g.a[1] - ny]];
   };
-  const pilaresEl = els.flatMap((r) => r.pilarIds.map((id) => ({ r, p: b.pilares.find((x) => x.id === id)! }))).filter((x) => x.p);
+  const pilaresEl = els.flatMap((r) => r.pilarIds.map((id) => ({ r, p: acharPilar(b, id)! }))).filter((x) => x.p);
   const todosPts: P[] = [...els.flatMap((r) => r.contorno as P[]), ...vigas.flatMap((v) => faixa(v) ?? [])];
   const cx = caixa(todosPts);
   const pl = plantaNaFolha(cx, cfg.formato, cfg.escala, 40);

@@ -1,7 +1,8 @@
 // Memória de cálculo detalhada do edifício (MD fase 1): cargas, combinações e análise (resumo com os valores do
 // solver) e a cadeia completa de vigas e pilares de concreto, registrada pelo próprio dimensionamento com a memória
 // ligada. Gerada sob demanda (refaz o dimensionamento com o registrador ativo; a análise é reaproveitada).
-import { analisarEdificio, type AnaliseEdificio } from '../building/analitico';
+import { type AnaliseEdificio } from '../building/analitico';
+import { analisarEdificioIterado } from '../building/analiseIterada';
 import { combinacoesDoEstado, combinacoesEdificio } from '../building/combinacoes';
 import { dimensionarEdificio, type Dimensionamento } from '../building/dimensionamento';
 import { gamas } from '../building/materiais';
@@ -33,7 +34,7 @@ export interface OpcoesMemoria {
 const GLOBAL = 'Edifício';
 
 export function memoriaDetalhada(b: BuildingModel, o: OpcoesMemoria = {}): { memoria: MemoriaDetalhada; an: AnaliseEdificio; dim: Dimensionamento } {
-  const an = o.an ?? analisarEdificio(b);
+  const an = o.an ?? analisarEdificioIterado(b);
   const sel = o.elementos ? new Set(o.elementos) : null;
   const reg = new Registrador({ filtro: sel ? (e) => e === GLOBAL || sel.has(e) : undefined });
   passosGlobais(reg, b, an);

@@ -6,7 +6,8 @@ import { comandosEdificioPadrao, listarComandos, Sessao, type Resultado } from '
 import { edificioVazio, pavimentosOrdenados, type BuildingModel } from '../core/building/types';
 import { resumoFlechasJson } from '../core/building/flechas';
 import { PREMISSAS } from '../core/building/premissas';
-import { analisarEdificio, type AnaliseEdificio } from '../core/building/analitico';
+import { type AnaliseEdificio } from '../core/building/analitico';
+import { analisarEdificioIterado } from '../core/building/analiseIterada';
 import { rearmar } from '../core/building/rearmar';
 import { resumoFundacao, type ResultadoFundacao } from '../core/building/fundacao';
 import { resumoBaseElastica } from '../core/building/baseElastica';
@@ -71,7 +72,7 @@ export class ServidorMcp {
       { name: 'modelo', title: 'Modelo completo', description: 'O modelo físico do edifício em JSON.', inputSchema: vazio, annotations: ro(), executar: () => this.sessao.modelo },
       { name: 'verificar', title: 'Verificar lançamento', description: 'Diagnósticos (código, severidade, elementos, mensagem e correção sugerida executável).', inputSchema: vazio, outputSchema: { type: 'object', properties: { diagnosticos: { type: 'array', items: DIAG } } }, annotations: ro(), executar: () => ({ diagnosticos: this.sessao.verificar() }) },
       { name: 'calcular', title: 'Calcular o edifício', description: 'Análise do modelo atual: grelha de lajes e vigas por pavimento + pórtico espacial com diafragma rígido (casos G, Q e vento NBR 6123; γz). Devolve cargas na fundação por pilar, flechas elásticas das lajes, equilíbrio e avisos.', inputSchema: vazio, annotations: ro(),
-        executar: () => resumoAnalise(this.sessao.modelo, analisarEdificio(this.sessao.modelo)) },
+        executar: () => resumoAnalise(this.sessao.modelo, analisarEdificioIterado(this.sessao.modelo)) },
       { name: 'dimensionar', title: 'Dimensionar o edifício', description: 'Analisa e dimensiona pela NBR 6118: vigas (flexão e cortante), pilares por lance (pilar-padrão + flexão oblíqua por fibras), lajes maciças (As por metro e flecha) e treliçadas (resumo das vigotas por laje: grupos, adicional, negativos, maciçamento; aço e treliças); quantitativos por pavimento e cargas características por pilar para o módulo Fundações; fundações lançadas no edifício (sapatas, blocos sobre estacas, tubulões, radiers, vigas sobre base elástica e sapatas corridas: dimensões, σadm, volume, situação e mensagens FUND_*). Filtros opcionais: um pavimento (id ou nome), só os elementos que não atendem ou pedem revisão e só a fundação. status: ok | review (revisar) | fail (não atende).',
         inputSchema: { type: 'object', additionalProperties: false, properties: { pavimento: { type: 'string', description: 'id ou nome do pavimento' }, so_problemas: { type: 'boolean', default: false }, fundacao: { type: 'boolean', default: false, description: 'só as fundações lançadas (resumo por elemento, vigas de equilíbrio e de travamento, radiers, vigas sobre base elástica e sapatas corridas) e as cargas por pilar' } } },
         outputSchema: SAIDA_DIM, annotations: ro(),
@@ -112,7 +113,7 @@ export class ServidorMcp {
   private resultados() {
     const s = this.sessao;
     let c = this.cache;
-    if (!c || c.sessao !== s || c.revCalculo !== s.revCalculo) { const an = analisarEdificio(s.modelo); c = this.cache = { sessao: s, revCalculo: s.revCalculo, revFundacao: s.revFundacao, revDetalhe: s.revDetalhe, an, dim: dimensionar(s.modelo, an) }; }
+    if (!c || c.sessao !== s || c.revCalculo !== s.revCalculo) { const an = analisarEdificioIterado(s.modelo); c = this.cache = { sessao: s, revCalculo: s.revCalculo, revFundacao: s.revFundacao, revDetalhe: s.revDetalhe, an, dim: dimensionar(s.modelo, an) }; }
     if (c.revDetalhe !== s.revDetalhe) {
       const ant = c.dim, r = 'erro' in ant ? null : rearmar(s.modelo, c.an, { modo: 'todos', anterior: ant });
       c = this.cache = { ...c, revDetalhe: s.revDetalhe, dim: r && 'dim' in r && !('erro' in ant) ? { ...r.dim, fundacao: ant.fundacao } : dimensionar(s.modelo, c.an) };

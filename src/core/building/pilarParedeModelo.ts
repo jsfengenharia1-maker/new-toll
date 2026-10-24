@@ -46,7 +46,7 @@ export interface ParedesNoPortico {
 export interface FaixaAxial { pp: string; dofs: number[]; c: number[]; EAporDz: number; cascas: { casca: number; fator: number }[] }
 
 /** Molas de Winkler da base de uma parede (FU7c): k (kN/m³), largura B (m) da sapata e se a base é rotulada (sem molas de giro). */
-export interface BaseWinkler { k: number; /** Largura (m); ausente = espessura de cada lado + 2 × `aba`. */ B?: number; aba?: number; rotula: boolean }
+export interface BaseWinkler { k: number; /** Largura (m); ausente = espessura de cada lado + 2 × `aba`. */ B?: number; aba?: number; rotula: boolean; /** Largura B de cada lado (id do lado) pela sapata calculada (FU7d); tem prioridade sobre `aba`. */ largura?: Map<string, number> }
 
 export interface EntradaParedes {
   b: BuildingModel; geo: ModeloParedes;
@@ -185,7 +185,7 @@ export function incluirParedes(e: EntradaParedes): ParedesNoPortico {
       if (emViga) out.avisos.push(`Parede ${parede?.nome ?? pp.id}: nó da base da casca sem nó da viga de fundação na mesma posição; mantido engastado.`);
       if (wk && !emViga) {
         // molas de Winkler (FU7c): vertical k·B·Lt e giro em torno do eixo da parede k·B³·Lt/12 (diagonal em x e y), Lt = comprimento de influência do nó
-        const Lt = ((nbase[j + 1]?.s ?? q.s) - (nbase[j - 1]?.s ?? q.s)) / 2, Bm = wk.B ?? g.esp(lances[0].id).t + 2 * (wk.aba ?? 0.3), kz = wk.k * Bm * Lt, kr = (wk.k * Bm ** 3 * Lt) / 12;
+        const Lt = ((nbase[j + 1]?.s ?? q.s) - (nbase[j - 1]?.s ?? q.s)) / 2, Bm = wk.largura?.get(g.id) ?? wk.B ?? g.esp(lances[0].id).t + 2 * (wk.aba ?? 0.3), kz = wk.k * Bm * Lt, kr = (wk.k * Bm ** 3 * Lt) / 12;
         pm.apoios.set(n, [0, 1, 5]);
         const ml = (pm.molas ??= []);
         ml.push({ no: n, gdl: 2, k: kz });

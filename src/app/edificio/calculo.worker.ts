@@ -1,7 +1,8 @@
 // Cálculo do edifício fora da linha principal (a planta não trava durante a análise e o dimensionamento).
 // O mesmo worker monta as pranchas (formas, locação e armação) com o último cálculo, que fica guardado aqui:
 // a análise não volta a atravessar a fronteira a cada prévia.
-import { analisarEdificio, type AnaliseEdificio } from '../../core/building/analitico';
+import { type AnaliseEdificio } from '../../core/building/analitico';
+import { analisarEdificioIterado } from '../../core/building/analiseIterada';
 import { cargasParaFundacao, comFundacao, dimensionarEdificio, type Dimensionamento } from '../../core/building/dimensionamento';
 import { ehArranque } from '../../core/building/types';
 import type { FLoad } from '../../core/piles';
@@ -71,7 +72,7 @@ self.onmessage = (e: MessageEvent<Pedido>) => {
     return;
   }
   try {
-    const b = m.modelo, r = analisarEdificio(b);
+    const b = m.modelo, r = analisarEdificioIterado(b);
     const t0 = performance.now();
     // obra só com arranques (sem estrutura para analisar): calcula só as fundações, com as cargas lançadas nos arranques
     const soArranques = b.pilares.every(ehArranque) && !!(b.fundacao?.elementos.length || b.fundacao?.corridas?.length);

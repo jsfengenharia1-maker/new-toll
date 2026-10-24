@@ -8,6 +8,7 @@ import { pavimentosOrdenados, type BuildingModel, type LadoPilarParede, type Pil
 import { useBuilding } from './store';
 import { usePlanta } from './plantaStore';
 import { ArmaduraDaParede } from './ArmaduraParedeUI';
+import { FundacaoPilarParede } from './FundacaoPilarParedeUI';
 import { IsovaloresParede } from './IsovaloresParede';
 import { resumoCartao } from '../../core/building/paredesLista';
 
@@ -161,7 +162,7 @@ export function JanelaPilarParede({ id }: { id: string }) {
   const pp = b.pilaresParede?.find((q) => q.id === id), r = dim?.pilaresParede?.find((q) => q.id === id);
   const [caso, setCaso] = useState('ELU');
   if (!pp) return null;
-  if (!r) return <p className="muted">Calcule o dimensionamento para ver os esforços do pilar-parede.</p>;
+  if (!r) return <div><p className="muted">Calcule o dimensionamento para ver os esforços do pilar-parede.</p><FundacaoPilarParede id={id} /></div>;
   const casos = Object.keys(r.base);
   const lados = r.lados;
   const nomesLado = [...new Set(lados.map((l) => l.nome))];
@@ -183,6 +184,7 @@ export function JanelaPilarParede({ id }: { id: string }) {
           <tr><td className="tl"><b>ELU</b></td><td className="num" colSpan={5}>Nd máx. {fmt(r.baseElu.Nmax, 1)} kN ({r.baseElu.cNmax}) · Nd mín. {fmt(r.baseElu.Nmin, 1)} kN ({r.baseElu.cNmin})</td></tr>
         </tbody>
       </table>
+      <FundacaoPilarParede id={id} />
       <h4>Esforços por lado e pavimento</h4>
       <div className="row wrap"><Select label="Caso" value={caso} options={[{ v: 'ELU', label: 'ELU (mínimo / máximo)' }, ...Object.keys(lados[0]?.casos ?? {}).map((c) => ({ v: c, label: c }))]} onChange={setCaso} /></div>
       {nomesLado.map((n) => (

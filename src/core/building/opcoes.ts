@@ -367,6 +367,16 @@ export interface OpcoesCalculo {
   fundParedeK: number;
   /** Base da parede sobre sapata corrida (FU7c): balanço de cada lado (cm) que dá a largura das molas quando B não é informada (B = espessura + 2 × balanço). */
   fundParedeAba: number;
+  /** Pilar-parede sobre molas (FU7d): 1 = os lados curtos em barra também ficam sobre molas de Winkler (vertical k·B·ℓ, giros k·B·ℓ³/12 e k·ℓ·B³/12); 0 = engastados (comportamento da FU7c). */
+  fundParedeBarraMola: number;
+  /** Pilar-parede sobre molas (FU7d): 1 = a largura B das molas é iterada com a sapata calculada sob o pilar-parede (reanálise até convergir); 0 = B = espessura + 2 × balanço. */
+  fundBaseIterada: number;
+  /** Iteração de B (FU7d): variação máxima (cm) de A e B da sapata entre duas iterações para considerar convergido. */
+  fundBaseIterTol: number;
+  /** Iteração de B (FU7d): número máximo de reanálises. */
+  fundBaseIterMax: number;
+  /** Gerador de fundações (FU7d): 1 = inclui os pilares-parede que nascem na fundação (fundação própria dimensionada pelas reações da base); 0 = só os pilares. */
+  fundPilarParede: number;
   /** Vigas embutidas em paredes de concreto (FU7c): 1 = armadura própria (mínimos da norma, a parede apoia a viga em todo o comprimento); 0 = dimensionada como viga comum. */
   paredeVigaEmbutida: number;
   /** Pilar-parede (E1b): lado com comprimento ≥ este fator × a espessura vira casca; o mais curto vira barra (pilar). */
@@ -1215,6 +1225,16 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Molas de Winkler na base da casca da parede de concreto que nasce na fundação com sapata corrida: vertical k·B por metro e giro em torno do eixo da parede k·B³/12 por metro; deslocamentos horizontais e giro em planta presos. 0 liga o engaste rígido (comportamento anterior). Vale para a parede com base em sapata corrida; a base em viga de fundação usa o k da base elástica.' },
   { chave: 'fundParedeAba', rotulo: 'Base de parede sobre sapata corrida: balanço de cada lado para as molas', unidade: 'cm', min: 0, max: 200, passo: 5, padrao: 30, fonte: 'Estimativa do Statikos (a largura B só é conhecida depois do cálculo); informar B na base da parede substitui', aConfirmar: true,
     descricao: 'Largura B das molas da base da parede sem B informada: espessura da parede + 2 × este balanço. A sapata calculada pode resultar em B diferente; o aviso aparece no resultado.' },
+  { chave: 'fundParedeBarraMola', rotulo: 'Pilar-parede sobre molas: lados curtos em barra também sobre molas', min: 0, max: 1, passo: 1, padrao: 1, padraoNBR: 0, fonteNBR: 'NBR 6118 e NBR 6122 não fixam o modelo da base: lados curtos engastados (comportamento da FU7c)', booleana: true, fonte: 'Programa de referência (pilar-parede com vinculação externa elástica em toda a base); a confirmar', aConfirmar: true,
+    descricao: 'Pilar-parede com a base sobre molas: os lados em barra (pilares virtuais) recebem molas de Winkler no nó da base: vertical k·B·ℓ e giros k·B·ℓ³/12 (em torno da normal ao lado) e k·ℓ·B³/12 (em torno do eixo do lado), com B a largura da base e ℓ o comprimento do lado. Desligado: engastados como na FU7c.' },
+  { chave: 'fundBaseIterada', rotulo: 'Pilar-parede sobre molas: iterar B com a sapata calculada', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Estimativa do Statikos (a largura B das molas depende da sapata e a sapata das reações); a confirmar', aConfirmar: true,
+    descricao: 'Com sapata lançada sob o pilar-parede de base sobre molas, a análise é repetida com B (largura da sapata calculada) no lugar de espessura + 2 × balanço, até a variação de A e B ficar abaixo da tolerância ou esgotar o número de iterações. Desligado: B = espessura + 2 × balanço.' },
+  { chave: 'fundBaseIterTol', rotulo: 'Iteração de B das molas: tolerância', unidade: 'cm', min: 0, max: 50, passo: 1, padrao: 5, fonte: 'Estimativa do Statikos (as dimensões das sapatas são múltiplas de 5 cm); a confirmar', aConfirmar: true,
+    descricao: 'Variação máxima de A e de B da sapata do pilar-parede entre duas iterações para considerar a iteração convergida.' },
+  { chave: 'fundBaseIterMax', rotulo: 'Iteração de B das molas: número máximo de iterações', min: 1, max: 20, passo: 1, padrao: 6, fonte: 'Estimativa do Statikos; a confirmar', aConfirmar: true,
+    descricao: 'Número máximo de reanálises da iteração de B das molas do pilar-parede; ao esgotar sem convergir, o resultado traz aviso.' },
+  { chave: 'fundPilarParede', rotulo: 'Gerar fundação dos pilares-parede', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Programa de referência (pilares-parede com vinculação externa têm sapata ou bloco como os pilares); a confirmar', aConfirmar: true,
+    descricao: 'O gerador de fundações inclui os pilares-parede que nascem na fundação (sapata, bloco ou tubulão sob o retângulo envolvente do pilar-parede, vigas de equilíbrio e de travamento como entre pilares). Desligado: só os pilares.' },
   { chave: 'paredeVigaEmbutida', rotulo: 'Vigas embutidas em parede de concreto: armadura própria', min: 0, max: 1, passo: 1, padrao: 1, padraoNBR: 0, fonteNBR: 'NBR 6118 não trata a viga embutida: dimensionada como viga comum', booleana: true, fonte: 'Programa de referência (viga embutida em parede e cintas: taxas mínimas); NBR 6118, 17.3.5.2.1 e 17.4.1.1.1 (mínimos); a confirmar', aConfirmar: true,
     descricao: 'Ligado: a viga embutida numa parede de concreto (viga de coroamento, cinta) é apoiada pela parede em todo o comprimento e leva a armadura mínima longitudinal (As,mín da NBR 6118, 17.3.5.2.1) e transversal (ρsw,mín, 17.4.1.1.1), e a armadura calculada pelo pórtico deixa de valer (a parede, e não a viga, leva a carga). Desligado: dimensionada como viga comum.' },
   { chave: 'alvenariaVigaArmar', rotulo: 'Vigas sobre muros de alvenaria: armar sempre', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Programa de referência (armadura opcional das vigas no nível das lajes sobre muros de alvenaria genérica e das de coroamento em blocos; a de topo do muro de subsolo é sempre armada)', aConfirmar: false,
@@ -1277,7 +1297,7 @@ export const OPCOES_ANALISE: ReadonlySet<keyof OpcoesCalculo> = new Set<keyof Op
   // E5m: vigas em desnível dividem o pilar (nós intermediários no pórtico)
   'desnivelVigaPilar',
   // E1a: engaste da base do pilar apoiado em viga ou laje (transição) entra na rigidez do modelo
-  'engasteTransicao', 'fundParedeK', 'fundParedeAba',
+  'engasteTransicao', 'fundParedeK', 'fundParedeAba', 'fundParedeBarraMola', 'fundBaseIterada', 'fundBaseIterTol', 'fundBaseIterMax',
   // E1b: modelo do pilar-parede (casca ou barra) e viga fictícia do topo
   'pilarParedeLimite', 'pilarParedeVigaAltura',
   // N2e: trecho rígido da viga apoiada, barras curtas e desnível entre panos entram no modelo de cálculo
