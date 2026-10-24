@@ -16,9 +16,11 @@ Atualizado em 24/10/2026. Ler junto com o Andamento de `docs/plano-execucao.md`.
 4. Briefing padrão dos agentes: citar `docs/regras-agentes.md`. Antes: ver as rodadas recentes no histórico desta sessão; regras fixas — worktree próprio + `ln -s /home/user/new-toll/node_modules node_modules`; consultar `docs/mapa-codigo.md`; e2e com `{ exact: true }` exceto NumField/Select (regex ancorada); cada cartão compila sozinho; não criar tarefas agendadas; sem processos em segundo plano; relatório UMA vez; `npm run mapa` no fim.
 
 ## Rodada em andamento
-24/10/2026 noite (conferir ao retomar): MD4 (memória da punção, branch md4) e E6d (Opus: rigidez axial das paredes separada da flexão + lados variáveis por pavimento, branch e6d). E6a/E6c juntadas na branch da sessão, aguardando o próximo gate.
+25/10/2026 (conferir ao retomar): MD5c (memória do radier e vigas de fundação, branch md5c) e V7g (torção do pilar-parede + cobrimento do estado da seção, branch v7g).
 
-No main (b10b16a): MD1 integrada à E5m, MD2 (lajes maciças), MD3 (nervuradas, vigotas, fichas, alveolares, flechas), R8a, R8b, N4c, V7a, V7b. 2.154 testes, 133 e2e, pacote 5.763 KB (cresceu com a memória detalhada: carregar sob demanda no fechamento). Decisão pendente do usuário: `vigaAncoragemEixo` (R8a) ligada no padrão do sistema mede a ancoragem do eixo (NBR: da face). Restam resíduos V7c, V7d, V7e, V7f, N4a, N4b (material do usuário), E6b (material), FU7d; MD5–MD9; fechamento.
+No main: E6a, E6c, E6d, correção kGiro (giro relativo nas cascas), barra–casca (pivô nulo relativo; referência do pilar virtual no nó), FU7d, MD4 + correção do C″ da punção (anéis até atender; 10 resultados de nervurada com ábaco mudaram), MD5a/MD5b, V7c–V7f, desempenho do método geral (vitest 964 → ~400 s). 2.334 testes, 143 e2e, pacote 6.142 KB.
+Decisões pendentes do usuário: (1) `vigaAncoragemEixo` (R8a) mede do eixo no padrão do sistema (NBR: da face); (2) ligação barra–casca no plano fica quase rotulada (distribuir pelos nós vizinhos?); (3) sugerir "aumentar o ábaco" quando o C″ exigir anéis muito além do ábaco.
+Restam: N4a, N4b, E6b (material do usuário), MD6–MD9, fechamento (pacote 6,1 MB: memória sob demanda).
 
 ## Próxima rodada (depois desta)
 1. Demais E5 (b–g, i–k), FU7d.
