@@ -851,7 +851,9 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
     const { m, casos, trechoDe, tags } = gb;
     const nn = m.nos.length;
     const pils = gb.pilares.map((id) => pilarPor.get(id)!);
-    const geo = pils.map((pl) => { const g = geoEm(pl, pav.id); return { p: g.p, s: g.secao, cont: contornoPilar(g.p, g.secao), c: centroPilar(g.p, g.secao) }; });
+    // polo do corpo rígido de cada pilar da fronteira: o ponto do nó do pórtico (centro da seção; na fatia do topo da parede,
+    // o eixo do lado na abscissa do vértice, que difere do centro do retângulo nas pontas e em parede excêntrica)
+    const geo = pils.map((pl) => { const g = geoEm(pl, pav.id); return { p: g.p, s: g.secao, cont: contornoPilar(g.p, g.secao), c: (ehVirtual(pl) && pl.origem.no) || centroPilar(g.p, g.secao) }; });
     const gidx = new Map([...gb.idx].map(([i, gi]) => [gi, i]));
     const assoc0 = new Int32Array(nn).fill(-1);
     for (let n = 0; n < nn; n++) {

@@ -1,4 +1,4 @@
-import { BandLDL } from './math';
+import { BandLDL, pivoNulo } from './math';
 
 /**
  * Fatoração LDLᵀ esparsa (matriz simétrica, sem pivotamento) com reordenação por grau mínimo.
@@ -177,6 +177,7 @@ export class SparseLDL implements FatoracaoLDL {
         while (len > 0) pattern[--top] = pattern[--len];
       }
       let dk = Y[k];
+      const d0 = dk;
       Y[k] = 0;
       for (; top < n; top++) {
         const i = pattern[top], yi = Y[i];
@@ -187,7 +188,7 @@ export class SparseLDL implements FatoracaoLDL {
         dk -= lki * yi;
         Li[p2] = k; Lx[p2] = lki; Lnz[i]++;
       }
-      if (Math.abs(dk) < tol) { this.singularRow = kk; return; }
+      if (pivoNulo(dk, d0, tol)) { this.singularRow = kk; return; }
       D[k] = dk;
       if (dk < 0) this.negatives++;
     }

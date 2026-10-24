@@ -181,6 +181,19 @@ export function rcmOrder(K: SpRows, idx: number[]): { order: number[]; hb: numbe
 }
 
 /**
+ * Pivô nulo (estrutura instável) na fatoração LDLᵀ: |s| abaixo de `tol` (1e-11 da escala, em geral a maior diagonal)
+ * E com perda de dígitos, isto é, s cancelado em relação à diagonal original d0 da própria linha (|s| < 1e-6·|d0|), ou
+ * já no nível do arredondamento da escala (|s| < 1e-5·tol ≈ 1e-16 da escala). Um mecanismo zera o pivô por cancelamento
+ * (s ≪ d0); um gdl legítimo de rigidez pequena (giro no plano de casca, estabilizado por penalização relativa) tem s ≈ d0
+ * e não é mecanismo, mesmo quando a escala vem de ligações rígidas por penalidade (barra–casca, 24/10/2026). Só alivia o
+ * critério antigo (|s| < tol): o que passava continua passando com o mesmo resultado.
+ */
+export const pivoNulo = (s: number, d0: number, tol: number): boolean => {
+  const a = Math.abs(s);
+  return a < tol && (a < 1e-6 * Math.abs(d0) || a < 1e-5 * tol);
+};
+
+/**
  * Fatoração LDLᵀ em banda (matriz simétrica, sem pivotamento). Custo n·hb².
  * `singularRow` ≥ 0 indica pivô nulo (estrutura instável) na posição dada.
  */
@@ -209,7 +222,7 @@ export class BandLDL {
         for (let k = k0; k < j; k++) s -= L[i * w + (k - i + hb)] * L[j * w + (k - j + hb)] * D[k];
         if (j < i) L[i * w + (j - i + hb)] = s / D[j];
         else {
-          if (Math.abs(s) < tol) { this.singularRow = i; return; }
+          if (pivoNulo(s, L[i * w + hb], tol)) { this.singularRow = i; return; }
           D[i] = s;
           if (s < 0) this.negatives++;
           L[i * w + hb] = 1;

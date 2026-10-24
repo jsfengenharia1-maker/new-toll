@@ -48,10 +48,12 @@ describe('viga em parede: vão de cálculo limitado à distância entre eixos (K
     expect(lc(sem).length).toBeGreaterThan(0);
     expect(lc(com).length).toBe(lc(sem).length);
         for (let i = 0; i < lc(com).length; i++) expect(lc(com)[i]).toBeLessThanOrEqual(lc(sem)[i] + 1e-9);
-    // vão entre as partes flexíveis 2,875 e 3,875 m + (2·h/2 − 0,3·h) = 0,56 m do lado da parede (h = 0,8 m) contra os eixos: pilar (x = -3) a parede
-    // (centro do contato x = 0,25) = 3,25 m; parede ao pilar em x = 4,5 m = 4,25 m
+    // vão entre as partes flexíveis 3,0 e 4,0 m (do centro do pilar à ponta da parede, x = 0 e x = 0,5) + (2·h/2 − 0,3·h) = 0,56 m do lado da
+    // parede (h = 0,8 m) contra os eixos: pilar (x = -3) a parede (centro do contato x = 0,25) = 3,25 m; parede ao pilar em x = 4,5 m = 4,25 m.
+    // Até 24/10/2026 as partes flexíveis eram 2,875 e 3,875 m: o polo da fatia da ponta no modelo integrado era o centro do retângulo
+    // (x = 0,125) e não o nó do pórtico (x = 0), o que deslocava a ponta da viga 0,125 m para fora da parede e tirava o equilíbrio de momento.
     const unicos = (a: number[]) => [...new Set(a.map((x) => x.toFixed(4)))].map(Number).sort((p, q) => p - q);
-    expect(unicos(lc(sem))).toEqual([3.435, 4.435]);
+    expect(unicos(lc(sem))).toEqual([3.56, 4.56]);
     expect(unicos(lc(com))).toEqual([3.25, 4.25]);
   }, 120000);
 });

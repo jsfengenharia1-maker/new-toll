@@ -74,7 +74,17 @@ export function retanguloDoLado(g: LadoGeo, pav: string, s0 = g.ext(pav)[0], s1 
 }
 
 /** Pilar virtual de um lado ou de uma fatia do topo (geometria para as regras de apoio das vigas e para o modelo). */
-export type PilarVirtual = Pilar & { origem: { pp: string; lado: number; tipo: 'lado' | 'fatia'; casca: boolean } };
+export type PilarVirtual = Pilar & {
+  origem: {
+    pp: string; lado: number; tipo: 'lado' | 'fatia'; casca: boolean;
+    /**
+     * Fatia: ponto (x, y) do nó do pórtico (eixo do lado na abscissa do vértice da malha). Difere do centro do retângulo nas
+     * fatias das pontas, entre linhas de malha desiguais e em parede excêntrica; é o polo do corpo rígido da fatia no modelo
+     * integrado, para a grelha e o pórtico usarem o mesmo ponto (equilíbrio de momento, 24/10/2026).
+     */
+    no?: P;
+  };
+};
 export const ehVirtual = (p: Pilar): p is PilarVirtual => 'origem' in p;
 
 /** Pilar virtual (retângulo comp × t, eixo local x ao longo do lado) com as seções por lance. */
@@ -297,6 +307,8 @@ export function geometriaParedes(b: BuildingModel, op: Pick<OpcoesCalculo, 'malh
           if (s < e0 - 1e-6 || s > e1 + 1e-6) return; // recorte do lance (E6d): sem parede, sem fatia
           const s0 = q === 0 || Math.abs(s - e0) < 1e-6 ? e0 : (S[q - 1] + s) / 2, s1 = q === S.length - 1 || Math.abs(s - e1) < 1e-6 ? e1 : (s + S[q + 1]) / 2;
           const f = pilarVirtualDoLado(g, `${g.id}@${pav}.${q}`, `${g.nome}@${q}`, nasce, pav, [pav], s0, s1, 'fatia');
+          const pn = pontoDoLado(g, s, 0);
+          f.origem.no = [pn[0], pn[1]];
           f.engastes = [{ pavimento: pav, topo: 0, base: 0 }];
           fatias.push(f);
         });
