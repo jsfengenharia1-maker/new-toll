@@ -17,6 +17,9 @@ import type { FlechaAlinhamento } from './dimensionamento';
 import { ehNervurada, geometriaNervurada, modelosTrelicadas, trelicasDe, type FamiliaVigota, type FonteLajes } from './tiposLaje';
 import { conversaoDaLaje, gruposEmCadeia, igualarPorArea, type ConversaoArea } from './vigotasArea';
 import { mensagemMontagem, montagemDaLaje } from './vigotasMontagem';
+import { memoriaAtiva } from '../memoria/registrador';
+import { registrarAcoNervurada } from '../memoria/nervurada';
+import { registrarGrupoVigotas, registrarVigotasBase, registrarVigotasLaje, type CtxVigCortante, type CtxVigNegativo } from '../memoria/vigotas';
 import { acoDe, cobrimentoLaje, concretoDe, gamas } from './materiais';
 import type { OpcoesCalculo } from './opcoes';
 import { casosDaObra, pavimentosDoGrupo, type BuildingModel, type Laje, type TipoVao } from './types';
@@ -361,6 +364,13 @@ export function dimensionarVigotas(b: BuildingModel, an: AnaliseEdificio, lajes:
     const lbS = (phi: number) => lbBasico(phi, c, aS.fyd, h - cob.sup <= 0.3 + 1e-9, aS.aco === 'CA-60');
     const B = vaos(l)[1], nTotal = Math.max(1, Math.round(B / intereixo)), larguraTotal = faixas.reduce((t, f) => t + f.largura, 0);
     let restante = nTotal;
+    // memória detalhada (MD3): um elemento por laje treliçada
+    const memV = memoriaAtiva(), elV = `Laje ${l.nome}`, regV = memV?.aceita(elV) ? memV : null;
+    if (regV) {
+      const obra = casosDaObra(b);
+      const elu = an.casos.map((caso) => { const n = obra.find((x) => x.id === caso)?.natureza ?? 'G'; return { caso, f: n === 'G' ? gm.g : n === 'H' ? gm.h : n === 'Q' ? gm.q : 0 }; }).filter((q) => q.f !== 0);
+      registrarVigotasBase(regV, elV, { nome: l.nome, pavimentos: nomesPav.join(', '), modelo: modeloNome, trelica: nomeTr, phiBanzo: tr.inf, AsBanzo, fyd60, AsTrel, intereixo, bw, capa, hEnch, h, pp: g0.pp, nVigotas: nTotal, nGrupos: idxGr.length, capaMin, rhoMin: RHO_MIN_LAJE, AsMin, c, fydInf: aI.fyd, fydSup: aS.fyd, acoInf: aI.aco, acoSup: aS.aco, gs: gm.s, cobInf: cob.inf, cobSup: cob.sup, dI, dS, elu, bloqueada: !!trava });
+    }
     const grupos: GrupoVigotas[] = idxGr.map((ids, gi) => {
       for (const i of ids) faixas[i].grupo = gi;
       const lg = ids.reduce((t, i) => t + faixas[i].largura, 0), L = ids.reduce((t, i) => t + faixas[i].L * faixas[i].largura, 0) / lg;
@@ -384,6 +394,7 @@ export function dimensionarVigotas(b: BuildingModel, an: AnaliseEdificio, lajes:
       if (fl.double) erros.push(`Vigotas: altura insuficiente para a flexão positiva (Md = ${fmt(esf.mPos)} kN·m por nervura exige armadura de compressão); aumente a altura da laje.`);
       else if (!barras) erros.push(`Vigotas: momento positivo ${fmt(esf.mPos)} kN·m por nervura acima do resistente com a treliça ${nomeTr} + 2φ12,5 adicionais (As necessária ${fmt(AsNec)} cm²); aumente a altura da laje.`);
       // negativos e cortante por ponta
+      const detNeg: (CtxVigNegativo | null)[] = [null, null], detCort: CtxVigCortante[] = [];
       const negativos = [0, 1].map((k): NegativoVigota | null => {
         const M = -esf.mNeg[k];
         if (M < 0.01) return null;
@@ -406,6 +417,7 @@ export function dimensionarVigotas(b: BuildingModel, an: AnaliseEdificio, lajes:
         const x0 = Math.max(...ids.map((i) => { const f = faixas[i]; return alcance(f.s, f.Mmin.map((x) => -x), 0, k as 0 | 1); }));
         const phi = br?.phi || 12.5, al = op.lajeDecalagem * dS, lb = lbNecessario(lbS(phi), phi, AsN, br?.As || AsN);
         const comprimento = Math.min(L, arred(Math.max((op.vigotaNegativoVao / 100) * L, x0 + al + lb), op.arredondamento));
+        if (regV) detNeg[k] = { M, MRdN, MRdM, macico, bwEf: M > MRdN ? intereixo : bw, fn: { As: fn.As, double: fn.double }, AsN, br, trava: trava?.sup ? { n: trava.sup.n, phi: trava.sup.phi } : null, x0, al, lb, lbBase: lbS(phi), comprimento, L, vao: L, arred: op.arredondamento, decalagem: op.lajeDecalagem, pctVao: op.vigotaNegativoVao / 100 };
         return { AsNec: AsN, barras: br, comprimento, x0: r3(x0), al: r3(al), lb: r3(lb), MRdNervura: MRdN, macico: r3(macico) };
       }) as [NegativoVigota | null, NegativoVigota | null];
       const cortante = [0, 1].map((k): CortanteVigota => {
@@ -419,6 +431,7 @@ export function dimensionarVigotas(b: BuildingModel, an: AnaliseEdificio, lajes:
           if (Vsd > Math.min(V1m, V2m)) erros.push(`Vigotas: cortante ${fmt(Vsd)} kN por nervura acima do resistente mesmo com a faixa maciçada (${fmt(Math.min(V1m, V2m))} kN); exige armadura transversal ou laje mais alta.`);
           else erros.push(`Vigotas: cortante ${fmt(Vsd)} kN por nervura acima de VRd1 = ${fmt(V1)} kN (NBR 6118, 19.4.1): maciçar ${fmt(Math.max(macico, 0.01) * 100, 0)} cm junto ao apoio (${k ? 'fim' : 'início'}).`);
         }
+        if (regV) detCort[k] = { Vsd, V1, V2, macico, As1, d: dd, V1m: vrd1(c, intereixo, dd, As1), V2m: vrd2(c, intereixo, dd) };
         return { Vsd, VRd1: V1, VRd2: V2, macico: r3(macico) };
       }) as [CortanteVigota, CortanteVigota];
       const macico = [0, 1].map((k) => Math.max(negativos[k]?.macico ?? 0, cortante[k].macico)) as [number, number];
@@ -427,6 +440,7 @@ export function dimensionarVigotas(b: BuildingModel, an: AnaliseEdificio, lajes:
         if (mc > 0.2 * L) avisos.push(`Vigotas: maciçamento de ${fmt(mc * 100, 0)} cm (${k ? 'fim' : 'início'}) maior que 20 % do vão.`);
       }
       const pm = (e: EsforcosVigota): EsforcosVigota => ({ mPos: e.mPos / intereixo, mNeg: [e.mNeg[0] / intereixo, e.mNeg[1] / intereixo], v: [e.v[0] / intereixo, e.v[1] / intereixo] });
+      if (regV) registrarGrupoVigotas(regV, elV, { gi, nFaixas: ids.length, vigotas: nv, L, criterio: crit, difPct: op.vigotaIgualacaoDif, porArea: !!conv, eg: eg.esforcos, red: red ? { delta: red.delta, aplicada: red.aplicada, pct: op.redistribuicao, deltaMin: deltaMinVigotas(an), continuas: [continuas.some((q) => q[0]), continuas.some((q) => q[1])] } : null, esf, sec: tee, c, fydInf: aI.fyd, fydSup: aS.fyd, dI, dS, bw, intereixo, h, capa, hEnch, fl: { As: fl.As, double: fl.double }, AsMin, AsTrel, AsNec, AsAd, barras, trava: trava?.inf ? { n: trava.inf.n, phi: trava.inf.phi } : null, comprimento: arred(L, op.arredondamento), negativos: detNeg, cortante: detCort, macico });
       return {
         faixas: ids, vigotas: nv, L: r3(L), esforcos: esf, porMetro: pm(esf), diagrama: eg.diagrama,
         positiva: { AsNec, AsTrelica: AsTrel, AsAdicional: AsAd, barras, comprimento: arred(L, op.arredondamento), duplaNecessaria: fl.double },
@@ -450,6 +464,10 @@ export function dimensionarVigotas(b: BuildingModel, an: AnaliseEdificio, lajes:
     const A = Math.abs(areaPoligono(l.contorno)) - (l.furos ?? []).reduce((t, f) => t + Math.abs(areaPoligono(f)), 0), Lv = vaos(l)[0];
     posicoes.push({ tipo: 'distribuicao', aco: aS.aco, phi: phiD, n: Math.max(2, Math.ceil(Lv / sD) + 1), comprimento: arred(A / (Lv || 1), op.arredondamento) });
     const peso = posicoes.reduce((t, x) => t + x.n * x.comprimento * barArea(x.phi) * ACO_KG_M3, 0);
+    if (regV) {
+      registrarVigotasLaje(regV, elV, { montagem: montagem ? { ...montagem, dist: op.vigotaEscoraDist, pp: g0.pp, construcao: op.vigotaCargaConstrucao, intereixo, divisor: op.vigotaMontagemLimite } : undefined, AsPrinc, AsDist, phiD, sD, capa, bitolaMinima: op.lajeBitolaMinima, ca60: aS.aco === 'CA-60', posicoes, peso, repeticoes: Math.max(1, pavs.length) });
+      registrarAcoNervurada(regV, elV, { posicoes, peso, repeticoes: Math.max(1, pavs.length) });
+    }
     const comprimentoVigotas = grupos.reduce((t, g) => t + g.vigotas * g.L, 0);
     const adic = grupos.map((g) => (g.positiva.barras?.n ? `${g.positiva.barras.n}φ${fphi(g.positiva.barras.phi)}` : '—'));
     const resumo = `Treliçada ${modeloNome}+${Math.round(capa * 100)}: ${nomeTr} (banzo inferior 2φ${fphi(tr.inf)} CA-60), ${nTotal} vigotas em ${grupos.length} grupo(s); Md+ máx. ${fmt(Math.max(...grupos.map((g) => g.esforcos.mPos)))} kN·m por nervura; adicional por nervura ${[...new Set(adic)].join(' / ')}.`;
