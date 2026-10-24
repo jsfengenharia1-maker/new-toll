@@ -11,7 +11,7 @@ import { arranjoNervuras, geometriaBidirecional } from './nervuradas';
 import { montarPrancha, type Prim } from '../sheets/prancha';
 import { montarPranchasLajes } from '../sheets/armacaoLajes';
 import { barArea } from '../concrete';
-import { larguraNecessaria, escolherBarras, extensaoNegativa, esforcosDaNervura } from './nervuradasDim';
+import { armaduraNecessariaNervurada, larguraNecessaria, escolherBarras, extensaoNegativa, esforcosDaNervura } from './nervuradasDim';
 import type { BuildingModel } from './types';
 
 function padrao(): Sessao { const s = new Sessao(); for (const c of comandosEdificioPadrao()) s.executar(c.nome, c.params, 'sistema'); return s; }
@@ -319,5 +319,35 @@ describe('funções auxiliares', () => {
     // eixo em 3,05 → banda [2,75; 3,35]; sem a faixa de 3,4 (lacuna): 0,75 (2,8) + 1 (3,0) + 1 (3,2) = 2,75 faixas
     const e2 = esforcosDaNervura({ ...rib, c: 3.05 }, linhas.filter((l) => l.c !== 3.4), 0.6, arr);
     expect(Math.max(...e2.Mmax)).toBeCloseTo(27.5, 9);
+  });
+});
+
+describe('taxa de armadura por metro das nervuradas (V6f)', () => {
+  const b = predio().modelo, l = b.lajes[0], g = geometriaBidirecional(b, l.tipo as never);
+  const c = concretoDe(b, 'laje'), cob = cobrimentoLaje(b, l.cobrimento);
+
+  it('positivo em T com a linha neutra na mesa: bloco retangular de largura bf contra a solução fechada', () => {
+    const M = 40, bf = g.i[0], d = g.h - cob.inf - 0.01, fyd = acoDe(b, 'lajeInf').fyd;
+    const Md = (M * bf) / 1000, a = c.sigmaCd * bf * c.lambda; // Md = a·x·(d − λx/2), a = σcd·bf·λ
+    // equação do 2º grau em x: (a·λ/2)·x² − a·d·x + Md = 0
+    const A2 = (a * c.lambda) / 2, xf = (a * d - Math.sqrt((a * d) ** 2 - 4 * A2 * Md)) / (2 * A2);
+    expect(c.lambda * xf).toBeLessThan(g.capa); // linha neutra (bloco) dentro da mesa
+    const AsEsperada = ((a * xf) / fyd) * 1e4 / bf; // cm² por nervura ÷ intereixo = cm²/m
+    const AsMin = (0.0015 * (bf * g.capa + g.bw[0] * g.hEnch) * 1e4) / bf;
+    expect(AsEsperada).toBeGreaterThan(AsMin);
+    expect(armaduraNecessariaNervurada(b, l, M, 'inf', 0)).toBeCloseTo(AsEsperada, 6);
+  });
+
+  it('negativo em retângulo da nervura; momento nulo cai no mínimo de 0,15 % e a taxa cresce com o momento', () => {
+    const bw = g.bw[1], bf = g.i[1];
+    expect(armaduraNecessariaNervurada(b, l, 0, 'sup', 1)).toBeCloseTo((0.0015 * bw * g.h * 1e4) / bf, 9);
+    expect(armaduraNecessariaNervurada(b, l, 0, 'inf', 1)).toBeCloseTo((0.0015 * (bf * g.capa + bw * g.hEnch) * 1e4) / bf, 9);
+    const a = armaduraNecessariaNervurada(b, l, -30, 'sup', 1), z = armaduraNecessariaNervurada(b, l, -60, 'sup', 1);
+    expect(a).toBeGreaterThan((0.0015 * bw * g.h * 1e4) / bf);
+    expect(z).toBeGreaterThan(a);
+    // o sinal do momento não importa (usa o módulo)
+    expect(armaduraNecessariaNervurada(b, l, 60, 'sup', 1)).toBeCloseTo(z, 12);
+    // laje que não é nervurada: zero
+    expect(armaduraNecessariaNervurada(b, { ...l, tipo: { tipo: 'macica', h: 0.12 } } as never, 5, 'inf', 0)).toBe(0);
   });
 });

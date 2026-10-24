@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { analisarEdificio } from '../building/analitico';
-import { dimensionarEdificio, woodArmer } from '../building/dimensionamento';
+import { armaduraNecessariaLaje, dimensionarEdificio, woodArmer } from '../building/dimensionamento';
 import { comandosEdificioPadrao, Sessao } from '../commands';
 import {
   areaDasBandas, areaDoCampo, areaPoligono, bandas, campoDeFuncao, csvCampo, dxfIsolinhas, encadear, extremos, faixaExibida, gradeRetangular,
@@ -8,6 +8,9 @@ import {
 } from './bandas';
 import { campoDoRadier, campoDoPavimento, elementoNoPonto, GRANDEZAS_ISO, hipotesesDeLaje, pavimentosComMapa } from './isovalores';
 import { hipoteseDeCaso } from './deformada';
+import { armaduraNecessariaNervurada } from '../building/nervuradasDim';
+import { arranjoNervuras, geometriaBidirecional, lajeComAbacos } from '../building/nervuradas';
+import type { Laje } from '../building/types';
 
 const retangulo = (a: number, b: number): P[] => [[0, 0], [a, 0], [a, b], [0, b]];
 
@@ -269,5 +272,43 @@ describe('V4: campos da laje do edifício', { timeout: 60000 }, () => {
     // tensão acima da admissível dando-a como limite mínimo: só a região σ ≥ 120 (x ≥ 2) → 2 × 3 m²
     expect(areaDasBandas(bandas(sig, [], { min: 120 }))).toBeCloseTo(6, 9);
     expect(campoDoRadier(bb as never, d as never, 'nada', 'rW').campo).toBeNull();
+  });
+});
+
+describe('V6f: taxa de armadura (cm²/m) em nervuradas bidirecionais', { timeout: 60000 }, () => {
+  const s = new Sessao();
+  for (const c of comandosEdificioPadrao()) s.executar(c.nome, c.params, 'sistema');
+  s.executar('lote', { comandos: [[0, 0], [6, 0], [6, 6], [0, 6]].map(([x, y]) => ({ nome: 'pilar.inserir', params: { x, y, secao: { tipo: 'ret', b: 0.3, h: 0.3 } } })) });
+  s.executar('lote', { comandos: [[[0, 0], [6, 0]], [[0, 6], [6, 6]], [[0, 0], [0, 6]], [[6, 0], [6, 6]]].map((p) => ({ nome: 'viga.tracar', params: { grupo: 'g_3', pontos: p, secao: { b: 0.2, h: 0.6 } } })) });
+  s.executar('laje.detectarPanos', { grupo: 'g_3', tipo: { tipo: 'nervurada', forma: 'cat:rec-60-30', hTotal: 0.35, capa: 0.05 } });
+  const b = s.modelo, an = analisarEdificio(b), dim = dimensionarEdificio(b, an), pav = pavimentosComMapa(b, an)[0].id;
+  const l = b.lajes[0] as Laje;
+
+  it('a envoltória das taxas existe nas nervuradas e é o máximo das duas direções', () => {
+    const r = campoDoPavimento(b, an, dim, { pavimento: pav, grandeza: 'AsInf' });
+    expect(r.campo).not.toBeNull();
+    expect(r.avisos.some((a) => a.includes('Nervuradas: taxa em cm²/m'))).toBe(true);
+    const x = faixaExibida(campoDoPavimento(b, an, dim, { pavimento: pav, grandeza: 'AsInfX' }).campo!), y = faixaExibida(campoDoPavimento(b, an, dim, { pavimento: pav, grandeza: 'AsInfY' }).campo!);
+    expect(faixaExibida(r.campo!).hi).toBeCloseTo(Math.max(x.hi, y.hi), 9);
+    // piso: o mínimo de 0,15 % da nervura ÷ intereixo vale em todo nó
+    expect(faixaExibida(r.campo!).lo).toBeGreaterThan(0.5);
+  });
+
+  it('cada nó reproduz a função de núcleo aplicada ao momento de cálculo (MxInf → AsInfX); zona maciça usa a laje maciça equivalente', () => {
+    const m = campoDoPavimento(b, an, dim, { pavimento: pav, grandeza: 'MxInf' }).campo!, a = campoDoPavimento(b, an, dim, { pavimento: pav, grandeza: 'AsInfX' }).campo!;
+    expect(a.valores.length).toBe(m.valores.length);
+    const g = geometriaBidirecional(b, l.tipo as never), arr = arranjoNervuras(lajeComAbacos(b, l, g), g, an.opcoes.nervuradaMacicoViga);
+    const equiv = { tipo: { tipo: 'macica', h: g.h }, cobrimento: l.cobrimento };
+    let aliviados = 0, macicos = 0;
+    a.valores.forEach((v, i) => {
+      const alivi = arr.aliviada(a.nos[i]);
+      if (alivi) { aliviados++; expect(v).toBeCloseTo(armaduraNecessariaNervurada(b, l, m.valores[i], 'inf', 0), 9); }
+      else if (i < m.valores.length) { macicos++; expect(v).toBeCloseTo(armaduraNecessariaLaje(b, an, equiv, m.valores[i], 'inf'), 9); }
+    });
+    expect(aliviados).toBeGreaterThan(10);
+    expect(macicos).toBeGreaterThan(3);
+    // a superior só tem valor onde o momento superior é negativo; no resto fica 0
+    const sup = campoDoPavimento(b, an, dim, { pavimento: pav, grandeza: 'AsSupX' }).campo!;
+    expect(Math.min(...sup.valores)).toBe(0);
   });
 });

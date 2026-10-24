@@ -4,7 +4,7 @@ import { create } from 'zustand';
 import type { Componente } from '../../core/resultados/esforcosCaso';
 import type { VistaVigota } from '../../core/resultados/vigotasVista';
 
-export type TipoElementoEsforco = 'viga' | 'pilar' | 'diagonal' | 'vigotas';
+export type TipoElementoEsforco = 'viga' | 'pilar' | 'diagonal' | 'vigotas' | 'alveolar';
 
 export interface JanelaEsforco {
   /** Número da janela (nunca reutilizado; entra nos rótulos dos controles). */

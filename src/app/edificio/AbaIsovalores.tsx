@@ -3,7 +3,9 @@
 // SVG, PNG, DXF e CSV. A matemática vem de src/core/resultados (funções puras).
 import { useMemo, type MouseEvent } from 'react';
 import { calculoAtual, useBuilding } from './store';
-import { abrirJanela } from './Revisao';
+import { abrirJanela, irParaElemento } from './Revisao';
+import { TabelaLajes } from './TabelaLajes';
+import { useEdifUI } from './uiStore';
 import { pavimentosOrdenados, type BuildingModel } from '../../core/building/types';
 import {
   bandas, csvCampo, dxfIsolinhas, encadear, enquadramento, extremos, faixaExibida, fmtIso, isolinhas, legenda, niveisAutomaticos,
@@ -44,6 +46,7 @@ export function AbaIsovalores({ b }: { b: BuildingModel }) {
       <div className="isov-janelas" data-isov-janelas={janelas.length}>
         {janelas.map((j) => <JanelaIsovalores key={j.id} j={j} b={b} />)}
       </div>
+      <MenuLajes b={b} />
     </div>
   );
 }
@@ -173,3 +176,16 @@ function JanelaIsovalores({ j, b }: { j: JanelaIso; b: BuildingModel }) {
   );
 }
 
+
+/** Menu de lajes igual ao da aba Dimensionamento (C12.15): um clique leva à laje na planta e o duplo clique abre a janela da laje. */
+function MenuLajes({ b }: { b: BuildingModel }) {
+  const lajes = useBuilding((s) => s.dim?.lajes);
+  if (!lajes?.length) return <p className="hint">Calcule e dimensione a obra (aba Dimensionamento) para ver o menu de lajes.</p>;
+  return (
+    <div className="card" data-menu-lajes>
+      <h3>Lajes</h3>
+      <TabelaLajes lajes={lajes} onIr={(tipo, id, pav) => { irParaElemento(b, tipo, id, pav); useEdifUI.getState().set({ aba: 'planta' }); }} />
+      <Hint>Mesma tabela da aba Dimensionamento: clique para ir à laje na planta; duplo clique abre a janela da laje (resultados, vista e edição da armadura).</Hint>
+    </div>
+  );
+}

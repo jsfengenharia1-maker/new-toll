@@ -55,6 +55,18 @@
   --m-iso-escada: #aa9fd0;
   --m-iso-pendente: #c2379f;
   --m-iso-sel: #d97706;
+  /* mapas de isovalores das lajes (V6f): azul (menor valor) a vermelho (maior valor) */
+  --m-isov-0: #2b4ba8;
+  --m-isov-1: #3f6fc4;
+  --m-isov-2: #5c93d6;
+  --m-isov-3: #86b6e2;
+  --m-isov-4: #b3d4ea;
+  --m-isov-5: #e3ece9;
+  --m-isov-6: #f2dcb4;
+  --m-isov-7: #eab883;
+  --m-isov-8: #de8d5c;
+  --m-isov-9: #c95a3c;
+  --m-isov-10: #a02a2a;
 }
 .memo{font:12.5px/1.55 var(--m-font-ui);color:var(--m-ink);background:var(--m-paper);max-width:820px;margin:0 auto;padding:40px 48px 64px}
 .memo h1{font-size:22px;margin:0 0 4px;letter-spacing:.01em}
@@ -88,6 +100,10 @@ html,body{background:var(--m-paper)!important}
 .memo h2{margin-top:18px}
 .memo h2.pb{break-before:page;margin-top:0}
 .memo h2,.memo h3{break-after:avoid;page-break-after:avoid}
+.memo .iso-svg .iso-linha{fill:none;stroke:var(--m-ink);stroke-width:.8px;opacity:.7;vector-effect:non-scaling-stroke}
+.memo .iso-svg .iso-contorno{fill:none;stroke:var(--m-ink);stroke-width:1.4px;vector-effect:non-scaling-stroke}
+.memo .iso-svg .iso-valor{fill:var(--m-ink);font-family:var(--m-font-num)}
+.memo .iso-svg .iso-leg-txt,.memo .iso-svg .iso-leg-tit{fill:var(--m-ink);font-family:var(--m-font-num)}
 .memo figure,.memo table,.memo .formula,.memo .verdict,.memo .id,.memo .sign,.memo ul{break-inside:avoid;page-break-inside:avoid}
 .memo tr,.memo td,.memo th{break-inside:avoid;page-break-inside:avoid}
 .memo thead{display:table-header-group}

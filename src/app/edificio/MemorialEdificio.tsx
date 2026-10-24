@@ -8,6 +8,7 @@ import { MemorialDiagonais } from './MemorialDiagonais';
 import { MemorialConsolos } from './MemorialConsolos';
 import { MemorialInclinadas } from './MemorialInclinadas';
 import { MemorialEscadas } from './MemorialEscadas';
+import { MemorialMapas } from './MemorialMapas';
 import { MemorialEscadasCalculo } from './MemorialEscadasCalculo';
 import { MemorialVigotasFicha } from './MemorialVigotasFicha';
 import { PAINEL_TELA } from '../../core/building/telasSoldadas';
@@ -68,6 +69,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
   const docRef = useRef<HTMLDivElement>(null);
   const [today] = useState(() => new Date().toLocaleDateString('pt-BR'));
   const [iso, setIso] = useState(false);
+  const [mapas, setMapas] = useState(false);
   const [eluDet, setEluDet] = useState(false);
   const [guia, setGuia] = useState(false);
   const r = useMemo(() => (analise ? resumoAnalise(b, analise) : null), [b, analise]);
@@ -133,6 +135,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
         <span className="muted">{!analise ? 'Sem cálculo: só geometria e premissas.' : velha ? 'O modelo mudou depois do cálculo: calcule de novo.' : 'Gerado a partir do último cálculo.'}</span>
         <Spacer />
         <Check label="Incluir vista isométrica" checked={iso} onChange={setIso} />
+        <Check label="Incluir mapas de resultados das lajes" checked={mapas} onChange={setMapas} />
         <Check label="ELU por combinação" checked={eluDet} onChange={setEluDet} />
         <Check label="Incluir guia rápido (anexo)" checked={guia} onChange={setGuia} />
         <Button variant="primary" onClick={() => { printHtmlDoc(html()); st.set({ message: 'Impressão do memorial: escolha “Salvar como PDF”.' }); }}>Imprimir / PDF</Button>
@@ -195,6 +198,8 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
           {b.grupos.map((g) => { const svg = svgPlantaGrupo(b, g.id, falhas); return svg ? <figure key={g.id}><div dangerouslySetInnerHTML={{ __html: svg }} /><figcaption>Planta de fôrma esquemática — {g.nome}{falhas.size ? ' (em vermelho: elementos que não atendem)' : ''}</figcaption></figure> : null; })}
 
           {(() => { const fig = iso ? svgIsometrico(b, { fundacoes: dim?.fundacoes, vigasFundacao: dim?.vigasFundacao }) : ''; return fig ? <figure data-isometrico><div dangerouslySetInnerHTML={{ __html: fig }} /><figcaption>Vista isométrica do edifício, gerada da geometria lançada (pilares, vigas, lajes{dim?.fundacoes?.length ? ' e fundações' : ''}); cores por tipo de elemento.</figcaption></figure> : null; })()}
+
+          {mapas && <MemorialMapas b={b} analise={analise ?? null} dim={dim} h2={h2} />}
 
           <MemorialEscadas b={b} h2={h2} />
           <MemorialEscadasCalculo b={b} h2={h2} />

@@ -5,6 +5,8 @@ import { camadaEstilo } from './estilo';
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 const n = (v: number) => +v.toFixed(2);
+/** Cinza de 0 (preto) a 1 (branco) como #rrggbb. */
+const cinza = (g: number) => `#${Math.round(255 * Math.min(1, Math.max(0, g))).toString(16).padStart(2, '0').repeat(3)}`;
 
 export function svgPrancha(pr: Prancha): string {
   const H = pr.H, Y = (y: number) => n(H - y);
@@ -13,7 +15,7 @@ export function svgPrancha(pr: Prancha): string {
     const cam = camadaEstilo(pr, q.c), w = cam.pena, tr = cam.tipo === 'cont' ? '' : ` stroke-dasharray="${TRACOS[cam.tipo].join(' ')}"`;
     const attr = `data-camada="${q.c}"`;
     if (q.t === 'pl') out.push(`<${q.fechada ? 'polygon' : 'polyline'} ${attr} points="${q.pts.map((p) => `${n(p[0])},${Y(p[1])}`).join(' ')}" fill="none" stroke="#000" stroke-width="${w}"${tr}/>`);
-    else if (q.t === 'hach') out.push(`<polygon ${attr} points="${q.pts.map((p) => `${n(p[0])},${Y(p[1])}`).join(' ')}" fill="#9a9a9a" stroke="none"/>`);
+    else if (q.t === 'hach') out.push(`<polygon ${attr} points="${q.pts.map((p) => `${n(p[0])},${Y(p[1])}`).join(' ')}" fill="${q.g === undefined ? '#9a9a9a' : cinza(q.g)}" stroke="none"/>`);
     else if (q.t === 'circ') out.push(`<circle ${attr} cx="${n(q.centro[0])}" cy="${Y(q.centro[1])}" r="${n(q.r)}" fill="none" stroke="#000" stroke-width="${w}"/>`);
     else {
       const anchor = q.ah === 'c' ? 'middle' : q.ah === 'd' ? 'end' : 'start';

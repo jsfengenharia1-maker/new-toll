@@ -24,6 +24,12 @@ export const CAMADAS = {
   'FOLHA': { cor: 7, pena: 0.5, tipo: 'cont' },
   'FOLHA-FINA': { cor: 8, pena: 0.18, tipo: 'cont' },
   'FOLHA-TEXTO': { cor: 7, pena: 0.25, tipo: 'cont' },
+  // folha de resultados (V6f): bandas de isovalores (azul → vermelho, uma camada por token de cor) e isolinhas; ficam antes das demais para serem desenhadas por baixo
+  'ISO-0': { cor: 150, pena: 0.13, tipo: 'cont' }, 'ISO-1': { cor: 140, pena: 0.13, tipo: 'cont' }, 'ISO-2': { cor: 130, pena: 0.13, tipo: 'cont' },
+  'ISO-3': { cor: 110, pena: 0.13, tipo: 'cont' }, 'ISO-4': { cor: 90, pena: 0.13, tipo: 'cont' }, 'ISO-5': { cor: 70, pena: 0.13, tipo: 'cont' },
+  'ISO-6': { cor: 50, pena: 0.13, tipo: 'cont' }, 'ISO-7': { cor: 40, pena: 0.13, tipo: 'cont' }, 'ISO-8': { cor: 30, pena: 0.13, tipo: 'cont' },
+  'ISO-9': { cor: 20, pena: 0.13, tipo: 'cont' }, 'ISO-10': { cor: 10, pena: 0.13, tipo: 'cont' },
+  'ISOLINHAS': { cor: 7, pena: 0.13, tipo: 'cont' },
   'PILAR': { cor: 1, pena: 0.5, tipo: 'cont' },
   'PILAR-HACH': { cor: 8, pena: 0.13, tipo: 'cont' },
   'PILAR-NASCE': { cor: 1, pena: 0.35, tipo: 'trac' },
@@ -62,8 +68,8 @@ export type Prim =
   | { t: 'circ'; c: Camada; centro: P; r: number }
   /** Texto: `h` = altura das maiúsculas; `ang` em graus; alinhamento horizontal e vertical em relação a `p`. */
   | { t: 'txt'; c: Camada; p: P; h: number; s: string; ang?: number; ah?: 'e' | 'c' | 'd'; av?: 'base' | 'meio' | 'topo' }
-  /** Região preenchida (sólida). */
-  | { t: 'hach'; c: Camada; pts: P[] };
+  /** Região preenchida (sólida); `g` = cinza de 0 (preto) a 1 (branco) no PDF e no SVG (padrão 0,6; o DXF e o DWG usam a cor da camada). */
+  | { t: 'hach'; c: Camada; pts: P[]; g?: number };
 
 export const FORMATOS: Record<Formato, [number, number]> = { A0: [1189, 841], A1: [841, 594], A2: [594, 420], A3: [420, 297], A4: [297, 210] };
 /** Margens (mm) [a confirmar na NBR 16752]: esquerda 20 (maior, para furação, como nas folhas de referência); demais 10
@@ -74,13 +80,13 @@ export const LARGURA_LEGENDA = 178;
 export const ESCALAS = [75, 100, 125, 200, 250];
 
 /** Tipos de prancha do conjunto (R5) e sigla no carimbo. */
-export type TipoPrancha = 'formas' | 'locacao' | 'vigas' | 'pilares' | 'lajes' | 'fundacao' | 'paredes' | 'cargas' | 'perspectiva';
+export type TipoPrancha = 'formas' | 'locacao' | 'vigas' | 'pilares' | 'lajes' | 'fundacao' | 'paredes' | 'cargas' | 'perspectiva' | 'resultados';
 /**
  * Siglas das folhas de referência (fundação indireta SFN, direta SFS, formas SCF, vigas SCV, pilares SCP); lajes SCL por
  * extensão [a confirmar]. A sigla de `fundacao` é a padrão (SFN); cada folha de fundação leva a sua em `Prancha.sigla`
  * (`siglaFundacao`). Paredes e pilares-parede (E1d): SCM por extensão [a confirmar]. A locação dos pilares era SFN e passou a SLP, para não colidir com a fundação indireta.
  */
-export const SIGLAS: Record<TipoPrancha, string> = { formas: 'SCF', locacao: 'SLP', vigas: 'SCV', pilares: 'SCP', lajes: 'SCL', fundacao: 'SFN', paredes: 'SCM', cargas: 'SCC', perspectiva: 'SCX' };
+export const SIGLAS: Record<TipoPrancha, string> = { formas: 'SCF', locacao: 'SLP', vigas: 'SCV', pilares: 'SCP', lajes: 'SCL', fundacao: 'SFN', paredes: 'SCM', cargas: 'SCC', perspectiva: 'SCX', resultados: 'SCR' };
 export const siglaDe = (p: Pick<Prancha, 'tipo' | 'sigla'>) => p.sigla ?? SIGLAS[p.tipo ?? 'formas'];
 
 /** Linha da tabela de aço de uma prancha (comprimentos em cm e m). */

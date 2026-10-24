@@ -73,6 +73,7 @@ import { useEdifUI, type AbaEdificio, type DialogoL1, type DialogoL2, type Dialo
 import { JanelaConfiguracao } from './Configuracao';
 import { EtapasGrupo } from './EtapasObra';
 import type { EtapaId } from '../../core/building/etapas';
+import { TabelaLajes } from './TabelaLajes';
 import { abrirJanela, BotaoExportar, Deslocamentos, irParaElemento, JanelaElemento, LinhaElemento, ListaErros } from './Revisao';
 
 
@@ -947,13 +948,7 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar
           </div>
           <div className="card">
             <h3>Lajes</h3>
-            <table className="data quadro">
-              <thead><tr><th>Laje</th><th>Pavimento</th><th>Tipo</th><th>md+ (kN·m/m)</th><th>md− (kN·m/m)</th><th>As+ (cm²/m)</th><th>As− (cm²/m)</th><th>wk / lim. (mm)</th><th>Flecha / lim. (mm)</th><th>Flecha Q / lim. (mm)</th><th>Situação</th></tr></thead>
-              <tbody>{filtro(dim.lajes).map((x) => (
-                <LinhaElemento key={`${x.laje}-${x.pavimento}`} className={`click ${cls(x.status)}`} title={x.mensagens.join(' ')} ir={() => onIr('laje', x.laje, x.pavimento)} abrir={() => abrirJanela({ tipo: 'laje', id: x.laje, pavimento: x.pavimento })}>
-                  <td className="tl">{x.nome}</td><td className="tl">{x.pavimento}</td><td className="tl">{x.tipo}</td><td className="num">{fmt(x.mPos[0], 1)} / {fmt(x.mPos[1], 1)}</td><td className="num">{fmt(x.mNeg[0], 1)} / {fmt(x.mNeg[1], 1)}</td><td className="num">{fmt(x.As.pos[0])} / {fmt(x.As.pos[1])}</td><td className="num">{fmt(x.As.neg[0])} / {fmt(x.As.neg[1])}</td><td className={`num ${x.wk > x.wkLim + 1e-9 ? 'bad' : ''}`}>{fmt(x.wk, 2)} / {fmt(x.wkLim, 2)}</td><td className={`num ${x.flecha > x.limite + 1e-9 ? 'bad' : ''}`}>{fmt(x.flecha * 1000, 1)} / {fmt(x.limite * 1000, 1)}</td><td className={`num ${x.flechaQ > x.limiteQ + 1e-9 ? 'bad' : ''}`}>{fmt(x.flechaQ * 1000, 1)} / {fmt(x.limiteQ * 1000, 1)}</td><td>{ST_TXT[x.status]}</td>
-                </LinhaElemento>))}</tbody>
-            </table>
+            <TabelaLajes lajes={filtro(dim.lajes)} onIr={onIr} />
             <Hint>Duas direções da malha (x / y). Flecha total relativa aos apoios: elástica (G + ψ2·Q) × (1 + αf), sem fissuração; Q = flecha imediata só das cargas variáveis (limite sensorial ℓ/350). Limites editáveis nas opções de cálculo.</Hint>
           </div>
           {!!dim.fogo && <FogoCard onIr={onIr} />}

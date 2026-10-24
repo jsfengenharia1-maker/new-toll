@@ -12,16 +12,16 @@ import { montarPranchasLajes } from './armacaoLajes';
 import { montarPranchasParedes } from './armacaoParedes';
 import { montarPranchaLocacao } from './locacao';
 import { montarPranchasFundacao } from './fundacao';
-import { montarPranchaPerspectiva, montarPranchasCargas } from './folhasV5';
+import { montarPranchaPerspectiva, montarPranchasCargas, montarPranchasResultados } from './folhasV5';
 import { aplicarEstilo } from './estilo';
 import { inserirDetalhes } from './saidas';
 
 export type TipoSaida = TipoPrancha | 'todas';
-export const TIPOS_PRANCHA: TipoSaida[] = ['formas', 'locacao', 'fundacao', 'vigas', 'pilares', 'paredes', 'lajes', 'cargas', 'perspectiva', 'todas'];
+export const TIPOS_PRANCHA: TipoSaida[] = ['formas', 'locacao', 'fundacao', 'vigas', 'pilares', 'paredes', 'lajes', 'cargas', 'perspectiva', 'resultados', 'todas'];
 /** Ordem das pranchas no conjunto. */
 export const ORDEM_CONJUNTO: TipoPrancha[] = ['locacao', 'fundacao', 'formas', 'vigas', 'pilares', 'paredes', 'lajes'];
 /** Tipos que exigem análise e dimensionamento. */
-export const PRECISA_CALCULO: TipoPrancha[] = ['vigas', 'pilares', 'paredes', 'lajes', 'fundacao'];
+export const PRECISA_CALCULO: TipoPrancha[] = ['vigas', 'pilares', 'paredes', 'lajes', 'fundacao', 'resultados'];
 
 export interface OpcoesConjunto {
   /** Tipos de prancha (padrão: formas). 'todas' = o conjunto completo. */
@@ -35,8 +35,8 @@ export interface OpcoesConjunto {
   armaduras?: Record<string, string>;
 }
 
-/** Folhas só pedidas por nome (fora do conjunto completo): cargas por caso e perspectiva (V5). */
-export const FOLHAS_AVULSAS: TipoPrancha[] = ['cargas', 'perspectiva'];
+/** Folhas só pedidas por nome (fora do conjunto completo): cargas por caso e perspectiva (V5) e resultados (V6f). */
+export const FOLHAS_AVULSAS: TipoPrancha[] = ['cargas', 'perspectiva', 'resultados'];
 export const tiposDe = (t: OpcoesConjunto['tipos']): TipoPrancha[] => {
   const xs = Array.isArray(t) ? t : [t ?? 'formas'];
   return xs.includes('todas') ? ORDEM_CONJUNTO : [...ORDEM_CONJUNTO, ...FOLHAS_AVULSAS].filter((x) => xs.includes(x));
@@ -74,6 +74,7 @@ export function montarConjunto(b: BuildingModel, an: AnaliseEdificio | null, dim
     else if (t === 'paredes') { const pr = montarPranchasParedes(b, an, dim!, oa); if (!pr.length && !pedeTodas) avisos.push('Pranchas de paredes: não há paredes ou pilares-parede calculados.'); out.push(...pr); }
     else if (t === 'lajes') out.push(...montarPranchasLajes(b, an, dim!, oa));
     else if (t === 'cargas') { const prs = montarPranchasCargas(b, oa); if (!prs.length) avisos.push('Pranchas de cargas: não há cargas lançadas.'); out.push(...prs); }
+    else if (t === 'resultados') { const prs = montarPranchasResultados(b, an, dim, oa); if (!prs.length) avisos.push('Pranchas de resultados: não há pavimento com laje calculada.'); out.push(...prs); }
     else if (t === 'perspectiva') { const pr = montarPranchaPerspectiva(b, oa); if (pr) out.push(pr); else avisos.push('Perspectiva: não há elementos para desenhar.'); }
   }
   // V5: detalhes DXF inseridos e estilo de desenho (camadas, penas e textos) da obra

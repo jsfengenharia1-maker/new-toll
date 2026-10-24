@@ -1,6 +1,12 @@
 // Folhas da V5: cargas especiais por caso e grupo (K1.11.62, a prancha de cargas que a E4e usa para as reações das
 // escadas) e perspectiva axonométrica da estrutura 3D (K1.11.62, vista V1). Mesmos escritores das demais pranchas.
+import type { AnaliseEdificio } from '../building/analitico';
+import { combinacoesEdificio } from '../building/combinacoes';
+import type { Dimensionamento } from '../building/dimensionamento';
 import { classeDoCaso, legendaDeCargas } from '../resultados/cargasCaso';
+import { bandas, encadear, extremos, faixaExibida, fmtIso, isolinhas, legenda, niveisAutomaticos, N_TOKENS_ISO } from '../resultados/bandas';
+import { hipoteseDeCombinacao } from '../resultados/deformada';
+import { campoDoPavimento, hipotesesDeLaje, infoGrandeza, pavimentosComMapa, type GrandezaIso } from '../resultados/isovalores';
 import { contornoPilar, geometriaViga, lancesDoPilar, pavimentosDoGrupo, type BuildingModel, type Carga } from '../building/types';
 import { eixosDaCamera, type V3 } from '../vista3d/camera';
 import { construirCena } from '../vista3d/cena';
@@ -87,4 +93,55 @@ export function montarPranchaPerspectiva(b: BuildingModel, o: OpcoesArmacao & { 
     b, formato: 'A3', tipo: 'perspectiva', titulo: 'Perspectiva axonométrica', conteudo: 'PERSPECTIVA AXONOMÉTRICA DA ESTRUTURA', escala: 'S/E', escalaNum: 100, carimbo: o.carimbo,
     desenho, tabelas: [], legenda: `AXONOMETRIA ORTOGRÁFICA · azimute ${o.azimute ?? -55}° · elevação ${o.elevacao ?? 28}° · sem escala`, avisos: cena.avisos, elementos: [`${cena.contagens.total} elementos`],
   } as Parameters<typeof montarFolha>[0]);
+}
+
+/** Cinza de impressão (PDF e SVG) de cada token de cor dos isovalores: do claro (menor valor) ao escuro (maior). */
+export const cinzaDoToken = (t: number) => +(0.95 - (0.6 * t) / (N_TOKENS_ISO - 1)).toFixed(3);
+
+/**
+ * Folha "Resultados" (V6f, C12.4, SCR a confirmar): um mapa de isovalores por pavimento com laje calculada — bandas de cor
+ * (camadas ISO-0 a ISO-10; cinzas no PDF e no SVG), isolinhas, contornos da estrutura, extremos e a legenda das faixas.
+ * Padrão: deslocamento vertical na combinação quase permanente; `grandeza` e `hipotese` (id) escolhem outro mapa.
+ */
+export function montarPranchasResultados(
+  b: BuildingModel, an: AnaliseEdificio | null, dim: Dimensionamento | null, o: OpcoesArmacao & { grandeza?: GrandezaIso; hipotese?: string } = {},
+): Prancha[] {
+  if (!an) return [];
+  const grandeza = o.grandeza ?? 'uz', info = infoGrandeza(grandeza);
+  if (info.grupo === 'radier') return [];
+  const qp = combinacoesEdificio(b, an).find((c) => c.tipo === 'QP'), hips = hipotesesDeLaje(b, an);
+  const hip = info.porHipotese ? (o.hipotese ? hips.find((h) => h.id === o.hipotese) : qp ? hipoteseDeCombinacao(qp) : hips[0]) : undefined;
+  const cfg = cfgArmacao(b), out: Prancha[] = [];
+  for (const pv of pavimentosComMapa(b, an)) {
+    const pav = b.pavimentos.find((p) => p.id === pv.id), g = b.grupos.find((x) => x.id === pav?.grupo);
+    if (!pav || !g || (o.grupo && g.id !== o.grupo && g.nome !== o.grupo)) continue;
+    const r = campoDoPavimento(b, an, dim, { pavimento: pv.id, grandeza, hipotese: hip });
+    if (!r.campo) continue;
+    const campo = r.campo, rotuloCampo = r.campo.rotulo ?? r.campo.grandeza, f = faixaExibida(campo), niveis = niveisAutomaticos(f.lo, f.hi, 10);
+    const pilares = b.pilares.filter((p) => lancesDoPilar(b, p).some((x) => x.id === pav.id));
+    const vigas = b.vigas.filter((v) => v.grupo === g.id), lajes = b.lajes.filter((l) => l.grupo === g.id);
+    const geo: P[] = [...lajes.flatMap((l) => l.contorno), ...vigas.flatMap((v) => v.pontos), ...pilares.flatMap((p) => contornoPilar(p, p.secao))];
+    const cx = caixa(geo.length ? geo : campo.nos.length ? campo.nos : [[0, 0], [1, 1]]);
+    const pl = plantaNaFolha(cx, b.prancha?.formato ?? 'auto', cfg.escalaLocacao || b.prancha?.escala || 0, 30);
+    const k = pl.escala / 1000, modelo: Prim[] = [];
+    for (const bd of bandas(campo, niveis)) for (const pts of bd.poligonos) modelo.push({ t: 'hach', c: `ISO-${bd.token}` as Camada, pts, g: cinzaDoToken(bd.token) });
+    for (const il of isolinhas(campo, niveis)) for (const pts of encadear(il.segmentos)) modelo.push({ t: 'pl', c: 'ISOLINHAS', pts });
+    for (const l of lajes) modelo.push({ t: 'pl', c: 'LAJE', pts: l.contorno, fechada: true });
+    for (const v of vigas) { const gv = geometriaViga(v); modelo.push({ t: 'pl', c: 'FORMA-FINA', pts: [...gv.esq, ...[...gv.dir].reverse()], fechada: true }); }
+    for (const p of pilares) modelo.push({ t: 'pl', c: 'PILAR', pts: contornoPilar(p, p.secao), fechada: true });
+    const ex = extremos(campo);
+    for (const [rot, e] of [['máx.', ex.max], ['mín.', ex.min]] as const) if (e) modelo.push({ t: 'txt', c: 'TEXTO', p: [e.pos[0] + 1.5 * k, e.pos[1] + 1.5 * k], h: 2.2 * k, s: `${rot} ${fmtIso(e.valor, 2)} ${campo.unidade}` });
+    const leg = legenda(campo, niveis);
+    const tabela: BlocoTabela = {
+      titulo: `LEGENDA — ${rotuloCampo.toUpperCase()}`,
+      cols: [{ w: 30, rot: `FAIXA (${campo.unidade})` }, { w: 28, rot: 'CAMADA' }, { w: 20, rot: 'CINZA' }],
+      linhas: leg.itens.map((it) => [it.rotulo, `ISO-${it.token}`, nf(cinzaDoToken(it.token), 2)]),
+    };
+    out.push(montarFolha({
+      b, formato: pl.formato, tipo: 'resultados', titulo: `Resultados — ${pav.nome}`, conteudo: rotuloCampo.toUpperCase(), escala: `1:${pl.escala}`, escalaNum: pl.escala, carimbo: o.carimbo, numero: out.length + 1,
+      desenho: [], tabelas: [tabela], legenda: `ESCALA 1:${pl.escala} · ${rotuloCampo} · máx. ${ex.max ? fmtIso(ex.max.valor, 2) : '—'} e mín. ${ex.min ? fmtIso(ex.min.valor, 2) : '—'} ${campo.unidade}`,
+      avisos: [...pl.avisos, ...r.avisos], modelo, janela: pl.janela, elementos: [campo.grandeza],
+    } as Parameters<typeof montarFolha>[0]));
+  }
+  return out;
 }

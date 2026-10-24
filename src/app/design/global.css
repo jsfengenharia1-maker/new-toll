@@ -687,8 +687,8 @@ svg.mono .hinge { fill: #fff !important; }
 /* revisão de resultados (frente R1): lista de erros, janela por elemento e diagramas das envoltórias */
 [data-contagem] b.warn { color: var(--warn); }
 .revmsg { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 12.5px; }
-.rev-lance { border-top: 1px solid var(--line); padding-top: 4px; display: grid; gap: 8px; }
-.rev-lance h4 { margin: 6px 0 0; }
+.rev-lance, .rev-esforcos { border-top: 1px solid var(--line); padding-top: 4px; display: grid; gap: 8px; }
+.rev-lance h4, .rev-esforcos h4 { margin: 6px 0 0; }
 .dg { width: 100%; height: auto; display: block; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); }
 .dg-m { --dg: var(--c-m); }
 .dg-v { --dg: var(--c-v); }

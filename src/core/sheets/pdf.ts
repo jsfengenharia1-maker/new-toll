@@ -51,7 +51,7 @@ function conteudo(pr: Prancha, prims: Prim[], ocg: Map<Camada, string>): string 
     ops.push(`/OC /${ocg.get(c)} BDC`, `${n(cam.pena)} w`, cam.tipo === 'cont' ? '[] 0 d' : `[${TRACOS[cam.tipo].join(' ')}] 0 d`);
     for (const q of qs) {
       if (q.t === 'pl') { ops.push(`${n(q.pts[0][0])} ${n(q.pts[0][1])} m ` + q.pts.slice(1).map((p) => `${n(p[0])} ${n(p[1])} l`).join(' ') + (q.fechada ? ' s' : ' S')); }
-      else if (q.t === 'hach') ops.push('0.6 g', `${n(q.pts[0][0])} ${n(q.pts[0][1])} m ` + q.pts.slice(1).map((p) => `${n(p[0])} ${n(p[1])} l`).join(' ') + ' h f', '0 g');
+      else if (q.t === 'hach') ops.push(`${n(q.g ?? 0.6)} g`, `${n(q.pts[0][0])} ${n(q.pts[0][1])} m ` + q.pts.slice(1).map((p) => `${n(p[0])} ${n(p[1])} l`).join(' ') + ' h f', '0 g');
       else if (q.t === 'circ') {
         const [x, y] = q.centro, r = q.r, k = 0.5523 * r;
         ops.push(`${n(x + r)} ${n(y)} m ${n(x + r)} ${n(y + k)} ${n(x + k)} ${n(y + r)} ${n(x)} ${n(y + r)} c ${n(x - k)} ${n(y + r)} ${n(x - r)} ${n(y + k)} ${n(x - r)} ${n(y)} c ${n(x - r)} ${n(y - k)} ${n(x - k)} ${n(y - r)} ${n(x)} ${n(y - r)} c ${n(x + k)} ${n(y - r)} ${n(x + r)} ${n(y - k)} ${n(x + r)} ${n(y)} c s`);

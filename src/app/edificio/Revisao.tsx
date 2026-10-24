@@ -343,7 +343,6 @@ function JanelaPilar({ id, pavimento }: { id: string; pavimento?: string }) {
       <AbasDetalhe aba={aba} onChange={setAba} />
       <ApoioDoPilar id={id} />
       <SituacaoPilares id={id} pavimentoNome={pavimento} />
-      <EsforcosDoPilar id={id} />
       {b.pilares.find((q) => q.id === id) && <DadosDoPilar b={b} p={b.pilares.find((q) => q.id === id)!} />}
       <p className="small">Combinações determinantes por lance: Nd (compressão +), momentos de 1ª ordem na base e no topo em cada direção (u ao longo de b, v ao longo de h) e momento de cálculo total com os efeitos locais de 2ª ordem (Md,tot).</p>
       {lances.map((x) => (
@@ -367,6 +366,7 @@ function JanelaPilar({ id, pavimento }: { id: string; pavimento?: string }) {
           <EditorArmaduraPilar key={`${x.pavimentoId}|${x.bloqueada}|${JSON.stringify(x.arranjo)}`} p={x} />
         </section>
       ))}
+      <EsforcosDoPilar id={id} />
     </>
   );
 }

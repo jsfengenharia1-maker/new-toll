@@ -10,6 +10,13 @@ import { abrirEstilo, aplicarEstilo, resolverEstilo, salvarEstilo, validarEstilo
 import { detalheDeDxf, inserirDetalhes, mmPorUnidade, primitivasDoDetalhe } from './saidas';
 import { primitivasDoSimbolo } from './simbolos';
 import type { DetalheDxf } from '../building/types';
+import { analisarEdificio } from '../building/analitico';
+import { combinacoesEdificio } from '../building/combinacoes';
+import { dimensionarEdificio } from '../building/dimensionamento';
+import { areaDoCampo, areaPoligono } from '../resultados/bandas';
+import { hipoteseDeCombinacao } from '../resultados/deformada';
+import { campoDoPavimento, pavimentosComMapa } from '../resultados/isovalores';
+import { montarPranchasResultados } from './folhasV5';
 
 const txt = (b: Uint8Array) => Array.from(b, (c) => String.fromCharCode(c)).join('');
 const formas = (s = edificioExemplo()) => montarConjunto(s.modelo, null, null, { tipos: 'formas' }).pranchas[0];
@@ -211,5 +218,55 @@ describe('folhas de cargas por caso e de perspectiva (K1.11.62)', () => {
     const pil = seg.filter((q) => q.t === 'pl' && q.c === 'PILAR' && Math.abs(q.pts[0][0] - q.pts[1][0]) < 1e-6 && Math.abs(q.pts[0][1] - q.pts[1][1]) > 1);
     expect(pil.length).toBeGreaterThan(10);
     expect(svgPrancha(pr)).toMatch(/^<svg/);
+  });
+});
+
+describe('folha de resultados: mapa de isovalores por pavimento (V6f, C12.4)', { timeout: 120000 }, () => {
+  const s = edificioExemplo(), b = s.modelo, an = analisarEdificio(b), dim = dimensionarEdificio(b, an);
+  const { pranchas, avisos } = montarConjunto(b, an, dim, { tipos: 'resultados' });
+
+  it('uma folha SCR por pavimento com laje calculada, com bandas, isolinhas e legenda', () => {
+    expect(avisos).toEqual([]);
+    expect(pranchas).toHaveLength(pavimentosComMapa(b, an).length);
+    for (const pr of pranchas) {
+      expect(pr.tipo).toBe('resultados');
+      expect(pr.papel.some((q) => q.t === 'txt' && q.s === 'SCR')).toBe(true);
+      const hach = pr.modelo.filter((q) => q.t === 'hach');
+      expect(hach.length).toBeGreaterThan(5);
+      expect(hach.every((q) => q.c.startsWith('ISO-') && q.t === 'hach' && q.g! > 0.3 && q.g! < 1)).toBe(true);
+      expect(pr.modelo.some((q) => q.c === 'ISOLINHAS')).toBe(true);
+      expect(pr.modelo.some((q) => q.t === 'txt' && q.s.startsWith('máx.'))).toBe(true);
+    }
+  });
+
+  it('as bandas cobrem a área do campo (conferida com o mesmo mapa da aba Isovalores)', () => {
+    const pv = pavimentosComMapa(b, an)[0], pr = pranchas[0];
+    const qp = combinacoesEdificio(b, an).find((c) => c.tipo === 'QP')!;
+    const campo = campoDoPavimento(b, an, dim, { pavimento: pv.id, grandeza: 'uz', hipotese: hipoteseDeCombinacao(qp) }).campo!;
+    const area = pr.modelo.reduce((t, q) => t + (q.t === 'hach' ? Math.abs(areaPoligono(q.pts)) : 0), 0);
+    expect(area).toBeCloseTo(areaDoCampo(campo), 6);
+    // tabela de legenda: uma linha por banda, com a camada ISO correspondente
+    const leg = pr.papel.filter((q) => q.t === 'txt' && /^ISO-\d+$/.test(q.s));
+    expect(leg.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it('escritores: camadas ISO no DXF e cinzas diferentes no PDF e no SVG', () => {
+    const pr = pranchas[0];
+    const camadas = readDxf(escreverDxf(pr)).layers.map((l) => l.name);
+    expect(camadas.filter((c) => c.startsWith('ISO-')).length).toBeGreaterThanOrEqual(5);
+    expect(camadas).toContain('ISOLINHAS');
+    const pdf = txt(escreverPdf([pr]));
+    expect(new Set(pdf.match(/\n0\.\d+ g\n/g) ?? []).size).toBeGreaterThanOrEqual(4);
+    const cores = new Set((svgPrancha(pr).match(/fill="#[0-9a-f]{6}" stroke="none"/g) ?? []));
+    expect(cores.size).toBeGreaterThanOrEqual(4);
+    // sem análise: sem folha
+    expect(montarConjunto(b, null, null, { tipos: 'resultados' }).pranchas).toHaveLength(0);
+  });
+
+  it('o conjunto completo não inclui a folha avulsa e a grandeza de cálculo dispensa hipótese', () => {
+    expect(montarConjunto(b, an, dim, { tipos: 'todas' }).pranchas.some((p) => p.tipo === 'resultados')).toBe(false);
+    const mx = montarPranchasResultados(b, an, dim, { grandeza: 'MxInf' });
+    expect(mx.length).toBe(pranchas.length);
+    expect(mx[0].titulo).toContain('Resultados');
   });
 });

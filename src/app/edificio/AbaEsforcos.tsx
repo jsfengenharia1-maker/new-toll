@@ -10,13 +10,15 @@ import {
 import { diagramaVigotas, rotulosDeVigotas, vistaDisponivel, type VistaVigota } from '../../core/resultados/vigotasVista';
 import { estadoDaViga, estadoDoPilar, type EstadoDoElemento } from '../../core/resultados/estadoElementos';
 import { Button, Check, Group, Hint, Select } from '../ui';
+import { useEdifUI } from './uiStore';
+import { useIso } from './isovaloresStore';
 import { useEsforcos, type JanelaEsforco, type TipoElementoEsforco } from './esforcosStore';
 
 export const GRANDEZAS: { v: Componente; label: string; unidade: string }[] = [
   { v: 'Mz', label: 'Momento no plano (M)', unidade: 'kN·m' }, { v: 'Vy', label: 'Cortante (V no plano)', unidade: 'kN' }, { v: 'T', label: 'Torção (T)', unidade: 'kN·m' },
   { v: 'N', label: 'Normal (N)', unidade: 'kN' }, { v: 'My', label: 'Momento fora do plano', unidade: 'kN·m' }, { v: 'Vz', label: 'Cortante fora do plano', unidade: 'kN' },
 ];
-const TIPOS: { v: TipoElementoEsforco; label: string }[] = [{ v: 'viga', label: 'Viga' }, { v: 'pilar', label: 'Pilar' }, { v: 'diagonal', label: 'Diagonal' }, { v: 'vigotas', label: 'Vigotas' }];
+const TIPOS: { v: TipoElementoEsforco; label: string }[] = [{ v: 'viga', label: 'Viga' }, { v: 'pilar', label: 'Pilar' }, { v: 'diagonal', label: 'Diagonal' }, { v: 'vigotas', label: 'Vigotas' }, { v: 'alveolar', label: 'Alveolares' }];
 const VISTAS: { v: VistaVigota; label: string }[] = [{ v: 'momentos', label: 'Momentos / tipos' }, { v: 'cortantes', label: 'Cortantes / treliça' }, { v: 'armaduraInferior', label: 'Armadura inferior (moldada)' }];
 const LARG = 640, ALT = 220, PAD = 28;
 const f2 = (v: number) => v.toFixed(2).replace('.', ',');
@@ -86,6 +88,7 @@ function JanelaEsforcos({ j, b }: { j: JanelaEsforco; b: BuildingModel }) {
     if (j.tipo === 'viga') return b.vigas.map((v) => ({ v: v.id, label: v.nome }));
     if (j.tipo === 'pilar') return b.pilares.map((p) => ({ v: p.id, label: p.nome }));
     if (j.tipo === 'diagonal') return (an.inclinadas ?? []).map((i) => ({ v: i.id, label: i.nome }));
+    if (j.tipo === 'alveolar') return (dim?.alveolares ?? []).map((r) => ({ v: r.laje, label: r.nome }));
     return (dim?.vigotas ?? []).map((r) => ({ v: r.laje, label: r.nome }));
   }, [j.tipo, b, an, dim]);
   const elemento = elementos.find((e) => e.v === j.elemento)?.v ?? elementos[0]?.v ?? '';
@@ -108,13 +111,16 @@ function JanelaEsforcos({ j, b }: { j: JanelaEsforco; b: BuildingModel }) {
   }, [j.tipo, dim, b, elemento]);
 
   const vig = j.tipo === 'vigotas' ? dim?.vigotas?.find((r) => r.laje === elemento) : undefined;
+  // alveolares (V6f, C12.14): diagrama por metro de largura de cada faixa da grelha, para a hipótese; vale a faixa de maior momento
+  const dAlv = useMemo(() => (j.tipo === 'alveolar' && elemento ? diagramaVigotas(b, an, { laje: elemento, intereixo: 1 }, hip) : []), [j.tipo, b, an, elemento, hip]);
+  const faixaAlv = dAlv.length ? dAlv.reduce((m, f) => (Math.max(...f.Mmax) > Math.max(...m.Mmax) ? f : m)) : null;
   const rotVig = useMemo(() => (vig ? rotulosDeVigotas(vig, j.vista, j.esforcos) : []), [vig, j.vista, j.esforcos]);
   const dVig = useMemo(() => (vig ? diagramaVigotas(b, an, vig, hip) : []), [vig, b, an, hip]);
 
   const dados = diag ? JSON.stringify({
     tipo: j.tipo, hipotese: hip.id, grandeza: j.grandeza, pontos: diag.pontos.length, max: +diag.extremos[j.grandeza].max.valor.toFixed(3), min: +diag.extremos[j.grandeza].min.valor.toFixed(3),
     porMax: diag.extremos[j.grandeza].max.por, porMin: diag.extremos[j.grandeza].min.por, envoltoria: hip.tipo === 'envoltoria',
-  }) : vig ? JSON.stringify({ tipo: 'vigotas', hipotese: hip.id, faixas: dVig.length, rotulos: rotVig.length, textos: rotVig.map((r) => r.texto), esforcos: j.esforcos, vista: j.vista }) : undefined;
+  }) : j.tipo === 'alveolar' && faixaAlv ? JSON.stringify({ tipo: 'alveolar', hipotese: hip.id, faixas: dAlv.length, Mmax: +Math.max(...faixaAlv.Mmax).toFixed(3), Mmin: +Math.min(...faixaAlv.Mmin).toFixed(3), V: +Math.max(...faixaAlv.V).toFixed(3) }) : vig ? JSON.stringify({ tipo: 'vigotas', hipotese: hip.id, faixas: dVig.length, rotulos: rotVig.length, textos: rotVig.map((r) => r.texto), esforcos: j.esforcos, vista: j.vista }) : undefined;
 
   // vigotas na planta: caixa dos alinhamentos
   const vb = useMemo(() => {
@@ -131,7 +137,7 @@ function JanelaEsforcos({ j, b }: { j: JanelaEsforco; b: BuildingModel }) {
           <Select label={`Tipo de elemento (janela ${n})`} value={j.tipo} options={TIPOS} onChange={(v) => mudar(n, { tipo: v, elemento: '' })} />
           <Select label={`Elemento (janela ${n})`} value={elemento} options={elementos} onChange={(v) => mudar(n, { elemento: v })} />
           <Select label={`Hipótese (janela ${n})`} value={hip.id} options={hips.map((h) => ({ v: h.id, label: h.tipo === 'caso' ? `Caso ${h.nome}` : h.nome }))} onChange={(v) => mudar(n, { hipotese: v })} />
-          {j.tipo !== 'vigotas' && <Select label={`Grandeza (janela ${n})`} value={j.grandeza} options={GRANDEZAS.map((g) => ({ v: g.v, label: g.label }))} onChange={(v) => mudar(n, { grandeza: v })} />}
+          {j.tipo !== 'vigotas' && j.tipo !== 'alveolar' && <Select label={`Grandeza (janela ${n})`} value={j.grandeza} options={GRANDEZAS.map((g) => ({ v: g.v, label: g.label }))} onChange={(v) => mudar(n, { grandeza: v })} />}
           {j.tipo === 'viga' && pavs.length > 1 && <Select label={`Pavimento (janela ${n})`} value={pav} options={pavs.map((p) => ({ v: p, label: b.pavimentos.find((x) => x.id === p)?.nome ?? p }))} onChange={(v) => mudar(n, { pavimento: v })} />}
         </div>
         {!elementos.length && <p className="hint">Nenhum elemento calculado deste tipo.</p>}
@@ -148,6 +154,10 @@ function JanelaEsforcos({ j, b }: { j: JanelaEsforco; b: BuildingModel }) {
             <p className="hint small">{estado.rotulo}. Domínio {estado.estado.dominio}; εc = {f2(estado.estado.epsTopo * 1000)}‰; linha neutra x = {estado.estado.x === null ? '—' : f2(estado.estado.x * 100)} cm (x/d = {estado.estado.xd === null ? '—' : f2(estado.estado.xd)}); MRd = {f2(estado.estado.MRd)} kN·m.</p>
           </div>
         )}
+        {j.tipo === 'alveolar' && faixaAlv && <DiagramaFaixa n={n} f={faixaAlv} />}
+        {j.tipo === 'alveolar' && (
+          <p className="hint small">Faixa de 1 m de largura de maior momento na hipótese escolhida (só os casos verticais atuam na grelha). Lajes mistas não fazem parte do programa. <Button variant="mini" onClick={() => { useIso.getState().nova({ grandeza: 'Mx', hipotese: hip.tipo === 'envoltoria' ? '' : hip.id }); useEdifUI.getState().set({ aba: 'isovalores' }); }}>Abrir o mapa de momentos das lajes</Button></p>
+        )}
         {j.tipo === 'vigotas' && vig && vb && (
           <>
             <div className="row esf-barra">
@@ -163,5 +173,20 @@ function JanelaEsforcos({ j, b }: { j: JanelaEsforco; b: BuildingModel }) {
         )}
       </div>
     </Group>
+  );
+}
+
+/** Diagrama de momento (máximo e mínimo) e cortante por metro de largura de uma faixa de lajes alveolares. */
+function DiagramaFaixa({ n, f }: { n: number; f: import('../../core/resultados/vigotasVista').DiagramaVigota }) {
+  const L = Math.max(1e-6, f.L), vmax = Math.max(1e-9, ...f.Mmax.map(Math.abs), ...f.Mmin.map(Math.abs)), cy = ALT / 2;
+  const X = (s: number) => PAD + (s / L) * (LARG - 2 * PAD), Y = (m: number) => cy + (m / vmax) * (cy - PAD);
+  const linha = (v: number[]) => v.map((m, i) => `${X(f.s[i]).toFixed(1)},${Y(m).toFixed(1)}`).join(' ');
+  return (
+    <svg className="esf-svg" role="img" aria-label={`Diagrama da faixa de alveolares (janela ${n})`} viewBox={`0 0 ${LARG} ${ALT}`}>
+      <line className="esf-eixo" x1={PAD} x2={LARG - PAD} y1={cy} y2={cy} />
+      <polyline className="esf-curva" points={linha(f.Mmax)} />
+      <polyline className="esf-curva-min" points={linha(f.Mmin)} />
+      <text className="esf-valor" x={PAD} y={14}>{`M máx ${f2(Math.max(...f.Mmax))} · mín ${f2(Math.min(...f.Mmin))} kN·m/m · V máx ${f2(Math.max(...f.V))} kN/m`}</text>
+    </svg>
   );
 }

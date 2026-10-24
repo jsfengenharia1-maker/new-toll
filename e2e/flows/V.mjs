@@ -714,3 +714,92 @@ export const f_V6e = {
       assert.match(await r.innerText(), /Soma na base/);
     },
   };
+
+export const f_V6f = {
+    name: 'V6f: mapa de taxa de armadura em nervuradas, menu de lajes na aba Isovalores, mapas de resultados no memorial e folha de resultados nas pranchas',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 6], [0, 6]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 6], [6, 6]], [[0, 0], [0, 6]], [[6, 0], [6, 6]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.6}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "nervurada", "forma": "cat:rec-60-30", "hTotal": 0.35, "capa": 0.05}}');
+      const abas = page.locator('.edif-tabs');
+      await abas.getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+
+      // ---- taxa de armadura (cm²/m) em laje nervurada: antes não havia mapa
+      await abas.getByRole('tab', { name: 'Isovalores', exact: true }).click();
+      const janela = page.locator('[data-isov-janela="1"]');
+      await janela.waitFor();
+      await janela.getByLabel(/^Grandeza \(janela 1\)/).selectOption('AsInf');
+      await page.waitForFunction(() => { const a = document.querySelector('[data-isov-janela="1"]')?.getAttribute('data-iso'); return !!a && JSON.parse(a).grandeza === 'AsInf'; });
+      const iso = JSON.parse(await janela.getAttribute('data-iso'));
+      assert.equal(iso.unidade, 'cm²/m');
+      assert.ok(iso.max > 0.8 && iso.max >= iso.min, JSON.stringify(iso));
+      assert.ok(iso.bandas >= 1);
+
+      // ---- menu de lajes igual ao da aba Dimensionamento: um clique vai à planta, duplo clique abre a janela da laje
+      const menu = page.locator('[data-menu-lajes]');
+      await menu.waitFor();
+      assert.ok(+(await menu.locator('[data-tabela-lajes]').getAttribute('data-tabela-lajes')) >= 1);
+      await menu.locator('tbody tr').first().dblclick();
+      const jl = page.getByRole('dialog', { name: /Resultados do elemento — Laje/ });
+      await jl.waitFor();
+      await page.keyboard.press('Escape');
+
+      // ---- memorial: mapas de resultados das lajes (opcionais)
+      await abas.getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      assert.equal(await memo.locator('[data-memorial-mapas]').count(), 0);
+      await memo.getByLabel('Incluir mapas de resultados das lajes').check();
+      const mapas = memo.locator('[data-memorial-mapas]');
+      await mapas.waitFor();
+      assert.ok(+(await mapas.getAttribute('data-memorial-mapas')) >= 3);
+      const gr = await mapas.locator('figure').evaluateAll((fs) => fs.map((f) => f.getAttribute('data-memorial-mapa')));
+      assert.deepEqual([...new Set(gr)], ['uz', 'MxInf', 'AsInf']);
+      assert.equal(gr.length % 3, 0);
+      assert.ok((await mapas.locator('figure').first().locator('polygon.iso-banda').count()) > 5);
+      await page.keyboard.press('Escape');
+      await memo.getByRole('button', { name: 'Fechar', exact: true }).click();
+
+      // ---- folha Resultados (SCR) na lista de tipos de prancha
+      await abas.getByRole('tab', { name: 'Pranchas', exact: true }).click();
+      await page.getByLabel(/^Tipo de prancha/).selectOption({ label: 'Resultados (mapa de isovalores por pavimento)' });
+      await page.waitForFunction(() => Number(document.querySelector('[data-lista-folhas]')?.getAttribute('data-lista-folhas')) >= 1, null, { timeout: 60000 });
+    },
+  };
+
+export const f_V6f_alveolar = {
+    name: 'V6f: esforços por hipótese das lajes alveolares no menu único de esforços e atalho para o mapa de momentos das lajes',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 4.8], [0, 4.8]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.4, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 4.8], [6, 4.8]], [[0, 0], [0, 4.8]], [[6, 0], [6, 4.8]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.4, "h": 2}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "alveolar", "ficha": "ex:alveolar", "placa": "A25-1"}}');
+      const abas = page.locator('.edif-tabs');
+      await abas.getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+
+      await abas.getByRole('tab', { name: 'Esforços', exact: true }).click();
+      const janela = page.locator('[data-esf-janela="1"]');
+      await janela.waitFor();
+      await janela.getByLabel(/^Tipo de elemento \(janela 1\)/).selectOption('alveolar');
+      await page.waitForFunction(() => { const a = document.querySelector('[data-esf-janela="1"]')?.getAttribute('data-esf'); return !!a && JSON.parse(a).tipo === 'alveolar'; });
+      const d = JSON.parse(await janela.getAttribute('data-esf'));
+      assert.ok(d.faixas >= 2 && d.Mmax > 5 && d.V > 5, JSON.stringify(d));
+      assert.equal(await janela.locator('svg[aria-label^="Diagrama da faixa de alveolares"]').count(), 1);
+      await janela.getByLabel(/^Hipótese \(janela 1\)/).selectOption('caso:G');
+      await page.waitForFunction((m) => JSON.parse(document.querySelector('[data-esf-janela="1"]').getAttribute('data-esf')).Mmax < m, d.Mmax);
+      // atalho para o mapa de momentos das lajes (aba Isovalores)
+      await janela.getByRole('button', { name: 'Abrir o mapa de momentos das lajes', exact: true }).click();
+      assert.equal(await abas.getByRole('tab', { name: 'Isovalores', exact: true }).getAttribute('aria-selected'), 'true');
+      await page.locator('[data-isov-janela="2"]').waitFor();
+      assert.equal(await page.locator('[data-isov-janela="2"]').getByLabel(/^Grandeza \(janela 2\)/).inputValue(), 'Mx');
+    },
+  };

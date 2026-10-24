@@ -11,6 +11,8 @@ import { listaDePlacas, resumoAcoAlveolares, resumoAlveolar, alveolaresNoMemoria
 import { dimensionarEdificio } from './dimensionamento';
 import { classificar } from './revisao';
 import { sugestaoDe } from './sugestoes';
+import { diagramaVigotas } from '../resultados/vigotasVista';
+import { hipotesesDeEsforco } from '../resultados/esforcosCaso';
 
 type Ok = (n: string, p: Record<string, unknown>) => void;
 const ALV = (placa = 'A25-1') => ({ tipo: 'alveolar', ficha: 'ex:alveolar', placa });
@@ -537,5 +539,23 @@ describe('E3e: pano trapezoidal (placas com apoio oblíquo)', () => {
     expect(r.vao).toBeGreaterThan(4.2);
     expect(r.mensagens.some((m) => classificar(m).codigo === 'ALVEOLAR_RESUMO')).toBe(true);
     expect(Number.isFinite(r.envoltoria.mPos)).toBe(true);
+  });
+});
+
+describe('V6f: esforços por hipótese das alveolares (C12.14)', () => {
+  it('a envoltória ELU por metro tem a faixa de maior momento igual ao diagrama do dimensionamento; casos somam linearmente', () => {
+    const { s, an, r } = pav(ALV('A25-1'), { carga: 4 });
+    const hs = hipotesesDeEsforco(s.modelo, an), elu = hs.find((h) => h.id === 'env:ELU')!;
+    const fx = diagramaVigotas(s.modelo, an, { laje: r!.laje, intereixo: 1 }, elu);
+    expect(fx.length).toBeGreaterThanOrEqual(2);
+    const gov = fx.reduce((m, f) => (Math.max(...f.Mmax) > Math.max(...m.Mmax) ? f : m));
+    expect(Math.max(...gov.Mmax)).toBeCloseTo(Math.max(...r!.diagrama.Mmax), 6);
+    // caso G (max = min): equilíbrio da faixa, M(ℓ/2) = M₀ + V₀·ℓ/2 − p·ℓ²/8 com p = (V₀ + Vₙ)/ℓ
+    const fg = diagramaVigotas(s.modelo, an, { laje: r!.laje, intereixo: 1 }, hs.find((h) => h.id === 'caso:G')!);
+    const g1 = fg.reduce((m, f) => (Math.max(...f.Mmax) > Math.max(...m.Mmax) ? f : m));
+    const k = g1.s.findIndex((x) => Math.abs(x - g1.L / 2) < 1e-6), V = g1.V;
+    expect(k).toBeGreaterThanOrEqual(0);
+    expect(rel(g1.Mmax[k], g1.Mmax[0] + (V[0] * g1.L) / 2 - ((V[0] + V.at(-1)!) * g1.L) / 8)).toBeLessThan(2e-3);
+    expect(g1.Mmax[k]).toBeGreaterThan(5);
   });
 });

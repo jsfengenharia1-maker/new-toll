@@ -172,6 +172,25 @@ export interface ResultadoNervurada {
 // ---------------------------------------------------------------- dimensionamento
 
 /**
+ * Armadura necessária (cm²/m) de uma laje nervurada bidirecional para o momento de cálculo `M` (kN·m/m) na face `inf`
+ * (seção T: mesa = intereixo) ou `sup` (retângulo da nervura) e a direção `dir` (0 = X, 1 = Y), sem a fissuração (V6f,
+ * mapas de taxa). O momento por nervura é `M` × intereixo e a armadura da nervura, dividida pelo intereixo, dá cm²/m;
+ * mínimo de 0,15 % da nervura, como em `dimensionarNervuradas`. Zonas maciças não são distinguidas [a confirmar].
+ */
+export function armaduraNecessariaNervurada(b: BuildingModel, l: Laje, M: number, face: 'inf' | 'sup', dir: 0 | 1): number {
+  if (l.tipo.tipo !== 'nervurada') return 0;
+  const g = geometriaBidirecional(b, l.tipo), c = concretoDe(b, 'laje'), cob = cobrimentoLaje(b, l.cobrimento);
+  const bw = g.bw[dir], bf = g.i[dir], fyd = acoDe(b, face === 'inf' ? 'lajeInf' : 'lajeSup').fyd;
+  const Mn = Math.abs(M) * bf; // kN·m por nervura
+  const AsMin = 0.0015 * (face === 'inf' ? bf * g.capa + bw * g.hEnch : bw * g.h) * 1e4; // cm² por nervura
+  const As = Mn > 0.01
+    ? beamFlexure(face === 'inf' ? { kind: 'tee', bw, h: g.h, bf, hf: g.capa } : { kind: 'rect', bw, h: g.h }, face === 'inf', Mn, g.h - (face === 'inf' ? cob.inf : cob.sup) - 0.01, 0.03, c, fyd).As * 1e4
+    : 0;
+  return Math.max(As, AsMin) / bf;
+}
+
+
+/**
  * Dimensiona as lajes nervuradas bidirecionais da obra: um resultado por laje (envoltória dos pavimentos do grupo). Acrescenta
  * as mensagens às lajes em `lajes` e marca 'fail' nos erros.
  */

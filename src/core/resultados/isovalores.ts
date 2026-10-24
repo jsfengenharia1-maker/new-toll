@@ -3,6 +3,9 @@
 // nós da grelha de cada laje triangulados dentro do contorno e dos furos. Núcleo puro.
 import type { AnaliseEdificio } from '../building/analitico';
 import { armaduraNecessariaLaje, fatoresELULaje, woodArmerNos, type Dimensionamento } from '../building/dimensionamento';
+import { armaduraNecessariaNervurada } from '../building/nervuradasDim';
+import { arranjoNervuras, geometriaBidirecional, lajeComAbacos } from '../building/nervuradas';
+import { errosTipoLaje } from '../building/tiposLaje';
 import { pavimentosOrdenados, type BuildingModel, type Laje } from '../building/types';
 import { triangularNos, type Campo, type P } from './bandas';
 import { deslocamentosHipotese, hipotesesDisponiveis, type Hipotese } from './deformada';
@@ -16,7 +19,7 @@ export type GrandezaIso =
 
 export type GrupoGrandeza = 'deslocamento' | 'esforco' | 'calculo' | 'armadura' | 'radier';
 
-export interface InfoGrandeza { id: GrandezaIso; rotulo: string; unidade: string; grupo: GrupoGrandeza; /** Pede hipótese (caso ou combinação). */ porHipotese: boolean; /** Só lajes maciças. */ soMacica?: boolean }
+export interface InfoGrandeza { id: GrandezaIso; rotulo: string; unidade: string; grupo: GrupoGrandeza; /** Pede hipótese (caso ou combinação). */ porHipotese: boolean; /** Só lajes maciças e nervuradas bidirecionais (as demais ficam sem mapa de taxa). */ soMacica?: boolean }
 
 export const GRANDEZAS_ISO: InfoGrandeza[] = [
   { id: 'uz', rotulo: 'Deslocamento vertical', unidade: 'mm', grupo: 'deslocamento', porHipotese: true },
@@ -174,9 +177,17 @@ function valorNodal(
     case 'MySup': return (n) => get(sup, n, 1);
     default: break;
   }
-  if (l.tipo.tipo !== 'macica') { aviso('Áreas de aço: só lajes maciças (as demais ficam sem mapa).'); return null; }
-  const asInf = (n: number, k: 0 | 1) => armaduraNecessariaLaje(b, an, l, get(inf, n, k), 'inf');
-  const asSup = (n: number, k: 0 | 1) => (get(sup, n, k) < 0 ? armaduraNecessariaLaje(b, an, l, get(sup, n, k), 'sup') : 0);
+  const nerv = l.tipo.tipo === 'nervurada' && !l.definir && !errosTipoLaje(b, l.tipo).length;
+  if (l.tipo.tipo !== 'macica' && !nerv) { aviso('Áreas de aço: só lajes maciças e nervuradas bidirecionais (as demais ficam sem mapa).'); return null; }
+  if (nerv) aviso('Nervuradas: taxa em cm²/m = armadura da nervura (seção T embaixo, retângulo em cima, mínimo de 0,15 %) ÷ intereixo na zona aliviada e armadura de laje maciça de mesma altura nas zonas maciças, com os momentos das barras sem Wood-Armer e sem fissuração [a confirmar].');
+  // nervuradas: a zona maciça (margem junto às vigas, ábacos e zonas manuais) usa a laje maciça equivalente
+  const gN = nerv ? geometriaBidirecional(b, l.tipo as never) : null, arr = gN ? arranjoNervuras(lajeComAbacos(b, l, gN), gN, an.opcoes.nervuradaMacicoViga) : null;
+  const maciça = (n: number) => !!arr && !arr.aliviada([g.modelo.nos[n][0], g.modelo.nos[n][1]]);
+  const equivalente = gN ? { tipo: { tipo: 'macica', h: gN.h }, cobrimento: l.cobrimento } : l;
+  const asPor = (n: number, M: number, face: 'inf' | 'sup', k: 0 | 1) =>
+    !nerv ? armaduraNecessariaLaje(b, an, l, M, face) : maciça(n) ? armaduraNecessariaLaje(b, an, equivalente, M, face) : armaduraNecessariaNervurada(b, l, M, face, k);
+  const asInf = (n: number, k: 0 | 1) => asPor(n, get(inf, n, k), 'inf', k);
+  const asSup = (n: number, k: 0 | 1) => (get(sup, n, k) < 0 ? asPor(n, get(sup, n, k), 'sup', k) : 0);
   switch (info.id) {
     case 'AsInfX': return (n) => asInf(n, 0);
     case 'AsInfY': return (n) => asInf(n, 1);

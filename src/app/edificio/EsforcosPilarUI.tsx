@@ -26,7 +26,7 @@ export function EsforcosDoPilar({ id }: { id: string }) {
   const e = esforcosPilarEmAltura(d, alt), info = GRANDEZAS.find((x) => x.v === g)!;
   const dados = JSON.stringify({ hipotese: hip.id, grandeza: g, altura: +e.altura.toFixed(3), N: +e.max.N.toFixed(3), Mz: +e.max.Mz.toFixed(3), V: +e.max.Vy.toFixed(3), T: +e.max.T.toFixed(3), pontos: d.pontos.length });
   return (
-    <section className="rev-lance" data-esf-pilar={dados}>
+    <section className="rev-esforcos" data-esf-pilar={dados}>
       <h4>Esforços por hipótese ao longo da altura</h4>
       <div className="row">
         <Select label="Hipótese dos esforços do pilar" value={hip.id} options={hips.map((h) => ({ v: h.id, label: h.tipo === 'caso' ? `Caso ${h.nome}` : h.nome }))} onChange={setHipId} />
