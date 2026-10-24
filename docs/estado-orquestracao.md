@@ -16,9 +16,9 @@ Atualizado em 24/10/2026. Ler junto com o Andamento de `docs/plano-execucao.md`.
 4. Briefing padrão dos agentes: citar `docs/regras-agentes.md`. Antes: ver as rodadas recentes no histórico desta sessão; regras fixas — worktree próprio + `ln -s /home/user/new-toll/node_modules node_modules`; consultar `docs/mapa-codigo.md`; e2e com `{ exact: true }` exceto NumField/Select (regex ancorada); cada cartão compila sozinho; não criar tarefas agendadas; sem processos em segundo plano; relatório UMA vez; `npm run mapa` no fim.
 
 ## Rodada em andamento
-25/10/2026 (conferir ao retomar): subfatias E5 (lista em `docs/plano-execucao.md`): (a) E5l vínculo externo no modelo integrado (Opus, núcleo); (b) E5h inserção do pano e furos na grelha (Sonnet alto); (c) E5a pranchas das lajes inclinadas (Sonnet médio).
+25/10/2026 (conferir ao retomar): E5g dimensionamento das nervuradas (Sonnet alto) e E5i saídas de paredes/alvenaria/consolos (Sonnet médio), a partir do main 5ee6a2a.
 
-Última rodada fechada (25/10/2026): E4e (relatório, prancha SCE, 3D e isovalores das escadas), auditoria E + correções (35 itens conferidos Feito; 53 Parcial com subfatias E5a–E5l), FU7c (paredes com sapata corrida sobre molas k=100 000 kN/m³ — padrão do sistema; perfil NBR = engaste; baselines antigos fixados com fundParedeK 0; viga de fundação da parede; viga embutida), L7 (pano automático; obra com pano a definir não calcula, regra já existente). 1.750 testes, 114 e2e, pacote 4.708 KB.
+Já no main (25/10/2026): E5l (vínculo externo no modelo integrado, validado três momentos + OpenSees), E5h (malha ancorada no ponto de inserção; furos), E5a (pranchas das lajes inclinadas; comprimento real das barras em pano inclinado), E5j (vão pelos eixos dos apoios `vigaApoioLongEixos`, axial das paredes `axialParedeSeparado`; K1.12.4-19 pilar com desnível segue Falta — exige nós intermediários nos pilares). 1.774 testes, 116 e2e, pacote 4.726 KB.
 
 ## Próxima rodada (depois desta)
 1. Demais E5 (b–g, i–k), FU7d.
@@ -37,4 +37,4 @@ Atualizado em 24/10/2026. Ler junto com o Andamento de `docs/plano-execucao.md`.
 - Biblioteca de normas editável (N3) feita; NBR 15200:2024 virá do usuário depois.
 
 ## Números no último merge
-1.750 testes, 114 fluxos e2e (paralelo), pacote 4.708 KB.
+1.774 testes, 116 fluxos e2e (paralelo), pacote 4.726 KB.
