@@ -4,7 +4,7 @@
 import type { ReactNode } from 'react';
 import { fmt } from './Detalhamento';
 import type { AnaliseEdificio } from '../../core/building/analitico';
-import { esforcosDosPlanos, planosNoMemorial } from '../../core/building/planos';
+import { esforcosDosPlanos, LIMITACOES_PLANOS, planosNoMemorial } from '../../core/building/planos';
 import { PREMISSAS } from '../../core/building/premissas';
 import type { BuildingModel } from '../../core/building/types';
 
@@ -34,6 +34,8 @@ export function MemorialPlanos({ b, an, h2 }: { b: BuildingModel; an: AnaliseEdi
             <tbody>{ef.empuxos.map((n, i) => <tr key={i}><td className="l">{n.pilar}</td><td className="l">{n.pavimento}</td><td className="l">{n.caso}</td><td>{fmt(n.Hx, 1)}</td><td>{fmt(n.Hy, 1)}</td></tr>)}</tbody>
           </table>
         )}
+        <p>Limitações dos planos inclinados:</p>
+        <ul data-limitacoes-planos>{LIMITACOES_PLANOS.map((t, i) => <li key={i}>{t}</li>)}</ul>
         {premissa && <p data-premissa-planos><i>{premissa.texto}</i></p>}
       </div>
     </>

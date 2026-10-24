@@ -92,6 +92,46 @@ export const f_E3f = {
   },
 };
 
+export const f_E5d = {
+  name: 'E5d: exemplos dos planos inclinados (mansarda, rampa de garagem, rampa entre pavimentos em Obras recentes), limitações no memorial e ajuda do Novo plano',
+  async run({ newPage }) {
+    const page = await newPage();
+    await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+    const esperar = (fn, arg) => page.waitForFunction(fn, arg, { timeout: 30000 });
+    const abrir = async (nome) => {
+      await fileMenu(page, 'Obras recentes…');
+      const rec = page.getByRole('dialog', { name: 'Obras recentes' });
+      await rec.getByRole('button', { name: new RegExp(`Abrir exemplo Exemplo: ${nome}`) }).click();
+      await rec.waitFor({ state: 'detached' });
+    };
+    // rampa de garagem e rampa entre pavimentos: um plano cada
+    await abrir('rampa de garagem para o subsolo');
+    await esperar(() => { const b = JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building; return b?.planos?.length === 1 && b?.paredes?.length === 1; }, null);
+    await abrir('rampa entre pavimentos de estacionamento');
+    await esperar(() => { const b = JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building; return b?.planos?.length === 1 && b?.pilares?.length === 12; }, null);
+    // mansarda: 6 planos, cálculo sem erro e limitações no memorial
+    await abrir('mansarda com águas-furtadas');
+    await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.planos?.length === 6, null);
+    await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+    await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+    await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 240000 });
+    await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+    const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+    const sec = memo.locator('[data-memorial-planos]');
+    await sec.waitFor();
+    assert.match(await sec.locator('[data-tabela-planos]').innerText(), /Água-furtada oeste/);
+    assert.match(await sec.locator('[data-limitacoes-planos]').innerText(), /não se apoia em muro/);
+    await memo.getByRole('button', { name: 'Fechar' }).click();
+    // ajuda da janela Novo plano: sequência recomendada
+    await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+    await faixaAba(page, 'Edição');
+    await page.getByRole('button', { name: 'Novo plano', exact: true }).click();
+    const dlg = page.getByRole('dialog', { name: 'Novo plano' });
+    await dlg.getByRole('button', { name: 'Ajuda de Novo plano', exact: true }).click();
+    assert.match(await page.getByRole('status', { name: 'Ajuda' }).innerText(), /Lance tudo na horizontal/);
+  },
+};
+
 export const f_E5h = {
   name: 'E5h: pano com abertura e ponto de inserção em outro vértice (malha ancorada no vértice, cálculo sem erro, memorial com a premissa)',
   async run({ newPage }) {

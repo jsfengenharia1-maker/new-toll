@@ -379,6 +379,22 @@ export const SEQUENCIA_PLANOS: string[] = [
   'Curvas de rampa: de preferência em plano horizontal (pano curvo inclinado não é modelado).',
 ];
 
+/** Casos-guia de lançamento dos planos (C7.71): o que lançar em cada situação. Texto de ajuda. */
+export const CASOS_GUIA_PLANOS: { id: string; titulo: string; texto: string }[] = [
+  { id: 'inclinados', titulo: 'Só panos inclinados', texto: 'Todos os panos do grupo sobem a partir da cota do pavimento: desníveis positivos nos planos, vigas de borda acompanhando cada pano.' },
+  { id: 'horizontalUmaPonta', titulo: 'Pano horizontal numa extremidade', texto: 'O pano horizontal fica no pavimento de cima; o grupo superior recebe os panos inclinados com desníveis negativos, ligados ao horizontal por vigas comuns.' },
+  { id: 'horizontalDuasPontas', titulo: 'Panos horizontais nas duas extremidades', texto: 'A rampa vai num grupo intermediário, com pilares próprios (morrem no grupo) e vigas comuns nas extremidades, onde encontra os panos horizontais de cima e de baixo.' },
+  { id: 'sobrepostos', titulo: 'Panos sobrepostos na projeção', texto: 'Quando dois panos ocupam a mesma região da planta, cada um vai num grupo próprio, com a sua cota: um grupo por cota.' },
+];
+
+/** Limitações dos planos inclinados (C7.75, C7.76): texto da interface, da ajuda e do memorial. */
+export const LIMITACOES_PLANOS: string[] = [
+  'O pano inclinado não se apoia em muro: use viga própria sob o pano (aviso PLANO_MURO).',
+  'Não há viga comum com o coroamento de um muro: o coroamento não divide a borda com pano inclinado.',
+  'A flexão transversal da viga de apoio comum a panos de cotas diferentes não é calculada (aviso DESNIVEL_VIGA): conferir estribos e ancoragens.',
+  'Pano curvo inclinado não é modelado: lance as curvas de rampa de preferência em plano horizontal.',
+];
+
 /**
  * Esforços normais das barras dos panos e vigas inclinados (E3f, memorial) e empuxo horizontal no topo dos pilares dos
  * pavimentos com planos, por caso vertical: N mínimo (compressão) e máximo (tração) por elemento (kN; laje por barra da faixa)

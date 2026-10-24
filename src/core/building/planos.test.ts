@@ -4,12 +4,12 @@
 import { describe, expect, it } from 'vitest';
 import { Sessao } from '../commands';
 import { analisarEdificio } from './analitico';
-import { coeficientesPlano, croquiPavimento, dobraDaBarra, faceSuperiorDaViga, inclinacaoDoPlano, inclinacaoPercentual, marcaDeDobra, planosNoMemorial, pontosDeControle, secaoNoPlano, setaDeclividade, textoInclinacao, vigasIncoerentes, zPlano, capturaPlano, diagnosticosPlanos, cotaDaLaje, esforcosDosPlanos } from './planos';
+import { coeficientesPlano, croquiPavimento, dobraDaBarra, faceSuperiorDaViga, inclinacaoDoPlano, inclinacaoPercentual, marcaDeDobra, planosNoMemorial, pontosDeControle, secaoNoPlano, setaDeclividade, textoInclinacao, vigasIncoerentes, zPlano, capturaPlano, diagnosticosPlanos, cotaDaLaje, esforcosDosPlanos, CASOS_GUIA_PLANOS, LIMITACOES_PLANOS } from './planos';
 import { verificar } from './verify';
 import type { BuildingModel, DefinicaoPlano } from './types';
 import { resolver3, type V3 } from '../fe3d';
 import ref from '../../../validation/opensees/inclinada.json';
-import { criarExemplo } from './exemplos';
+import { criarExemplo, EXEMPLOS_OBRA } from './exemplos';
 import { definirLimiteBanda } from '../sparseldl';
 import { dimensionarEdificio } from './dimensionamento';
 
@@ -455,4 +455,71 @@ describe('exemplo: cobertura em duas águas', () => {
     const caibro = s.modelo.vigas.find((v) => v.grupo === cob.grupo && v.pontos[0][0] === 5 && v.plano)!;
     expect(d.vigas.find((v) => v.viga === caibro.id)).toBeDefined();
   }, 120000);
+});
+
+describe('exemplos dos planos inclinados (E5d, C7.77)', () => {
+  const somaG = (an: ReturnType<typeof analisarEdificio>) => an.fundacao.filter((r) => r.caso === 'G').reduce((t, r) => t + r.N, 0);
+  const rodar = (id: 'mansarda' | 'rampaGaragem' | 'rampaPavimentos') => {
+    const s = criarExemplo(id);
+    const t0 = Date.now();
+    const an = analisarEdificio(s.modelo);
+    expect(an.erro).toBeUndefined();
+    const d = dimensionarEdificio(s.modelo, an);
+    expect(Date.now() - t0).toBeLessThan(60000);
+    expect(verificar(s.modelo).filter((x) => x.severidade === 'erro')).toEqual([]);
+    expect(vigasIncoerentes(s.modelo)).toEqual([]);
+    expect(somaG(an)).toBeCloseTo(an.totais.G, 4); // equilíbrio: soma das reações verticais = cargas
+    return { s, an, d };
+  };
+
+  it('mansarda com águas-furtadas: 11 panos em 6 planos, todos atribuídos; cumeeira em 1,70 m; água-furtada acima da vertente', { timeout: 120000 }, () => {
+    const { s, an, d } = rodar('mansarda');
+    const b = s.modelo;
+    expect(b.planos!.length).toBe(6);
+    expect(b.lajes.length).toBe(11);
+    expect(b.lajes.every((l) => l.plano)).toBe(true);
+    const cob = b.pavimentos.find((p) => p.nome === 'Cobertura')!;
+    const z = (x: number, y: number) => an.portico.modelo.nos.filter((n) => Math.abs(n[0] - x) < 1e-9 && Math.abs(n[1] - y) < 1e-9).map((n) => n[2] - cob.cota);
+    // pilar da cumeeira: 1,2 + 0,2·2,5 = 1,70 m (vertente alta); quebra a 60 %: 1,20 m; pilar do vale (7,5; 2) tem a mesma cota nas duas águas
+    expect(z(0, 4.5).some((v) => Math.abs(v - 1.7) < 1e-6)).toBe(true);
+    expect(z(0, 2).some((v) => Math.abs(v - 1.2) < 1e-6)).toBe(true);
+    expect(z(7.5, 0).some((v) => Math.abs(v - 0.9) < 0.01)).toBe(true); // topo do lance no plano, com a tolerância da seção do pilar
+    expect(z(7.5, 2).some((v) => Math.abs(v - 1.2) < 1e-6)).toBe(true);
+    // peso próprio por área inclinada: maior que o da projeção horizontal (11 panos, 10 cm... ao menos 25·0,12·área de projeção)
+    expect(an.cargasPavimento[cob.id].G).toBeGreaterThan(25 * 0.12 * 90);
+    expect(d.lajes.filter((l) => l.pavimento === cob.nome).length).toBe(11);
+  });
+
+  it('rampa de garagem: pilares próprios, muro fora do pano (sem PLANO_MURO) e viga comum horizontal no topo', { timeout: 120000 }, () => {
+    const { s, an } = rodar('rampaGaragem');
+    const b = s.modelo;
+    expect(verificar(b).some((x) => x.codigo === 'PLANO_MURO')).toBe(false);
+    expect(b.paredes!.length).toBe(1);
+    const terreo = b.pavimentos.find((p) => p.nome === 'Térreo')!;
+    const vTopo = b.vigas.filter((v) => v.grupo === terreo.grupo);
+    expect(vTopo.length).toBe(1);
+    expect(vTopo[0].plano).toBeUndefined();
+    const zs = an.portico.modelo.nos.filter((n) => [0, 3].includes(n[0]) && n[1] === 0 && n[2] > 0.1).map((n) => +n[2].toFixed(6));
+    expect(new Set(zs)).toEqual(new Set([0.5]));
+  });
+
+  it('rampa entre pavimentos: 15 % desce 2,10 m em 14 m a partir do pano horizontal do grupo superior', { timeout: 120000 }, () => {
+    const { s, an } = rodar('rampaPavimentos');
+    const b = s.modelo;
+    const pl = b.planos![0], c = coeficientesPlano(pl.def)!;
+    expect(inclinacaoDoPlano(c).percentual).toBeCloseTo(15, 9);
+    expect(zPlano(c, [6, 1])).toBeCloseTo(0, 12);
+    expect(zPlano(c, [20, 1])).toBeCloseTo(-2.1, 12);
+    const p2 = b.pavimentos.find((p) => p.nome === 'Estacionamento 2')!;
+    expect(b.lajes.filter((l) => l.grupo === p2.grupo && !l.plano).length).toBe(1); // o pano horizontal
+    expect(b.lajes.filter((l) => l.plano).length).toBe(4);
+    const topos = an.portico.modelo.nos.filter((n) => n[0] === 20 && n[1] === 0 && n[2] > 0.1).map((n) => +(n[2] - p2.cota).toFixed(6));
+    expect(topos).toContain(-2.1);
+  });
+
+  it('casos-guia e limitações têm texto e os exemplos estão listados', () => {
+    expect(CASOS_GUIA_PLANOS.map((c) => c.id)).toEqual(['inclinados', 'horizontalUmaPonta', 'horizontalDuasPontas', 'sobrepostos']);
+    expect(LIMITACOES_PLANOS.some((t) => /muro/.test(t))).toBe(true);
+    expect(EXEMPLOS_OBRA.map((e) => e.id)).toEqual(expect.arrayContaining(['telhado', 'mansarda', 'rampaGaragem', 'rampaPavimentos']));
+  });
 });

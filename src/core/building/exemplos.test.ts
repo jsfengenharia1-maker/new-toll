@@ -10,11 +10,12 @@ import { criarExemplo, EXEMPLOS_OBRA, type IdExemplo } from './exemplos';
 const IDS = EXEMPLOS_OBRA.map((e) => e.id) as IdExemplo[];
 
 describe('obras de exemplo', () => {
-  it.each(IDS)('%s: origem, descrição, 12 pilares e sem erro de lançamento', (id) => {
+  const PILARES: Partial<Record<IdExemplo, number>> = { mansarda: 17, rampaGaragem: 4 };
+  it.each(IDS)('%s: origem, descrição, pilares e sem erro de lançamento', (id) => {
     const s = criarExemplo(id);
     expect(s.modelo.obra.origem).toBe('exemplo');
     expect(s.modelo.obra.descricao?.length).toBe(2);
-    expect(s.modelo.pilares.length).toBe(12);
+    expect(s.modelo.pilares.length).toBe(PILARES[id] ?? 12);
     expect(verificar(s.modelo).filter((d) => d.severidade === 'erro')).toEqual([]);
   });
 

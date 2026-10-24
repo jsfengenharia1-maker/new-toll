@@ -2,9 +2,9 @@
 // do grupo têm definição por três pontos, por reta horizontal + inclinação ou por máxima declividade; panos e vigas recebem o plano
 // por `plano.atribuir`. Comandos: `plano.criar`, `plano.editar`, `plano.remover` e `plano.atribuir`.
 import { useState, type ReactNode } from 'react';
-import { coeficientesPlano, grausDaTangente, inclinacaoDoPlano, planoAtribuido, vigasIncoerentes } from '../../core/building/planos';
+import { CASOS_GUIA_PLANOS, coeficientesPlano, grausDaTangente, inclinacaoDoPlano, LIMITACOES_PLANOS, planoAtribuido, vigasIncoerentes } from '../../core/building/planos';
 import { pavimentosOrdenados, type BuildingModel, type Plano } from '../../core/building/types';
-import { Button, Group, Hint, Modal, NumField, Pill, RibbonButton, RibbonGroup, Select, TextField } from '../ui';
+import { Button, dataAjuda, Group, Hint, Modal, NumField, Pill, RibbonButton, RibbonGroup, Select, TextField } from '../ui';
 import { useStore } from '../store';
 import { usePlanta } from './plantaStore';
 import { useBuilding } from './store';
@@ -94,12 +94,18 @@ export function PlanosGrupo({ b }: { b: BuildingModel }) {
   const grupo = grupoDaPlanta(b, pl.pavimento);
   const n = (b.planos ?? []).filter((p) => p.grupo === grupo?.id).length;
   return (
-    <div data-grupo-planos>
+    <div data-grupo-planos {...dataAjuda('barra:planos')}>
       <Group title={`Planos — ${grupo?.nome ?? '—'} (${n})`} open={false}>
         {grupo && <ListaPlanos b={b} grupo={grupo.id} />}
         <DefinirNaPlanta />
         {grupo && <CorrigirVigas b={b} grupo={grupo.id} />}
         <Hint>Fluxo: lance panos e vigas na horizontal, crie o plano e atribua. O plano muda a cota do topo do pano e da viga (z = a·x + b·y + c); desnível e inclinação em relação ao topo do pavimento.</Hint>
+        <div data-casos-guia-planos>
+          <Hint>Casos-guia: {CASOS_GUIA_PLANOS.map((c) => `${c.titulo} — ${c.texto}`).join(' ')}</Hint>
+        </div>
+        <div data-limitacoes-planos>
+          <Hint>Limitações: {LIMITACOES_PLANOS.join(' ')}</Hint>
+        </div>
       </Group>
     </div>
   );
@@ -118,7 +124,7 @@ export function CriarPlano({ b, grupo, onClose }: { b: BuildingModel; grupo: str
     onClose();
   };
   return (
-    <Modal titulo="Novo plano" onClose={onClose}>
+    <Modal titulo="Novo plano" onClose={onClose} ajuda="janela:novoPlano">
       <div data-novo-plano>
         <CamposPlano d={d} onChange={setD} />
         {erro && <p className="small bad" role="alert" data-erros-plano>{erro}</p>}
