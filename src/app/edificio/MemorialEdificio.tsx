@@ -26,6 +26,7 @@ import { PREMISSAS, TAXAS } from '../../core/building/premissas';
 import { normasNoMemorial } from '../../core/normas/memorial';
 import { fichasNoMemorial } from '../../core/building/tiposLaje';
 import { MemorialNervuradas } from './MemorialNervuradas';
+import { MemorialAbacos } from './MemorialAbacos';
 
 import { cotaFundacao, inicioDe, lancesDoPilar, pavimentosOrdenados, peDireito, USOS, VENTO_PADRAO, ORIGEM_ROTULO } from '../../core/building/types';
 import { apoioDoPilar, excentricidadeApoio } from '../../core/building/transicao';
@@ -196,6 +197,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
           <MemorialConsolos b={b} dim={dim} h2={h2} />
           <MemorialInclinadas b={b} dim={dim} h2={h2} />
           <MemorialNervuradas b={b} dim={dim} h2={h2} />
+          <MemorialAbacos b={b} dim={dim} h2={h2} />
           <MemorialListagemGeral b={b} h2={h2} />
           {h2('Ações')}
           <table>
