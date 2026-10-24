@@ -5,6 +5,7 @@
 // Sem folha de referência para o radier: desenho pelo padrão R5 [a confirmar].
 import type { Dimensionamento } from '../building/dimensionamento';
 import type { PosicaoLaje } from '../building/detalhamentoLajes';
+import { vigasElasticasEf } from '../building/baseElastica';
 import { acoDe, cobrimentoFundacao, fckDe } from '../building/materiais';
 import { centroPilar, contornoPilar, deslocarPolilinha, lancesDoPilar, secaoNoLance, type BuildingModel, type Pilar } from '../building/types';
 import { areaPoligono } from '../geom/faces';
@@ -42,7 +43,7 @@ export function montarPranchasBaseElastica(b: BuildingModel, dim: Dimensionament
   if (!rads.length && !ves.length) return { pranchas: out, quant, aco: acoTot };
   const cfg = cfgArmacao(b), perdas = perdasDe(b), fck = fckDe(b, 'fundacao'), aco = acoDe(b, 'fundacao').aco, cob = cobrimentoFundacao(b);
   const mRad = (b.fundacao?.radiers ?? []).filter((r) => rads.some((x) => x.id === r.id));
-  const mVe = (b.fundacao?.vigasElasticas ?? []).filter((v) => ves.some((x) => x.id === v.id));
+  const mVe = vigasElasticasEf(b).filter((v) => !v.corrida && !v.parede && ves.some((x) => x.id === v.id));
   const faixas = mVe.map((v) => ({ v, f: faixaVigaElastica(v) }));
   const pilares = b.pilares.filter((p) => p.nasce === 'fundacao');
   const geo: P[] = [...mRad.flatMap((r) => r.contorno as P[]), ...faixas.flatMap((x) => x.f)];
@@ -60,7 +61,7 @@ export function montarPranchasBaseElastica(b: BuildingModel, dim: Dimensionament
   for (const { v, f } of faixas) {
     fundo.push({ t: 'pl', c: 'FUNDACAO', pts: f, fechada: true });
     const a = v.pontos[0], z = v.pontos[1], { ang, n } = angLegivel(a, z);
-    fundo.push({ t: 'txt', c: 'TEXTO', p: [(a[0] + z[0]) / 2 + n[0] * (v.b / 2 + 1 * k), (a[1] + z[1]) / 2 + n[1] * (v.b / 2 + 1 * k)], h: 2.2 * k, s: `${v.nome} ${cmInt(v.b)}×${cmInt(v.h)}`, ang, ah: 'c', av: 'base' });
+    fundo.push({ t: 'txt', c: 'TEXTO', p: [(a[0] + z[0]) / 2 + n[0] * (v.b / 2 + 1 * k), (a[1] + z[1]) / 2 + n[1] * (v.b / 2 + 1 * k)], h: 2.2 * k, s: v.geo?.temMesa ? `${v.nome} ${v.geo.tipo} ${cmInt(v.geo.bw)}×${cmInt(v.h)} mesa ${cmInt(v.geo.bf)}×${cmInt(v.geo.hf)}` : `${v.nome} ${cmInt(v.b)}×${cmInt(v.h)}`, ang, ah: 'c', av: 'base' });
   }
   const centros: P[] = [];
   for (const p of pilares) { const s = secaoBase(b, p); centros.push(centroPilar(p, s)); fundo.push({ t: 'pl', c: 'PILAR-NASCE', pts: contornoPilar(p, s) as P[], fechada: true }); }

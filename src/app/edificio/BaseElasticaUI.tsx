@@ -9,6 +9,7 @@ import { opcoesEmUso, perfilDe } from '../../core/building/opcoes';
 import { TABELA_K, radierSemCarga, vigasElasticasEf, type NoResultadoBase, type ResultadoRadier, type ResultadoVigaElastica } from '../../core/building/baseElastica';
 import { faixaVigaElastica } from '../../core/sheets/fundacaoRadier';
 import { CartaoPuncao } from './Puncao';
+import { CampoFormaVF } from './FormaVFUI';
 import { centroPilar, contornoPilar, type BuildingModel } from '../../core/building/types';
 import { useState } from 'react';
 import { Button, Group, Hint, KV, NumField, OptNumField, Pill, TextField } from '../ui';
@@ -137,6 +138,7 @@ export function BaseElasticaBloco({ b, onPlanta }: { b: BuildingModel; onPlanta:
             <OptNumField label={`k (vazio = ${fmt(op.radierK, 0)})`} unit="kN/m³" width={170} value={selV.k} onChange={(v) => exec('vigaElastica.editar', v === undefined ? { id: selV.id, limpar: ['k'] } : { id: selV.id, k: v })} />
             <OptNumField label="σadm (vazio = terreno)" unit="kN/m²" width={150} value={selV.sigmaAdm} onChange={(v) => exec('vigaElastica.editar', v === undefined ? { id: selV.id, limpar: ['sigmaAdm'] } : { id: selV.id, sigmaAdm: v })} />
           </div>
+          <CampoFormaVF forma={selV.forma} bw={selV.b} h={selV.h} mesaPadrao="inferior" soloContato onChange={(f) => exec('vigaElastica.editar', { id: selV.id, forma: f })} />
           <div className="row wrap">
             <Button disabled={!res(selV.id)} onClick={() => abrir(selV.id)}>Resultados da viga</Button>
             <Button variant="danger" onClick={() => exec('vigaElastica.remover', { ids: [selV.id] })}>Remover</Button>
@@ -189,7 +191,7 @@ export function JanelaBaseElastica({ id }: { id: string }) {
       {!atual && <p className="hint bad">Os resultados são anteriores a uma alteração: recalcule o edifício.</p>}
       <div className="row wrap u-items-center">
         <Pill tone={x.status === 'ok' ? 'ok' : 'bad'}>{x.status === 'ok' ? 'atende' : 'não atende'}</Pill>
-        <Pill tone="na">{r ? `Radier h = ${fmt(r.h * 100, 0)} cm` : `Viga sobre base elástica ${fmt(v!.b * 100, 0)} × ${fmt(v!.h * 100, 0)}`}</Pill>
+        <Pill tone="na">{r ? `Radier h = ${fmt(r.h * 100, 0)} cm` : v!.forma && v!.forma.tipo !== 'plana' ? `Viga ${v!.forma.tipo} sobre base elástica: alma ${fmt((v!.bw ?? v!.b) * 100, 0)} × ${fmt(v!.h * 100, 0)}, mesa ${fmt(v!.forma.bf * 100, 0)} × ${fmt(v!.forma.hf * 100, 0)} cm` : `Viga sobre base elástica ${fmt(v!.b * 100, 0)} × ${fmt(v!.h * 100, 0)}`}</Pill>
       </div>
       <KV rows={[
         ['k', `${fmt(x.k, 0)} kN/m³`],
@@ -198,6 +200,7 @@ export function JanelaBaseElastica({ id }: { id: string }) {
         ['σadm', x.sigmaAdm ? `${fmt(x.sigmaAdm, 0)} kN/m²` : '—'],
         ['Maior recalque', `${fmt(x.recalque * 1000, 2)} mm`],
         ...(r ? [['As inferior x / y', `${fmt(r.As.pos[0])} / ${fmt(r.As.pos[1])} cm²/m`], ['As superior x / y', `${fmt(r.As.neg[0])} / ${fmt(r.As.neg[1])} cm²/m`], ['md (Wood-Armer) inf. / sup.', `${fmt(Math.max(...r.mPos), 1)} / ${fmt(Math.min(...r.mNeg), 1)} kN·m/m`]] as [string, string][] : []),
+        ...(v?.mesaBalanco ? [['Mesa em balanço (laje)', `ℓ = ${fmt(v.mesaBalanco.balanco * 100, 0)} cm; Md = ${fmt(v.mesaBalanco.Md, 1)} kN·m/m; As = ${fmt(v.mesaBalanco.AsAdot)} cm²/m${v.mesaBalanco.barras ? ` (φ${fmt(v.mesaBalanco.barras.phi, 1)} c/${fmt(v.mesaBalanco.barras.s * 100, 0)})` : ''}; distribuição ${v.mesaBalanco.distribuicao.barras ? `φ${fmt(v.mesaBalanco.distribuicao.barras.phi, 1)} c/${fmt(v.mesaBalanco.distribuicao.barras.s * 100, 0)}` : '—'}; Vd = ${fmt(v.mesaBalanco.cortante.Vd, 1)} / VRd1 = ${fmt(v.mesaBalanco.cortante.VRd1, 1)} kN/m`]] as [string, string][] : []),
         ...(v ? [['Md inf. / sup.', `${fmt(v.Md.inf, 1)} / ${fmt(v.Md.sup, 1)} kN·m`], ['Vd', `${fmt(v.Vd, 1)} kN`], ['Armadura', `inf. ${v.armadura.inf.barras ? `${v.armadura.inf.barras.n} φ${fmt(v.armadura.inf.barras.phi, 1)}` : '—'}; sup. ${v.armadura.sup.barras ? `${v.armadura.sup.barras.n} φ${fmt(v.armadura.sup.barras.phi, 1)}` : '—'}${v.armadura.estribo ? `; estribo φ${fmt(v.armadura.estribo.phi, 1)} c/${fmt(v.armadura.estribo.s * 100, 0)}` : ''}`]] as [string, string][] : []),
       ]} />
       {r && <CargaRadier b={b} id={r.id} />}

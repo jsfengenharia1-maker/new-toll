@@ -12,6 +12,7 @@ import type { FoundationParams, SoilClass } from '../piles';
 import { pilaresNaBase, temBaseElastica } from '../building/baseElastica';
 import { planejarFundacoes, resumoPlano, type PassoGerar } from '../building/fundacaoGerar';
 import { aplicarComando, comando, registrar } from './registry';
+import { formaDe, formaVFSchema, validarFormaVF, type FormaVFIn } from './formaVF';
 import { comDefaults, type JsonSchema } from './schema';
 
 const err = (codigo: string, mensagem: string, elementos: string[] = []): Diagnostico[] => [{ codigo, severidade: 'erro', elementos, mensagem }];
@@ -688,7 +689,7 @@ registrar<{ ids: number[] }>({
 const equilibrioSchema: JsonSchema = { oneOf: [{ type: 'string', enum: ['auto'] }, { type: 'object', additionalProperties: false, required: ['ini', 'fim'], properties: { ini: { type: 'boolean' }, fim: { type: 'boolean' } } }],
   description: '"auto" (padrão) = as pontas em sapata ou bloco excêntrico; ou { ini, fim } explícito' };
 const TIPOS_VF = ['equilibrio', 'travamento'] as const;
-type VFIn = { tipo: VigaFundacao['tipo']; ini: string; fim: string; equilibrio?: VigaFundacao['equilibrio']; b?: number; h?: number; fixa?: boolean; nome?: string; ancoragem?: { ini?: number; fim?: number } };
+type VFIn = { tipo: VigaFundacao['tipo']; ini: string; fim: string; equilibrio?: VigaFundacao['equilibrio']; b?: number; h?: number; fixa?: boolean; nome?: string; ancoragem?: { ini?: number; fim?: number }; forma?: FormaVFIn };
 
 function validarVF(b: BuildingModel, v: Pick<VigaFundacao, 'ini' | 'fim'>, proprio?: string): Diagnostico[] {
   const a = pontaVF(b, v.ini), z = pontaVF(b, v.fim);
@@ -702,22 +703,22 @@ function validarVF(b: BuildingModel, v: Pick<VigaFundacao, 'ini' | 'fim'>, propr
 
 registrar<VFIn>({
   nome: 'vigaFundacao.criar',
-  descricao: 'Lança uma viga de fundação entre dois elementos de fundação (ou elemento e pilar que nasce na fundação): de equilíbrio (alavanca que centra a sapata ou o bloco excêntrico da ponta equilibrada e alivia a outra; `equilibrio` "auto" ou { ini, fim }) ou de travamento (blocos de 1 e 2 estacas). Não se apoia no solo: leva peso próprio e cargas do nível de fundação (grupo "fundacao") às pontas. Seção b × h (m; padrão 20 × 40 cm, cresce até atender) ou `fixa` (só verificada).',
+  descricao: 'Lança uma viga de fundação entre dois elementos de fundação (ou elemento e pilar que nasce na fundação): de equilíbrio (alavanca que centra a sapata ou o bloco excêntrico da ponta equilibrada e alivia a outra; `equilibrio` "auto" ou { ini, fim }) ou de travamento (blocos de 1 e 2 estacas). Não se apoia no solo: leva peso próprio e cargas do nível de fundação (grupo "fundacao") às pontas. Seção b × h (m; padrão 20 × 40 cm, cresce até atender) ou `fixa` (só verificada); `forma` T, L ou plana (E5k: `b` é a alma, mesa `bf` × `hf`, padrão em cima).',
   risco: 'escrita',
   mcp: false,
   calculo: 'fundacao',
   schema: { type: 'object', additionalProperties: false, required: ['tipo', 'ini', 'fim'], properties: {
     tipo: { type: 'string', enum: TIPOS_VF }, ini: { type: 'string', description: 'id do elemento de fundação ou do pilar' }, fim: { type: 'string' },
     equilibrio: equilibrioSchema, b: { type: 'number', minimum: 0.1, maximum: 1.5, default: 0.2 }, h: { type: 'number', minimum: 0.2, maximum: 3, default: 0.4 },
-    fixa: { type: 'boolean' }, nome: { type: 'string', minLength: 1 },
+    fixa: { type: 'boolean' }, nome: { type: 'string', minLength: 1 }, forma: formaVFSchema,
   } },
-  validar: (b, p) => validarVF(b, p),
+  validar: (b, p) => [...validarVF(b, p), ...validarFormaVF(p.b ?? 0.2, p.h ?? 0.4, formaDe(p.forma), 'superior')],
   aplicar(d, p) {
     const f = fund(d);
     const nome = p.nome?.trim() || nomeVigaFundacao(d as BuildingModel);
     const v: VigaFundacao = {
       id: novoId(d, 'vf'), nome, tipo: p.tipo, ini: p.ini, fim: p.fim, b: p.b ?? 0.2, h: p.h ?? 0.4,
-      ...(p.tipo === 'equilibrio' && p.equilibrio && p.equilibrio !== 'auto' ? { equilibrio: { ...p.equilibrio } } : {}), ...(p.fixa ? { fixa: true } : {}),
+      ...(p.tipo === 'equilibrio' && p.equilibrio && p.equilibrio !== 'auto' ? { equilibrio: { ...p.equilibrio } } : {}), ...(p.fixa ? { fixa: true } : {}), ...(formaDe(p.forma) ? { forma: formaDe(p.forma) } : {}),
     };
     (f.vigas ??= []).push(v);
     return `${nome} (${p.tipo === 'equilibrio' ? 'equilíbrio' : 'travamento'}) lançada.`;
@@ -726,25 +727,26 @@ registrar<VFIn>({
 
 registrar<Partial<VFIn> & { id: string }>({
   nome: 'vigaFundacao.editar',
-  descricao: 'Altera uma viga de fundação: nome, tipo, pontas, pontas equilibradas ("auto" ou { ini, fim }), seção b × h (m), `fixa` (seção só verificada) e `ancoragem` (comprimento reto das barras superiores além da face do pilar de cada ponta, m; 0 = o lb calculado).',
+  descricao: 'Altera uma viga de fundação: nome, tipo, pontas, pontas equilibradas ("auto" ou { ini, fim }), seção b × h (m), `fixa` (seção só verificada) e `ancoragem` (comprimento reto das barras superiores além da face do pilar de cada ponta, m; 0 = o lb calculado) e `forma` da seção (retangular, T, L ou plana; `b` é a alma).',
   risco: 'escrita',
   mcp: false,
   calculo: 'fundacao',
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
     id: { type: 'string' }, nome: { type: 'string', minLength: 1 }, tipo: { type: 'string', enum: TIPOS_VF }, ini: { type: 'string' }, fim: { type: 'string' },
     equilibrio: equilibrioSchema, b: { type: 'number', minimum: 0.1, maximum: 1.5 }, h: { type: 'number', minimum: 0.2, maximum: 3 }, fixa: { type: 'boolean' },
-    ancoragem: { type: 'object', additionalProperties: false, properties: { ini: { type: 'number', minimum: 0, maximum: 3 }, fim: { type: 'number', minimum: 0, maximum: 3 } } },
+    ancoragem: { type: 'object', additionalProperties: false, properties: { ini: { type: 'number', minimum: 0, maximum: 3 }, fim: { type: 'number', minimum: 0, maximum: 3 } } }, forma: formaVFSchema,
   } },
   validar(b, p) {
     const v = b.fundacao?.vigas?.find((x) => x.id === p.id);
     if (!v) return err('VIGA_FUNDACAO_INEXISTENTE', `Viga de fundação ${p.id} não existe.`);
-    return validarVF(b, { ini: p.ini ?? v.ini, fim: p.fim ?? v.fim }, v.id);
+    return [...validarVF(b, { ini: p.ini ?? v.ini, fim: p.fim ?? v.fim }, v.id), ...validarFormaVF(p.b ?? v.b, p.h ?? v.h, p.forma ? formaDe(p.forma) : v.forma, 'superior')];
   },
   aplicar(d, p) {
     const v = d.fundacao!.vigas!.find((x) => x.id === p.id)!;
     if (p.nome) v.nome = p.nome.trim();
     for (const k of ['tipo', 'ini', 'fim', 'b', 'h'] as const) if (p[k] !== undefined) (v as Record<string, unknown>)[k] = p[k];
     if (p.fixa !== undefined) { if (p.fixa) v.fixa = true; else delete v.fixa; }
+    if (p.forma) { const f = formaDe(p.forma); if (f) v.forma = f; else delete v.forma; }
     if (p.equilibrio !== undefined) { if (p.equilibrio === 'auto') delete v.equilibrio; else v.equilibrio = { ...p.equilibrio }; }
     if (v.tipo !== 'equilibrio') delete v.equilibrio;
     if (p.ancoragem) {

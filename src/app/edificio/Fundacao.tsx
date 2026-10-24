@@ -9,6 +9,7 @@ import { CargasNoPilar } from './Vinculos';
 import { AssociarPilares, ElementoGrupoEditor, LimitesBloco, OpcoesSapatas, SobreposicaoBloco } from './FundacaoGrupoUI';
 import { SondagemEditor } from '../SondagemEditor';
 import { BaseElasticaBloco } from './BaseElasticaUI';
+import { CampoFormaVF } from './FormaVFUI';
 import { CorridaBloco } from './CorridaUI';
 import { capCols } from '../../core/foundation';
 import { CaissonDetail, CapDetail, FootingDetail, SolutionDetail } from '../FundacoesDetail';
@@ -440,7 +441,7 @@ function VigasFundacaoBloco({ b, onPlanta }: { b: BuildingModel; onPlanta: () =>
                   <td className="tl">{v.nome}</td>
                   <td className="tl">{v.tipo === 'equilibrio' ? 'equilíbrio' : 'travamento'}</td>
                   <td className="tl">{r ? `${r.ini} — ${r.fim}` : `${nomePonta(b, v.ini)} — ${nomePonta(b, v.fim)}`}</td>
-                  <td className="num">{r ? `${Math.round(r.bAdot * 100)}×${Math.round(r.hAdot * 100)}` : `${Math.round(v.b * 100)}×${Math.round(v.h * 100)}`}{v.fixa ? ' fixa' : ''}</td>
+                  <td className="num">{r ? `${Math.round(r.bAdot * 100)}×${Math.round(r.hAdot * 100)}` : `${Math.round(v.b * 100)}×${Math.round(v.h * 100)}`}{v.forma ? ` ${v.forma.tipo}` : ''}{v.fixa ? ' fixa' : ''}</td>
                   <td className="tl small">{r ? r.resumo : <span className="muted">não calculada</span>}</td>
                   <td>{r && <Pill tone={r.status === 'ok' ? 'ok' : 'bad'}>{r.status === 'ok' ? 'ok' : 'erro'}</Pill>}</td>
                 </tr>
@@ -493,6 +494,7 @@ function VigaFundacaoEditor({ b, v, r, nSel }: { b: BuildingModel; v: VigaFundac
         <Check label="Seção fixa (só verificada)" checked={!!v.fixa} onChange={(x) => ed({ fixa: x })} />
         <Button disabled={!r || (r.bAdot === v.b && r.hAdot === v.h && !!v.fixa)} title="Fixa a seção que o cálculo adotou" onClick={() => r && ed({ b: r.bAdot, h: r.hAdot, fixa: true })}>Impor a seção calculada</Button>
       </div>
+      <CampoFormaVF forma={v.forma} bw={v.b} h={v.h} mesaPadrao="superior" onChange={(f) => ed({ forma: f })} />
       <div className="row wrap u-items-end">
         <Select label="Igualar a" value={modeloEf} options={outras.length ? outras.map((x) => ({ v: x.id, label: x.nome })) : [{ v: '', label: '(sem outra viga)' }]} onChange={setModelo} />
         <Button disabled={!outras.length} title="Copia a seção da viga modelo para esta e a fixa: se não atender, a viga fica com erro" onClick={() => exec('vigaFundacao.igualar', { modelo: modeloEf, ids: [v.id] })}>Igualar esta ao modelo</Button>

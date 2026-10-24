@@ -4,6 +4,7 @@
 import { useBuilding, fundacaoAtual } from './store';
 import { classificar } from '../../core/building/revisao';
 import { cobrimentoFundacao } from '../../core/building/materiais';
+import { contornoSecaoViga } from '../../core/building/secaoViga';
 import { geometriaVF, meiaFace, type ResultadoVigaFundacao } from '../../core/building/vigasFundacao';
 import type { BuildingModel, VigaFundacao } from '../../core/building/types';
 import type { BarChoice } from '../../core/concrete';
@@ -87,10 +88,15 @@ export function DetalheLongitudinalVF({ b, v, r }: { b: BuildingModel; v: VigaFu
 /** Seção transversal na região de maior momento: barras superiores, inferiores, pele e estribo. */
 export function DetalheTransversalVF({ b, r }: { b: BuildingModel; r: ResultadoVigaFundacao }) {
   const bw = r.bAdot, h = r.hAdot, ar = r.armadura, cob = cobrimentoFundacao(b), t = ar.estribo ? ar.estribo.phi / 1000 : 0.005;
-  const esc = 200 / Math.max(h, bw), m = 18, wS = bw * esc, hS = h * esc, W = wS + 2 * m, H = hS + 2 * m + 18;
-  const xL = cob + t, xR = bw - cob - t;
+  // seção T ou L (E5k): contorno da mesa; a alma fica deslocada (L: mesa à esquerda); as barras da face da mesa se espalham na mesa
+  const fm = r.forma && r.forma.tipo !== 'plana' ? r.forma : null;
+  const ct = contornoSecaoViga(bw, h, fm ? { tipo: fm.tipo as 'T' | 'L', bf: fm.bf, hf: fm.hf } : null, fm?.mesa === 'inferior');
+  const W0 = ct.largura, ox = fm ? (fm.tipo === 'L' ? fm.bf - bw : (fm.bf - bw) / 2) : 0;
+  const esc = 200 / Math.max(h, W0), m = 18, wS = W0 * esc, hS = h * esc, W = wS + 2 * m, H = hS + 2 * m + 18;
+  const faixa = (de: 'inf' | 'sup') => (fm && fm.mesa === (de === 'inf' ? 'inferior' : 'superior') ? [cob + t, W0 - cob - t] : [ox + cob + t, ox + bw - cob - t]);
   const camadas = (x: BarChoice | null, de: 'inf' | 'sup') => {
     if (!x) return [] as { x: number; y: number; r: number }[];
+    const [xL, xR] = faixa(de);
     const phi = x.phi / 1000, cap = Math.max(1, Math.floor((xR - xL + 0.02) / (phi + 0.02)));
     return Array.from({ length: x.n }, (_, i) => {
       const k = Math.floor(i / cap), j = i % cap, nLin = Math.min(cap, x.n - k * cap);
@@ -99,19 +105,22 @@ export function DetalheTransversalVF({ b, r }: { b: BuildingModel; r: ResultadoV
       return { x: xc, y: de === 'inf' ? h - dist : dist, r: phi / 2 };
     });
   };
+  const xL = ox + cob + t, xR = ox + bw - cob - t;
   const pS = camadas(ar.sup.barras, 'sup'), pI = camadas(ar.inf.barras, 'inf');
   const nFace = ar.pele?.barras ? Math.max(1, Math.round(ar.pele.barras.n / 2)) : 0, pr = (ar.pele?.barras?.phi ?? 8) / 2000;
   const yA = Math.max(cob + 0.06, ...pS.map((c) => c.y + c.r + 0.03)), yB = Math.min(h - cob - 0.06, ...pI.map((c) => c.y - c.r - 0.03));
   const pP = Array.from({ length: nFace }, (_, i) => (nFace === 1 ? (yA + yB) / 2 : yA + (i * (yB - yA)) / (nFace - 1))).flatMap((y) => [{ x: xL + pr, y, r: pr }, { x: xR - pr, y, r: pr }]);
   const P = (v: number) => (m + v * esc).toFixed(1), R = (x: number) => Math.max(1.8, x * esc).toFixed(1);
+  // contorno com a origem embaixo: y do SVG cresce para baixo
+  const poli = ct.pontos.map(([x, y]) => `${P(x)},${P(h - y)}`).join(' ');
   return (
     <svg className="det det-secao" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Seção transversal da viga de fundação ${r.nome}`} data-secao-vf>
-      <rect x={m} y={m} width={wS} height={hS} className="det-contorno" />
-      <rect x={P(cob)} y={P(cob)} width={((bw - 2 * cob) * esc).toFixed(1)} height={((h - 2 * cob) * esc).toFixed(1)} rx={4} className="det-estribo-sec" />
+      {fm ? <polygon points={poli} className="det-contorno" /> : <rect x={m} y={m} width={wS} height={hS} className="det-contorno" />}
+      <rect x={P(ox + cob)} y={P(cob)} width={((bw - 2 * cob) * esc).toFixed(1)} height={((h - 2 * cob) * esc).toFixed(1)} rx={4} className="det-estribo-sec" />
       {pS.map((c, i) => <circle key={`s${i}`} cx={P(c.x)} cy={P(c.y)} r={R(c.r)} className="det-pt sup" />)}
       {pI.map((c, i) => <circle key={`i${i}`} cx={P(c.x)} cy={P(c.y)} r={R(c.r)} className="det-pt inf" />)}
       {pP.map((c, i) => <circle key={`p${i}`} cx={P(c.x)} cy={P(c.y)} r={R(c.r)} className="det-pt pele" />)}
-      <text x={m + wS / 2} y={H - 4} textAnchor="middle" className="det-txt cota">{cm(bw)} × {cm(h)} cm · cobr. {cm(cob, 1)} cm</text>
+      <text x={m + wS / 2} y={H - 4} textAnchor="middle" className="det-txt cota">{fm ? `${fm.tipo} ${cm(bw)} × ${cm(h)} cm, mesa ${cm(fm.bf)} × ${cm(fm.hf)}` : `${cm(bw)} × ${cm(h)} cm`} · cobr. {cm(cob, 1)} cm</text>
     </svg>
   );
 }
@@ -140,6 +149,8 @@ export function JanelaVigaFundacao({ id }: { id: string }) {
       <KV rows={[
         ['Pontas', `${r.ini} — ${r.fim} (eixo a eixo ${fmt(r.L)} m)`],
         ['Seção do modelo → adotada', `${cm(r.b)}×${cm(r.h)} → ${cm(r.bAdot)}×${cm(r.hAdot)} cm`],
+        ...(r.forma && r.forma.tipo !== 'plana' ? [['Seção ' + r.forma.tipo, `alma ${cm(r.bAdot)} × ${cm(r.hAdot)} cm, mesa ${cm(r.forma.bf)} × ${cm(r.forma.hf)} cm ${r.forma.mesa === 'inferior' ? 'embaixo' : 'em cima'}`] as [string, string]] : r.forma ? [['Seção plana', `${cm(r.bAdot)} × ${cm(r.hAdot)} cm (retangular larga)`] as [string, string]] : []),
+        ...(r.mesaBalanco ? [['Mesa em balanço (laje)', `ℓ = ${cm(r.mesaBalanco.balanco)} cm; As = ${fmt(r.mesaBalanco.AsAdot)} cm²/m${r.mesaBalanco.barras ? ` (${phiTxt(r.mesaBalanco.barras.phi)} c/${cm(r.mesaBalanco.barras.s)})` : ''}; distribuição ${r.mesaBalanco.distribuicao.barras ? `${phiTxt(r.mesaBalanco.distribuicao.barras.phi)} c/${cm(r.mesaBalanco.distribuicao.barras.s)}` : '—'}`] as [string, string]] : []),
         ['Pontas equilibradas', eq],
         ['Alívio levado a cada ponta (Nk)', `${r.ini} ${fmt(r.alivio.ini, 1)} kN · ${r.fim} ${fmt(r.alivio.fim, 1)} kN`],
         ['Reações das cargas sobre a viga (com peso próprio)', `${r.ini} ${fmt(r.cargas.ini, 1)} kN · ${r.fim} ${fmt(r.cargas.fim, 1)} kN`],

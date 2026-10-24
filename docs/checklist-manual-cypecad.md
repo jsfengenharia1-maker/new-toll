@@ -14,7 +14,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 3. Grupos e pavimentos | 41 | 36 | 1 | 1 | 3 |
 | 4. Pilares | 63 | 54 | 2 | 0 | 7 |
 | 5. Muros e paredes estruturais | 30 | 25 | 1 | 0 | 4 |
-| 6. Vigas | 108 | 80 | 3 | 0 | 25 |
+| 6. Vigas | 108 | 81 | 2 | 0 | 25 |
 | 7. Lajes | 195 | 108 | 20 | 0 | 67 |
 | 8. Escadas | 65 | 65 | 0 | 0 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
@@ -22,7 +22,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 11. Fundações | 70 | 64 | 0 | 1 | 5 |
 | 12. Isovalores e deformada | 22 | 19 | 2 | 1 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **543** | **30** | **4** | **186** |
+| **Total** | **763** | **544** | **29** | **4** | **186** |
 
 ## Pendências por frente
 
@@ -30,7 +30,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 17 | 1 | 18 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 16 | 1 | 17 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 0 | 0 | 0 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 11 | 3 | 14 |
@@ -314,7 +314,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.19 | Desligamento muro-pilar só em lajes de vigotas. Em lajes maciças/cogumelo, a recomendação é lançar o muro como elemento. | Feito | — | aviso `MURO_PILAR_MACICA` (laje maciça ou sem laje junto ao pilar): o desligamento só vale com lajes de vigotas e a mensagem sugere lançar o muro como elemento (`diagnosticosAlvenaria`) [E1e] |
 | C6.20 | A viga de coroamento do topo do muro não é especificada pelo programa. O detalhe fica com o usuário, com apoio da biblioteca de detalhes construtivos. | Fora | — |  |
 | C6.21 | Viga não estrutural (limite), que só fecha o contorno de um pano maciço quando a viga de borda é desprezível. | Feito | — | núcleo: `Viga.estrutural = false` fora da grelha e do pórtico (`analitico.ts`), contorno do pano fechado (`panosDoGrupo`), VIGA_NAO_ESTRUTURAL_CARGA; interface nos cartões E2a-1 e E2a-2 [E2a] — Feito 23/10/2026: interface nos cartões E2a (Edificio.tsx, Detalhamento.tsx); e2e E2a [E2a] |
-| C6.22 | Vigas de fundação: retangular, L, T ou plana (esta para fechar panos de radier). | Parcial | E | vigas do pavimento: retangular, T, L (mesa) e chata pelos campos de `Viga`; vigas de fundação com seção T/L/plana ficam na FU (hoje só retangular em `ElementoFundacao`) [E2a] — E5k: seções T, L e plana nas vigas de fundação |
+| C6.22 | Vigas de fundação: retangular, L, T ou plana (esta para fechar panos de radier). | Feito | — | vigas de fundação com seção retangular, T, L ou plana (`FormaVF` em `VigaElastica` e `VigaFundacao`; comandos `vigaElastica.criar/editar` e `vigaFundacao.criar/editar` com `forma`; `secaoVF.ts`: geometria, contato = largura da mesa embaixo, flexão em T onde a mesa está comprimida, cortante na alma, mesa em balanço como laje; `dimensionarVigaElastica`, `dimensionarVigaFundacao`; editor `FormaVFUI.tsx`, janela, seção transversal e memorial) [E5k]; premissa `e5k-secoes-fundacao` |
 | C6.23 | Vigas de aço: perfil simples, caixão soldado, perfis afastados com chapas de ligação, perfis unidos. Usam a mesma biblioteca dos pilares de aço. | Fora | — | vigas de aço no edifício |
 | C6.24 | Vigas alveoladas (não mistas): furos hexagonais, octogonais ou circulares, proporções e número de furos preenchidos nas extremidades. | Fora | — |  |
 | C6.25 | Vigas mistas: perfil sob a laje com concreto colaborante ligado por conectores de geometria definível. | Fora | — | mistas |
