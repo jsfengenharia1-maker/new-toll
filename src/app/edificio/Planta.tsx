@@ -8,6 +8,11 @@ import { useBuilding } from './store';
 import { useRevisao } from './revisao';
 import { aoEscolher, facesLaje, hexDaCor, paleta, usePlanta, type Ferramenta, type Vista } from './plantaStore';
 import { EscadaMenu, escolherEscada } from './EscadaMenu';
+import { dadosComunsDe, geometriaEscada, nomeSequencial, tiposLanceDisponiveis } from '../../core/building/escadas';
+import { anguloDeInsercao, deltaPorPontos, desenhoPlantaEscada, escadasNaJanela, escadasNoPonto, girarEscada, previaInsercao } from '../../core/building/escadasEdicao';
+import { desenharEscadaCanvas } from './escadaCanvas';
+import { baseNovaEscada, useNovaEscadaUI } from './NovaEscadaUI';
+import { useEscadaUI } from './EscadaUI';
 import { poligonoZona, siglaReforco } from '../../core/building/lajesEdicao';
 import { faixaVigaElastica } from '../../core/sheets/fundacaoRadier';
 import { corridaEfetiva } from '../../core/building/baseElastica';
@@ -234,6 +239,8 @@ export function Planta() {
     baixo: null as string | null, fundPilar: null as string | null, insEl: null as string | null, vigaRef: null as string | null, lajeAb: null as string | null, refEl: null as string | null, refDe: [0, 0] as P2, vfIni: null as string | null, extremidade: 'fim' as 'ini' | 'fim', cache: null as HTMLCanvasElement | null, vistaCache: null as Vista | null, timer: 0 as number | ReturnType<typeof setTimeout>, quadros: [] as number[],
     /** Zonas clicáveis das cotas (valor, pés e marcas) refeitas a cada desenho (L6). */
     zonas: [] as { x: number; y: number; r: number; acao: () => void; pe?: boolean }[],
+    /** Escadas escolhidas no 1º clique das funções Mover e Girar da ferramenta Escada (E4b). */
+    escadaIds: [] as string[],
   });
 
   // ---- dados derivados ----
@@ -345,6 +352,12 @@ export function Planta() {
   const cubetasPlanta = useMemo(() => (pl.camadaNervuras ? lajes.flatMap(({ l }) => (arranjoDaLaje(b, l)?.arr.cubetas ?? []).map((cb) => cb.poligono)) : []), [b, lajes, pl.camadaNervuras]);
   // ábacos das nervuradas bidirecionais (E3d): zona efetiva de cada ábaco (camada opcional)
   const abacosPlanta = useMemo(() => (pl.camadaAbacos ? lajes.flatMap(({ l }) => (arranjoDaLaje(b, l)?.abacos ?? []).map((e) => e.poligono)) : []), [b, lajes, pl.camadaAbacos]);
+  // escadas do grupo atual (E4b): contornos, degraus, setas e referência, no desenho do núcleo
+  const escadasPl = useMemo(() => {
+    if (nivelFund) return [];
+    const tipos = tiposLanceDisponiveis(b);
+    return (b.escadas ?? []).filter((e) => e.grupo === grupo).map((e) => ({ e, g: geometriaEscada(e, tipos, b), d: desenhoPlantaEscada(geometriaEscada(e, tipos, b)) }));
+  }, [b, grupo, nivelFund]);
   const bloqueados = useMemo(() => idsBloqueados({ vigas: b.vigas, pilares: b.pilares } as BuildingModel), [b.vigas, b.pilares]);
   const comAviso = useMemo(() => new Set(pl.mostrarErros ? [...niveisRev.a].filter((i) => !comErro.has(i)) : []), [niveisRev, comErro, pl.mostrarErros]);
 
@@ -557,6 +570,8 @@ export function Planta() {
         ctx.globalAlpha = 0.22; ctx.fill(); ctx.globalAlpha = 1; ctx.stroke();
       }
     }
+    // escadas do grupo (E4b)
+    for (const x of escadasPl) desenharEscadaCanvas(ctx, x.d, paraTela, cores, { selecionada: pl.selecao.has(x.e.id) });
     // painéis de tela soldada da base detalhada (retângulo com diagonais e designação)
     if (painelLajes.length) {
       ctx.lineWidth = 1; ctx.font = '10px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -1192,6 +1207,28 @@ export function Planta() {
       }
       ctx.fillStyle = cores.captura; ctx.fillRect(px - 2.5, py - 2.5, 5, 5);
     }
+    // ferramenta Escada (E4b): prévia no cursor (criar) e escadas deslocadas ou giradas (mover e girar)
+    if (pl.ferramenta === 'escada' && !nivelFund && !s.pan) {
+      if (pl.escadaFn === 'criar') {
+        const ini = pontos[0], base = baseNovaEscada(b, pl);
+        if (base) {
+          const ang = ini ? anguloDeInsercao(ini, s.ponto, pl.orto) ?? 0 : pl.escadaPadrao?.angulo ?? 0;
+          const pr = previaInsercao(b, { grupo, origem: ini ?? s.ponto, angulo: ang, nome: nomeSequencial(b, pl.escadaPadrao?.nome), dados: base.dados, lances: base.lances });
+          desenharEscadaCanvas(ctx, desenhoPlantaEscada(pr.geometria), paraTela, cores, { previa: true, erro: pr.erros.length > 0 });
+        }
+        ctx.fillStyle = cores.captura; ctx.fillRect(px - 2.5, py - 2.5, 5, 5);
+      } else if ((pl.escadaFn === 'mover' || pl.escadaFn === 'girar') && pontos.length === 1) {
+        const tipos = tiposLanceDisponiveis(b);
+        for (const id of s.escadaIds) {
+          const e = (b.escadas ?? []).find((x) => x.id === id);
+          if (!e) continue;
+          let nova: { origem: P2; angulo: number } = { origem: e.origem as P2, angulo: e.angulo };
+          if (pl.escadaFn === 'mover') nova = { origem: [e.origem[0] + s.ponto[0] - pontos[0][0], e.origem[1] + s.ponto[1] - pontos[0][1]], angulo: e.angulo };
+          else { const dl = deltaPorPontos(e.origem as P2, pontos[0], s.ponto); if (dl !== null) nova = girarEscada(e, dl) as { origem: P2; angulo: number }; }
+          desenharEscadaCanvas(ctx, desenhoPlantaEscada(geometriaEscada({ ...e, ...nova }, tipos, b)), paraTela, cores, { previa: true });
+        }
+      }
+    }
     // mira
     const [mx, my] = paraTela(...s.cursor);
     ctx.strokeStyle = cores.texto; ctx.lineWidth = 1; ctx.beginPath();
@@ -1204,9 +1241,11 @@ export function Planta() {
   const registrarQuadro = (ms: number) => {
     const q = it.current.quadros;
     q.push(ms); if (q.length > 60) q.shift();
-    if (wrap.current) { wrap.current.dataset.frameMs = (q.reduce((a, z) => a + z, 0) / q.length).toFixed(2); wrap.current.dataset.segmentos = String(desenhoMascara.segs.length / 4); if (vista) wrap.current.dataset.vista = JSON.stringify(vista); }
+    if (wrap.current) { wrap.current.dataset.escadas = escadasPl.map((x) => x.e.nome).join(','); wrap.current.dataset.frameMs = (q.reduce((a, z) => a + z, 0) / q.length).toFixed(2); wrap.current.dataset.segmentos = String(desenhoMascara.segs.length / 4); if (vista) wrap.current.dataset.vista = JSON.stringify(vista); }
   };
 
+  // a troca de função da ferramenta Escada, ou um giro digitado no menu, descarta o ponto pendente (E4b)
+  useEffect(() => { setPontos([]); }, [pl.escadaFn, pl.escadaZera]);
   // re-desenho quando dados, vista, tema ou tamanho mudam
   const vistaAnt = useRef<Vista | null>(null);
   useEffect(() => {
@@ -1334,10 +1373,75 @@ export function Planta() {
   };
 
   // ---- ações das ferramentas ----
-  const selecionados = () => ({ corridas: corridasP.filter((x) => pl.selecao.has(x.c.id)).map((x) => x.c.id), radiers: radiers.filter((r) => pl.selecao.has(r.id)).map((r) => r.id), vigasEl: vigasEl.filter((x) => pl.selecao.has(x.v.id)).map((x) => x.v.id), limites: limites.filter((l) => pl.selecao.has(l.id)).map((l) => l.id), vigasFund: vigasFund.filter((x) => pl.selecao.has(x.v.id)).map((x) => x.v.id), fundacoes: fund.filter((f) => pl.selecao.has(f.el.id)).map((f) => f.el.id), pilares: b.pilares.filter((p) => pl.selecao.has(p.id)).map((p) => p.id), eixos: b.eixos.filter((e) => pl.selecao.has(e.id)).map((e) => e.id), vigas: vigas.filter(({ v }) => pl.selecao.has(v.id)).map(({ v }) => v.id), lajes: lajes.filter(({ l }) => pl.selecao.has(l.id)).map(({ l }) => l.id), cargas: cargas.filter((c) => pl.selecao.has(c.id)).map((c) => c.id) });
+  const selecionados = () => ({ corridas: corridasP.filter((x) => pl.selecao.has(x.c.id)).map((x) => x.c.id), radiers: radiers.filter((r) => pl.selecao.has(r.id)).map((r) => r.id), vigasEl: vigasEl.filter((x) => pl.selecao.has(x.v.id)).map((x) => x.v.id), limites: limites.filter((l) => pl.selecao.has(l.id)).map((l) => l.id), vigasFund: vigasFund.filter((x) => pl.selecao.has(x.v.id)).map((x) => x.v.id), fundacoes: fund.filter((f) => pl.selecao.has(f.el.id)).map((f) => f.el.id), pilares: b.pilares.filter((p) => pl.selecao.has(p.id)).map((p) => p.id), eixos: b.eixos.filter((e) => pl.selecao.has(e.id)).map((e) => e.id), vigas: vigas.filter(({ v }) => pl.selecao.has(v.id)).map(({ v }) => v.id), lajes: lajes.filter(({ l }) => pl.selecao.has(l.id)).map(({ l }) => l.id), cargas: cargas.filter((c) => pl.selecao.has(c.id)).map((c) => c.id), escadas: escadasPl.filter((x) => pl.selecao.has(x.e.id)).map((x) => x.e.id) });
+  /** Ferramenta Escada (E4b): criar (2 cliques), editar, apagar, mover e girar, só nas escadas do grupo atual. */
+  const agirEscada = (p: P2) => {
+    const fn = pl.escadaFn;
+    if (nivelFund) { msg('Escadas só se lançam nos pavimentos.'); return; }
+    const tol = 6 / vista!.k, cur = it.current.cursor;
+    const sob = escadasNoPonto(b, grupo, cur, tol)[0];
+    const doGrupo = new Set(escadasPl.map((x) => x.e.id));
+    const escolhidas = () => { const sel = [...pl.selecao].filter((id) => doGrupo.has(id)); return sel.length ? sel : sob ? [sob] : []; };
+    if (fn === 'editar') {
+      if (!sob) { msg('Clique numa escada para editar.'); return; }
+      pl.set({ selecao: new Set([sob]) });
+      useEscadaUI.getState().abrir(sob);
+      return;
+    }
+    if (fn === 'apagar') {
+      if (!sob) { msg('Clique numa escada (ou arraste uma janela) para apagar.'); return; }
+      const r = exec('escada.remover', { ids: [sob] });
+      if (r.ok) { pl.set({ selecao: new Set() }); msg('1 escada(s) removida(s).'); }
+      return;
+    }
+    if (fn === 'mover' || fn === 'girar') {
+      const ref = pontosRef.current[0];
+      if (!ref) {
+        const ids = escolhidas();
+        if (!ids.length) { msg(`Clique numa escada para ${fn === 'mover' ? 'mover' : 'girar'}.`); return; }
+        it.current.escadaIds = ids; pl.set({ selecao: new Set(ids) }); setPontos([p]);
+        msg(fn === 'mover' ? 'Clique o ponto de destino.' : 'Clique a nova direção ou digite o ângulo no menu e use Girar.');
+        return;
+      }
+      const ids = it.current.escadaIds;
+      setPontos([]);
+      if (fn === 'mover') { exec('escada.mover', { ids, dx: +(p[0] - ref[0]).toFixed(4), dy: +(p[1] - ref[1]).toFixed(4) }); return; }
+      const e = (b.escadas ?? []).find((x) => x.id === ids[0]);
+      const dl = e ? deltaPorPontos(e.origem as P2, ref, p) : null;
+      if (dl === null || Math.abs(dl) < 1e-6) { msg('A nova direção coincide com a atual ou com a origem da escada.'); return; }
+      exec('escada.girar', { ids, angulo: +dl.toFixed(4) });
+      return;
+    }
+    // criar
+    const ini = pontosRef.current[0];
+    const base = baseNovaEscada(b, pl);
+    if (!ini) {
+      pl.set({ escadaErros: [] });
+      setPontos([p]);
+      if (!base) { useNovaEscadaUI.getState().abrir(); msg('Defina os dados da escada e use Lançar na planta; depois clique a direção.'); }
+      return;
+    }
+    const ang = anguloDeInsercao(ini, p, pl.orto);
+    if (ang === null) { msg('O segundo ponto coincide com o início: indique a direção.'); return; }
+    if (!base) { useNovaEscadaUI.getState().abrir(); return; }
+    const pr = previaInsercao(b, { grupo, origem: ini, angulo: ang, nome: nomeSequencial(b, pl.escadaPadrao?.nome), dados: base.dados, lances: base.lances });
+    if (pr.erros.length) {
+      const cod = pr.geometria.diagnosticos.filter((d) => d.severidade === 'erro');
+      pl.set({ escadaErros: cod.length ? cod.map((d) => ({ codigo: d.codigo, mensagem: d.mensagem })) : pr.erros.map((m) => ({ codigo: 'ESCADA', mensagem: m })) });
+      msg(pr.erros.join(' ')); setPontos([]);
+      return;
+    }
+    const r = exec('escada.criar', { grupo, origem: [+ini[0].toFixed(4), +ini[1].toFixed(4)], angulo: +ang.toFixed(4), nome: pr.escada.nome, ...base.dados, lances: base.lances });
+    if (!r.ok) return;
+    const nova = useBuilding.getState().sessao.modelo.escadas?.at(-1);
+    pl.set({ escadaErros: [], ...(nova ? { escadaPadrao: { dados: dadosComunsDe(nova), lances: nova.lances.map((l) => { const c = JSON.parse(JSON.stringify(l)); delete c.id; return c; }), nome: nova.nome, angulo: nova.angulo } } : {}) });
+    setPontos([]);
+    if (!pl.escadaRepetir) pl.set({ ferramenta: 'selecionar' });
+  };
   const agir = (p: P2) => {
     const f = pl.ferramenta;
     const novos = [...pontosRef.current, p];
+    if (f === 'escada') { agirEscada(p); return; }
     if (f === 'pilar') {
       // sobre um pilar de baixo que admite outro por cima: coordenadas relativas ao ponto fixo dele (nasce no pavimento em que ele morre)
       const q = !pl.arranque ? baixoSob(p) ?? (it.current.baixo ? naPlanta.find((x) => x.p.id === it.current.baixo) ?? null : null) : null;
@@ -1737,6 +1841,7 @@ export function Planta() {
     if (!id) for (const c of cargas) if (c.tipo === 'ponto' ? Math.hypot(w[0] - c.pontos[0][0], w[1] - c.pontos[0][1]) < tol * 1.5 : c.tipo === 'linha' ? c.pontos.some((q, i) => i > 0 && distSeg(w, c.pontos[i - 1], q) < tol) : false) { id = c.id; break; }
     if (!id) for (const e of b.eixos) if (distSeg(w, e.p1, e.p2) < tol) { id = e.id; break; }
     if (!id) for (const c of cargas) if (c.tipo === 'area' && dentro(w, c.pontos)) { id = c.id; break; }
+    if (!id && !nivelFund) id = escadasNoPonto(b, grupo, w, tol)[0] ?? null;
     if (!id) for (const { l } of lajes) if (dentro(w, l.contorno)) { id = l.id; break; }
     const s = new Set(aditivo ? pl.selecao : []);
     if (id) { if (aditivo && s.has(id)) s.delete(id); else s.add(id); }
@@ -1753,6 +1858,7 @@ export function Planta() {
     for (const e of b.eixos) if (cruz ? inside(e.p1) || inside(e.p2) || cruzaRet(e.p1, e.p2, x0, y0, x1, y1) : inside(e.p1) && inside(e.p2)) s.add(e.id);
     for (const { l } of lajes) if (cruz ? l.contorno.some(inside) : l.contorno.every(inside)) s.add(l.id);
     for (const f of fund) if (cruz ? f.contorno.some(inside) : f.contorno.every(inside)) s.add(f.el.id);
+    if (!nivelFund) for (const id of escadasNaJanela(b, grupo, [x0, y0, x1, y1], cruz ? 'cruza' : 'dentro')) s.add(id);
     for (const l of limites) if (cruz ? l.pontos.some((q) => inside(q as P2)) : l.pontos.every((q) => inside(q as P2))) s.add(l.id);
     for (const r of radiers) if (cruz ? r.contorno.some((q) => inside(q as P2)) : r.contorno.every((q) => inside(q as P2))) s.add(r.id);
     for (const { v: ve, f } of vigasEl) if (cruz ? f.some(inside) : f.every(inside)) s.add(ve.id);
@@ -1775,7 +1881,7 @@ export function Planta() {
     (document.activeElement as HTMLElement | null)?.blur?.();
     cvI.current!.setPointerCapture(e.pointerId);
     if (e.button === 1 || (e.button === 0 && it.current.espaco)) { it.current.pan = { x: sx, y: sy, v: { ...vista! } }; return; }
-    if (e.button === 2) { if (POLILINHAS.includes(pl.ferramenta)) terminar(); else setPontos([]); return; }
+    if (e.button === 2) { if (POLILINHAS.includes(pl.ferramenta)) terminar(); else setPontos([]); if (pl.ferramenta === 'escada') pl.set({ ferramenta: 'selecionar' }); return; }
     if (e.button !== 0) return;
     if (pl.ferramenta === 'selecionar') {
       // o pé da cota só vale fora do elemento selecionado (clicar no próprio elemento continua selecionando)
@@ -1784,7 +1890,7 @@ export function Planta() {
       if (zona) { zona.acao(); return; }
     }
     capturar(sx, sy);
-    if (pl.ferramenta === 'selecionar') { it.current.janela = { a: paraMundo(sx, sy), z: paraMundo(sx, sy) }; return; }
+    if (pl.ferramenta === 'selecionar' || (pl.ferramenta === 'escada' && pl.escadaFn === 'apagar')) { it.current.janela = { a: paraMundo(sx, sy), z: paraMundo(sx, sy) }; return; }
     agir(it.current.ponto);
   };
   const onMove = (e: React.PointerEvent) => {
@@ -1802,7 +1908,15 @@ export function Planta() {
     if (s.pan) { s.pan = null; desenharMascara(false); return; }
     if (s.janela) {
       const [ax, ay] = paraTela(...s.janela.a), [zx, zy] = paraTela(...s.janela.z);
-      if (Math.hypot(zx - ax, zy - ay) > 4) selecionarJanela(s.janela.a, s.janela.z);
+      if (pl.ferramenta === 'escada') {
+        // função Apagar: janela da esquerda para a direita captura as escadas inteiras; da direita para a esquerda, as que a janela toca
+        if (Math.hypot(zx - ax, zy - ay) > 4) {
+          const [a, z] = [s.janela.a, s.janela.z];
+          const ids = escadasNaJanela(b, grupo, [a[0], a[1], z[0], z[1]], z[0] < a[0] ? 'cruza' : 'dentro');
+          if (ids.length) { const r = exec('escada.remover', { ids }); if (r.ok) { pl.set({ selecao: new Set() }); msg(`${ids.length} escada(s) removida(s).`); } } else msg('Nenhuma escada na janela.');
+        } else agir(it.current.ponto);
+      }
+      else if (Math.hypot(zx - ax, zy - ay) > 4) selecionarJanela(s.janela.a, s.janela.z);
       else escolher(s.janela.a, e.shiftKey);
       s.janela = null;
       desenharInteracao();
@@ -1891,7 +2005,7 @@ export function Planta() {
       if ((k === 'Delete' || k === 'Backspace') && P.selecao.size) {
         const sel = selecionados();
         const cmds = [...(sel.corridas.length ? [{ nome: 'corrida.remover', params: { ids: sel.corridas } }] : []), ...(sel.radiers.length ? [{ nome: 'radier.remover', params: { ids: sel.radiers } }] : []), ...(sel.vigasEl.length ? [{ nome: 'vigaElastica.remover', params: { ids: sel.vigasEl } }] : []), ...(sel.limites.length ? [{ nome: 'limite.remover', params: { ids: sel.limites } }] : []), ...(sel.vigasFund.length ? [{ nome: 'vigaFundacao.remover', params: { ids: sel.vigasFund } }] : []), ...(sel.fundacoes.length ? [{ nome: 'fundacao.remover', params: { ids: sel.fundacoes } }] : []), ...(sel.pilares.length ? [{ nome: 'pilar.remover', params: { ids: sel.pilares } }] : []), ...(sel.vigas.length ? [{ nome: 'viga.remover', params: { ids: sel.vigas } }] : []), ...(sel.eixos.length ? [{ nome: 'eixo.remover', params: { ids: sel.eixos } }] : []),
-          ...(sel.lajes.length ? [{ nome: 'laje.remover', params: { ids: sel.lajes } }] : []), ...(sel.cargas.length ? [{ nome: 'carga.remover', params: { ids: sel.cargas } }] : [])];
+          ...(sel.lajes.length ? [{ nome: 'laje.remover', params: { ids: sel.lajes } }] : []), ...(sel.cargas.length ? [{ nome: 'carga.remover', params: { ids: sel.cargas } }] : []), ...(sel.escadas.length ? [{ nome: 'escada.remover', params: { ids: sel.escadas } }] : [])];
         const paredesSel = [...P.selecao].filter((id) => (b.paredes ?? []).some((w) => w.id === id));
         if (paredesSel.length) cmds.push({ nome: 'parede.remover', params: { ids: paredesSel } });
         if (cmds.length) exec('lote', { comandos: cmds });

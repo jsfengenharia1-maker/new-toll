@@ -1,9 +1,9 @@
 // Menu da ferramenta Escada (E4b, C8.5): função (criar, editar, apagar, mover, girar), opções de criação (inserção repetida,
 // copiar dados de outra escada do grupo, C8.35 e C8.39), grupo atual da planta (C8.7) e os botões de resultados (E4c e E4d).
-import { Button, Check, Hint, Select, Seg } from '../ui';
+import { Button, Check, Hint, Note, NumField, Select, Seg } from '../ui';
 import { aoEscolher, usePlanta } from './plantaStore';
 import { useBuilding } from './store';
-import { useEscadaUI } from './EscadaUI';
+import { useNovaEscadaUI } from './NovaEscadaUI';
 import { useStore } from '../store';
 
 /** Escolhe a ferramenta Escada. No nível de fundação não há escadas: mostra a mensagem e não troca a ferramenta. */
@@ -34,9 +34,21 @@ export function EscadaMenu() {
           <Check label="Inserção repetida" checked={pl.escadaRepetir} onChange={(v) => pl.set({ escadaRepetir: v })} />
           <Select label="Copiar dados de" value={pl.escadaCopiar ?? ''} options={[{ v: '', label: '(nenhuma)' }, ...escadasDoGrupo.map((e) => ({ v: e.id, label: e.nome }))]}
             onChange={(v) => pl.set({ escadaCopiar: v || null })} />
-          <Button variant="mini" onClick={() => useEscadaUI.getState().abrir()}>Dados da nova escada…</Button>
+          <Button variant="mini" onClick={() => useNovaEscadaUI.getState().abrir()}>Dados da nova escada…</Button>
         </>
       )}
+      {pl.escadaFn === 'girar' && (
+        <>
+          <NumField label="Ângulo do giro" unit="°" width={110} value={pl.escadaAngulo} onChange={(v) => pl.set({ escadaAngulo: v })} />
+          <Button variant="mini" onClick={() => {
+            const ids = [...pl.selecao].filter((id) => escadasDoGrupo.some((e) => e.id === id));
+            if (!ids.length) { useStore.getState().set({ message: 'Clique numa escada para escolher qual girar.' }); return; }
+            const r = useBuilding.getState().exec('escada.girar', { ids, angulo: pl.escadaAngulo });
+            if (r.ok) pl.set({ escadaZera: pl.escadaZera + 1 });
+          }}>Girar</Button>
+        </>
+      )}
+      {pl.escadaErros.map((e, i) => <Note key={i} tone="bad" data-escada-erro={e.codigo}>{e.mensagem}</Note>)}
       <Button variant="mini" disabled title="Disponível na frente E4d">Ver detalhe de armadura</Button>
       <Button variant="mini" disabled title="Disponível na frente E4c">Ver esforços e deslocamentos</Button>
       <Hint>{grupo ? `Grupo atual: ${grupo.nome}` : 'Grupo atual: —'}</Hint>

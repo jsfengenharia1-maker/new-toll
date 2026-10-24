@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import type { AbaCorrida, Ajuste, Alinhamento, PosicaoFundacao, TipoFundacao, TipoLaje, TipoVigaFundacao } from '../../core/building/types';
 import { TODAS, type TipoCaptura } from '../../core/geom/snap';
 import type { RefTemp } from '../../core/geom/cotasTemp';
-import type { DadosComunsEscada } from '../../core/building/escadas';
+import type { DadosComunsEscada, LanceEscada } from '../../core/building/escadas';
 import { cssVar } from '../design/tokens';
 import { EVENTO_TEMA, temaEfetivo } from '../design/tema';
 
@@ -159,9 +159,14 @@ interface PState {
   /** Ferramenta Escada (E4b): função (criar, editar, apagar, mover, girar); dados e lances da última escada lançada (C8.38, zerados ao trocar de obra);
    *  inserção repetida (C8.35) e escada de que a nova copia dados e lances (C8.39). Não vão para o arquivo. */
   escadaFn: 'criar' | 'editar' | 'apagar' | 'mover' | 'girar';
-  escadaPadrao: { dados: DadosComunsEscada; lances: { tipo: string }[]; nome?: string } | null;
+  escadaPadrao: { dados: DadosComunsEscada; lances: Omit<LanceEscada, 'id'>[]; nome?: string; angulo?: number } | null;
   escadaRepetir: boolean;
   escadaCopiar: string | null;
+  /** Ângulo digitado da função Girar (graus) e erros geométricos do último lançamento recusado (C8.36). */
+  escadaAngulo: number;
+  escadaErros: { codigo: string; mensagem: string }[];
+  /** Contador que descarta o ponto pendente da Planta depois de um giro digitado no menu da Escada. */
+  escadaZera: number;
   /** Última ação repetível (Enter com a ferramenta Selecionar e nada pendente): ferramenta ou item da paleta. */
   ultimaAcao: { tipo: 'ferramenta'; f: Ferramenta } | { tipo: 'paleta'; rotulo: string; executar: () => void } | null;
   set(p: Partial<Omit<PState, 'set'>>): void;
@@ -231,6 +236,9 @@ export const usePlanta = create<PState>((set) => ({
   escadaPadrao: null,
   escadaRepetir: true,
   escadaCopiar: null,
+  escadaAngulo: 90,
+  escadaErros: [],
+  escadaZera: 0,
   corteLanc: { sentido: 'esq', profundidade: 0 },
   mostrarCortes: true,
   janelaCorte: null,

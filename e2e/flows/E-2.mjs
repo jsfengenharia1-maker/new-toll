@@ -772,3 +772,64 @@ export const f_E4a = {
       await memo.getByRole('button', { name: 'Fechar' }).click();
     },
 };
+
+/** Pórtico 8 × 5 m com vigas e laje no grupo g_3 e a planta aberta e enquadrada (base dos fluxos E4b). */
+async function porticoParaEscadas(page) {
+  await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+  const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+  await cmd('lote {"comandos": [' + [[0, 0], [8, 0], [0, 5], [8, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+  await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 5], [8, 5]], [[0, 0], [0, 5]], [[8, 0], [8, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.45}}}`).join(', ') + ']}');
+  await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+  await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+  await enquadrarEstavel(page);
+  return cmd;
+}
+const escadasNaPlanta = async (page) => (await page.locator('.planta-cv').getAttribute('data-escadas')) ?? '';
+const esperarEscadas = (page, lista) => page.waitForFunction((l) => document.querySelector('.planta-cv')?.getAttribute('data-escadas') === l, lista);
+const clicarPlanta = async (page, x, y) => { const [px, py] = await telaDe(page, x, y); await page.mouse.move(px, py); await page.mouse.click(px, py); };
+
+export const f_E4b_inserir = {
+    name: 'E4b-inserir: ferramenta Escada (menu, dados da nova escada, dois cliques, inserção repetida, Esc, desfazer e erro de altura)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await porticoParaEscadas(page);
+      await faixaAba(page, 'Lançamento');
+      await page.getByRole('button', { name: 'Escada', exact: true }).click();
+      const menu = page.locator('[data-escada-menu]');
+      await menu.waitFor();
+      assert.match(await menu.innerText(), /Grupo atual:/);
+      // dados da nova escada: espelho de 1/6 m fecha os 3 m com 18 degraus
+      await menu.getByRole('button', { name: 'Dados da nova escada…', exact: true }).click();
+      const jan = page.getByRole('dialog', { name: 'Nova escada', exact: true });
+      await jan.waitFor();
+      assert.match(await jan.innerText(), /Grupo:/);
+      await jan.getByLabel(/^Espelho \(altura do degrau\)/).fill('0.16667');
+      await jan.getByLabel(/^Espelho \(altura do degrau\)/).press('Tab');
+      await jan.locator('[data-escada-erro]').waitFor({ state: 'detached' });
+      await jan.getByRole('button', { name: 'Lançar na planta', exact: true }).click();
+      await jan.waitFor({ state: 'detached' });
+      // 1º clique (início) e 2º (direção): E1; a inserção repetida lança E2
+      await clicarPlanta(page, 1, 1); await clicarPlanta(page, 1, 4);
+      await esperarEscadas(page, 'E1');
+      await clicarPlanta(page, 5, 1); await clicarPlanta(page, 5, 4);
+      await esperarEscadas(page, 'E1,E2');
+      // Esc encerra a inserção repetida: a ferramenta volta a Selecionar
+      await page.keyboard.press('Escape');
+      await page.locator('canvas.int[data-ferramenta="selecionar"]').waitFor();
+      // Ctrl+Z desfaz só E2
+      await page.keyboard.press('Control+z');
+      await esperarEscadas(page, 'E1');
+      // erro geométrico: espelho de 0,20 m não fecha a altura; nada é criado e o código aparece em vermelho
+      await page.keyboard.press('Shift+E');
+      await menu.waitFor();
+      await menu.getByRole('button', { name: 'Dados da nova escada…', exact: true }).click();
+      await jan.waitFor();
+      await jan.getByLabel(/^Espelho \(altura do degrau\)/).fill('0.2');
+      await jan.getByLabel(/^Espelho \(altura do degrau\)/).press('Tab');
+      await jan.locator('[data-escada-erro="ESCADA_ALTURA"]').waitFor();
+      await jan.getByRole('button', { name: 'Lançar na planta', exact: true }).click();
+      await clicarPlanta(page, 5, 1); await clicarPlanta(page, 5, 4);
+      await menu.locator('[data-escada-erro="ESCADA_ALTURA"]').waitFor();
+      assert.equal(await escadasNaPlanta(page), 'E1');
+    },
+};

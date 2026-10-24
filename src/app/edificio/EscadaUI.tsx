@@ -94,9 +94,10 @@ function NovaEscada({ b, aoCriar }: { b: BuildingModel; aoCriar: (id: string) =>
   );
 }
 
-function DadosComuns({ e }: { e: Escada }) {
+/** Dados comuns da escada; `muda` substitui o comando `escada.dados` (a janela "Nova escada" edita os dados ainda não lançados). */
+export function DadosComuns({ e, muda: mudaFora }: { e: Escada; muda?: (p: Record<string, unknown>) => unknown }) {
   const { exec } = useBuilding();
-  const muda = (p: Record<string, unknown>) => exec('escada.dados', { id: e.id, ...p });
+  const muda = mudaFora ?? ((p: Record<string, unknown>) => exec('escada.dados', { id: e.id, ...p }));
   return (
     <div data-escada-dados>
       <div className="row wrap u-items-end">
