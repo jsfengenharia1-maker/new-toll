@@ -16,9 +16,9 @@ Atualizado em 24/10/2026. Ler junto com o Andamento de `docs/plano-execucao.md`.
 4. Briefing padrão dos agentes: citar `docs/regras-agentes.md`. Antes: ver as rodadas recentes no histórico desta sessão; regras fixas — worktree próprio + `ln -s /home/user/new-toll/node_modules node_modules`; consultar `docs/mapa-codigo.md`; e2e com `{ exact: true }` exceto NumField/Select (regex ancorada); cada cartão compila sozinho; não criar tarefas agendadas; sem processos em segundo plano; relatório UMA vez; `npm run mapa` no fim.
 
 ## Rodada em andamento
-25/10/2026 (conferir ao retomar): E5g dimensionamento das nervuradas (Sonnet alto) e E5i saídas de paredes/alvenaria/consolos (Sonnet médio), a partir do main 5ee6a2a.
+25/10/2026 (conferir ao retomar): E5g (nervuradas; ajuste pedido: mínimos das zonas maciças pela NBR 6118 Tab. 19.1 — negativa ρmín, positiva 0,67ρmín — no lugar de 0,15%h nas duas faces) e E5e (vigotas: igualação, flecha de montagem).
 
-Já no main (25/10/2026): E5l (vínculo externo no modelo integrado, validado três momentos + OpenSees), E5h (malha ancorada no ponto de inserção; furos), E5a (pranchas das lajes inclinadas; comprimento real das barras em pano inclinado), E5j (vão pelos eixos dos apoios `vigaApoioLongEixos`, axial das paredes `axialParedeSeparado`; K1.12.4-19 pilar com desnível segue Falta — exige nós intermediários nos pilares). 1.774 testes, 116 e2e, pacote 4.726 KB.
+Já no main: E5l, E5h, E5a, E5j, E5i (C5.6 Parcial: falta tabela de aço da alvenaria armada), E5b (ferramentas de planta com o mouse), E5k (vigas de fundação T/L/plana). 1.830 testes, 120 e2e, pacote 4.772 KB. Restam da E5: c, d, f (e g/e em andamento); K1.12.4-19 (pilar com desnível) sem fatia — exige nós intermediários nos pilares.
 
 ## Próxima rodada (depois desta)
 1. Demais E5 (b–g, i–k), FU7d.
@@ -37,4 +37,4 @@ Já no main (25/10/2026): E5l (vínculo externo no modelo integrado, validado tr
 - Biblioteca de normas editável (N3) feita; NBR 15200:2024 virá do usuário depois.
 
 ## Números no último merge
-1.774 testes, 116 fluxos e2e (paralelo), pacote 4.726 KB.
+1.830 testes, 120 fluxos e2e (paralelo), pacote 4.772 KB.
