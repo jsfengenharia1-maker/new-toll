@@ -173,6 +173,7 @@ Entradas antigas em `docs/historico-fatias.md`.
 - 22/10/2026: E1d, interface concluída (cartões `docs/cartoes/E1d/`); e2e `E1d` verde. Próximo: E1e.
 - 22/10/2026: E1e, núcleo concluído (17 itens: 5 Feito — C5.24, C5.27, C6.19, C6.59, K1.12.4.3-1 —; 12 Parcial à espera da interface). Alvenaria estrutural e blocos de concreto: tipos, resistências, tensões-limite por elemento da casca com fator de cumprimento, armadura de blocos armados, vergas, modulação, quantitativo de blocos, desligamento muro-pilar, vigas sobre muros, memorial (dados), comandos e opções. Detalhes em `historico-fatias.md`. Interface pelos cartões `docs/cartoes/E1e/`.
 - 22/10/2026: L2, núcleo concluído e interface escrita em cartões (`docs/cartoes/L2/`, 11 cartões Haiku; o fluxo e2e `L2` foi validado aplicando-os em ordem e a interface revertida). Próximo: executar os cartões 01 a 11 e então L3 (IFC, reaproveita `Proposta` e `lancamento.aplicar`). Ver `historico-fatias.md`.
+- 24/10/2026: MD1 concluída (memória de cálculo detalhada, fase 1): registrador opt-in por contexto em `src/core/memoria/` (sem mudar assinaturas nem resultados), cadeia completa de vigas e pilares de concreto, passos globais (cargas, combinações, análise), HTML imprimível, JSON/CSV, dados da análise (CSV/JSON/ZIP) e script OpenSees comparado com o Statikos; botão na aba Dimensionamento; recursos MCP `statikos://memoria`, `memoria/{elemento}`, `dados-analise` e `opensees`; e2e `MD1`. Próximo: MD2 (lajes maciças), conforme `spec-memoria-detalhada.md`.
 
 ## Melhorias futuras (depois de concluir o aplicativo)
 

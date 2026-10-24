@@ -18,6 +18,10 @@ import { resumoVigotas } from '../core/building/vigotas';
 import { resumoNervurada } from '../core/building/nervuradasDim';
 import { resumoArmaduraEscadas } from '../core/building/escadasArmaduraResumo';
 import { resumoAlveolar } from '../core/building/alveolaresDim';
+import { memoriaDetalhada } from '../core/memoria/edificio';
+import { jsonTabelas, tabelasAnalise } from '../core/memoria/dadosAnalise';
+import { modeloExportavel, scriptOpenSees } from '../core/memoria/opensees';
+import { combinacoesEdificio } from '../core/building/combinacoes';
 import { abrirSessao, dimensionar, gravarPranchas, resumo, TIPOS_PRANCHA, salvarSessao, type Io, type OpcoesSaidaPranchas } from './run';
 
 export const VERSAO_SERVIDOR = '0.1.0';
@@ -103,6 +107,8 @@ export class ServidorMcp {
    * fundação mudou, recalcula só as fundações com a análise guardada; se só o detalhe mudou (tabelas, armadura,
    * opções de detalhamento), rearma com a análise guardada (R7f).
    */
+  /** Análise do cálculo guardado (refeito se o modelo mudou). */
+  private analiseAtual(): AnaliseEdificio { this.resultados(); return this.cache!.an; }
   private resultados() {
     const s = this.sessao;
     let c = this.cache;
@@ -155,17 +161,21 @@ export class ServidorMcp {
         }
       }
       case 'resources/list':
-        return ok({ resources: RECURSOS.map(([uri, name, description]) => ({ uri, name, description, mimeType: 'application/json' })) });
+        return ok({ resources: RECURSOS.map(([uri, name, description]) => ({ uri, name, description, mimeType: uri === 'statikos://opensees' ? 'text/x-python' : 'application/json' })) });
       case 'resources/templates/list':
-        return ok({ resourceTemplates: [{ uriTemplate: 'statikos://resultados/{pavimento}', name: 'resultados-pavimento', description: 'Dimensionamento de um pavimento (id ou nome): vigas do grupo, lances de pilar que chegam a ele, lajes e quantitativos', mimeType: 'application/json' }] });
+        return ok({ resourceTemplates: [{ uriTemplate: 'statikos://resultados/{pavimento}', name: 'resultados-pavimento', description: 'Dimensionamento de um pavimento (id ou nome): vigas do grupo, lances de pilar que chegam a ele, lajes e quantitativos', mimeType: 'application/json' }, { uriTemplate: 'statikos://memoria/{elemento}', name: 'memoria-elemento', description: 'Memória de cálculo detalhada de um elemento ("Viga V1", "Pilar P1 · Tipo 1"), com os passos globais', mimeType: 'application/json' }] });
       case 'resources/read': {
         const uri = String(p.uri);
         const dados = uri === 'statikos://modelo' ? this.sessao.modelo : uri === 'statikos://diagnosticos' ? this.sessao.verificar()
           : uri === 'statikos://premissas' ? PREMISSAS : uri === 'statikos://log' ? this.sessao.log
           : uri === 'statikos://resultados' ? filtrarDim(this.sessao.modelo, this.resultados())
+          : uri === 'statikos://memoria' ? memoriaDetalhada(this.sessao.modelo, { an: this.analiseAtual() }).memoria
+          : uri.startsWith('statikos://memoria/') ? memoriaDetalhada(this.sessao.modelo, { an: this.analiseAtual(), elementos: [decodeURIComponent(uri.slice('statikos://memoria/'.length))] }).memoria
+          : uri === 'statikos://dados-analise' ? JSON.parse(jsonTabelas(tabelasAnalise(this.sessao.modelo, this.analiseAtual(), combinacoesEdificio(this.sessao.modelo, this.analiseAtual()))))
+          : uri === 'statikos://opensees' ? scriptOpenSees(modeloExportavel(this.sessao.modelo, this.analiseAtual())).script
           : uri.startsWith('statikos://resultados/') ? filtrarDim(this.sessao.modelo, this.resultados(), decodeURIComponent(uri.slice('statikos://resultados/'.length))) : undefined;
         if (dados === undefined) return fail(-32002, `Recurso desconhecido: ${uri}`);
-        return ok({ contents: [{ uri, mimeType: 'application/json', text: JSON.stringify(dados) }] });
+        return ok({ contents: [typeof dados === 'string' && uri === 'statikos://opensees' ? { uri, mimeType: 'text/x-python', text: dados } : { uri, mimeType: 'application/json', text: JSON.stringify(dados) }] });
       }
       default: return fail(-32601, `Método não suportado: ${m.method}`);
     }
@@ -191,6 +201,9 @@ const RECURSOS: [string, string, string][] = [
   ['statikos://premissas', 'premissas', 'Premissas de cálculo em uso (fonte e "a confirmar")'],
   ['statikos://log', 'log', 'Log de comandos (reproduz o modelo)'],
   ['statikos://resultados', 'resultados', 'Dimensionamento de todo o edifício (calcula se o modelo mudou)'],
+  ['statikos://memoria', 'memoria', 'Memória de cálculo detalhada (passos com fórmulas, valores exatos e normas) do último cálculo'],
+  ['statikos://dados-analise', 'dados-analise', 'Dados da análise do pórtico: nós, barras, seções, materiais, apoios, molas, diafragma, cargas, combinações, deslocamentos, reações e esforços por caso e por combinação'],
+  ['statikos://opensees', 'opensees', 'Script Python (openseespy) do pórtico espacial para verificação independente (texto)'],
 ];
 
 /** Recorte do dimensionamento por pavimento (id ou nome) e/ou só o que não atende. */

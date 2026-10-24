@@ -23,6 +23,7 @@ import { Propriedades } from './Propriedades';
 import { Button, Check, Dock, Dropdown, Group, Hint, Input, Modal, Note, NumField, Palette, Seg, Select, TextCell, TextField, Textarea, ViewTabs, dataAjuda, download, useAjuda } from '../ui';
 import { combinacoesEdificio } from '../../core/building/combinacoes';
 import { MemorialEdificio } from './MemorialEdificio';
+import { MemoriaDetalhadaUI } from './MemoriaDetalhadaUI';
 import { PaletaComandos } from './PaletaComandos';
 import { DiagonaisHost } from './DiagonaisUI';
 import { ConsolosHost } from './ConsolosUI';
@@ -894,6 +895,7 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar
   const { dim, analise, sessao, calculando, calcular } = st;
   const [so, setSo] = useState(false);
   const [selBloq, setSelBloq] = useState(false);
+  const [memoria, setMemoria] = useState(false);
   const velha = analise && !calculoAtual(st);
   const desatualizado = !!dim && !dimAtual(st);
   const filtro = <T extends { status: string }>(xs: T[]) => (so ? xs.filter((x) => x.status !== 'ok') : xs);
@@ -909,9 +911,11 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar
           {!!sessao.modelo.fundacao?.elementos.length && <Button disabled={calculando} title="Analisa e dimensiona a estrutura sem calcular as fundações lançadas" onClick={() => calcular(true)}>Calcular sem fundação</Button>}
           <Button disabled={!dim?.fundacao.length} onClick={() => { importarCargasDoEdificio(dim!.fundacao); useStore.getState().set({ module: 'fundacoes' }); }}>Enviar cargas ao módulo Fundações</Button>
           <Button onClick={onMemorial}>Memorial do edifício</Button>
+          <Button disabled={!analise || !!analise.erro} title="Registro passo a passo de todas as contas (fórmulas, valores, normas) e exportação dos dados da análise e do modelo para o OpenSees" onClick={() => setMemoria(true)}>Memória de cálculo detalhada</Button>
           {dim && <BotaoExportar dim={dim} />}
           <label className="check small"><Input type="checkbox" checked={so} onChange={(e) => setSo(e.target.checked)} /> <span>só o que não atende</span></label>
         </div>
+        {memoria && <MemoriaDetalhadaUI onClose={() => setMemoria(false)} />}
         {velha && <p className="hint bad">O modelo mudou depois do cálculo: recalcule{dim && podeRearm(st) ? ' ou rearme os elementos alterados (esforços guardados)' : ''}.</p>}
         {!velha && desatualizado && <p className="hint bad" data-dim-velho>O detalhamento mudou depois do dimensionamento: rearme.</p>}
         {!dim && <Hint>{analise?.erro ? `A análise falhou: ${analise.erro}` : 'Calcule para dimensionar vigas, pilares e lajes com a envoltória das combinações ELU.'}</Hint>}
