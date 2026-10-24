@@ -43,3 +43,26 @@ Data: 23/10/2026. Base: `main` 2004ccf. Comparação com o estado antes da D1 (`
 
 ### Bloqueante
 Nenhum. Testes e e2e verdes; nenhum comando ou opção anterior ficou inalcançável.
+
+## Situação após a D7 (24/10/2026)
+Commits: 24704eb, 2302a3a, 95537c1, 5d44c14, 3235dd7.
+
+| Item | Situação |
+|---|---|
+| 1 | Corrigido (24704eb): `ler()` valida número finito, `limitaDoca` e booleano estrito; teste em `layout.test.ts` e no fluxo `layout: setas…`. |
+| 2 | Corrigido (24704eb): `Dock` limita a largura por `innerWidth` menos a outra doca menos 360 px (`limitaDocaJanela`); fluxo `layout 1280x800` com as duas docas no máximo. |
+| 3 | Corrigido (2302a3a): `.dock.r .phead` com recuo do botão; fluxo confere que o título não é coberto nem cortado. |
+| 4 | Corrigido (5d44c14, 3235dd7): mapa ajustado aos grupos reais (Obra, Cargas, Seleção, Outras ações, Proteção ao fogo, Navegação, Casos e combinações) e botão "Tipos de laje…" criado em Edição/Lajes; nenhum comando sumiu. |
+| 5 | Corrigido (95537c1): Navegador ganha Pilares-parede, Paredes, Muros, Alvenaria, Grupos, Cargas, Cortes e Sondagens (`arvore.ts`); paredes, pilares-parede e cargas selecionam na planta, os demais abrem o grupo do painel ou a Configuração. Pavimentos, Grupos e Eixos continuam também em tabelas na paleta "Dados da obra". |
+| 6 | Corrigido (95537c1): cartão de tipo para parede, pilar-parede, muro, viga de fundação (inclusive elástica), radier, sapata corrida, consolo e seleção genérica. A aba contextual da faixa (`alvo.ts`) segue só com fundação, viga, pilar e laje (justificado: os demais não têm grupo de resultados próprio). |
+| 7 | Corrigido (2302a3a): `useRoving` (`ui/teclado.ts`) em faixa, abas de vista, abas de módulo e árvore (setas, Home, End; → e ← expandem/recolhem na árvore). `aria-controls`/`tabpanel` não feitos (justificado: o corpo da faixa é `toolbar` e a vista muda a planta inteira; sem painel por aba). |
+| 8 | Corrigido (95537c1): foco no item ativo do índice ao abrir e devolução ao elemento de origem ao fechar; Esc continua sem fechar (decisão mantida, coberta no fluxo). |
+| 9 | Corrigido (2302a3a): `useIndicioRolagem` esmaece a borda com conteúdo escondido na faixa, abas de vista e de módulo. Dividir grupos em mais abas não feito (justificado: o indício e o tabindex móvel resolvem o acesso sem mover comandos). |
+| 10 | Corrigido (3235dd7): altura única `--h-faixa-corpo`; `.rstack` quebra em colunas; fluxo confere altura igual em todas as abas do Edifício e ausência de corte vertical. |
+| 11 | Justificado: até 900 px o empilhamento já existia antes da D1 (não é regressão); a gaveta sobreposta é mudança de layout maior, fica como sugestão. |
+| 12 | Corrigido (2302a3a): `.statusbar` quebra linha; fluxo `layout 1024` confere Pórtico, Edifício e Fundações. |
+| 13 | Feito (3235dd7): fluxo `layout: todo destino RB:aba / grupo…` lê o mapa e confere contra os grupos renderizados. |
+| 14 | Corrigido (5d44c14): 41 ferramentas (T1 a T41) e 224 itens nos documentos. |
+| 16 | Corrigido (2302a3a): botão de recolher fora do `tablist` (`.rtabs-wrap`). |
+| 24 | Corrigido (5d44c14, 3235dd7): `enquadrarEstavel` espera a transformada da planta estabilizar em E3b e D4; fluxo novo em 1280x800 (desenho ≥ 300 px, sem rolagem horizontal, título inteiro). |
+| 15, 17–23 | Não tratados (sugestões fora do escopo da D7). |
