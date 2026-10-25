@@ -45,6 +45,14 @@ function vigaBiapoiada(): Model {
   return m;
 }
 
+/** Viga comprimida (ν > 0,10): verificada também à flexo-compressão. */
+function vigaComprimida(): Model {
+  const m = vigaBiapoiada();
+  m.name = 'Viga comprimida';
+  m.loads.push({ kind: 'nodal', id: 2, caseId: 1, node: m.nodes.find((n) => n.x === 5)!.id, fx: -700, fy: 0, mz: 0 });
+  return m;
+}
+
 /** Pórtico simples de aço (perfil I laminado), pilares engastados, vento e sobrecarga. */
 function portalAco(): Model {
   const m = emptyModel();
@@ -73,7 +81,7 @@ function portalCircular(): Model {
 }
 
 const modelos: [string, () => Model][] = [
-  ['galpão (concreto, γz, desaprumo)', samplePortico], ['viga contínua T', sampleViga], ['viga biapoiada', vigaBiapoiada], ['pórtico de aço', portalAco], ['pilares circulares', portalCircular],
+  ['galpão (concreto, γz, desaprumo)', samplePortico], ['viga contínua T', sampleViga], ['viga biapoiada', vigaBiapoiada], ['viga comprimida', vigaComprimida], ['pórtico de aço', portalAco], ['pilares circulares', portalCircular],
   ['galpão com P-Δ', () => { const m = samplePortico(); m.design = { ...(m.design ?? {}), caa: 2, gammaC: 1.4, gammaS: 1.15, fyk: 500, fywk: 500, dmax: 0.019, gammaA1: 1.1, secondOrder: 'pdelta' }; return m; }],
   ['galpão com alvenaria e t0', () => { const m = samplePortico(); m.design = { ...(m.design ?? {}), caa: 3, gammaC: 1.4, gammaS: 1.15, fyk: 500, fywk: 500, dmax: 0.019, gammaA1: 1.1, masonry: true, t0Months: 3 }; return m; }],
 ];
@@ -143,6 +151,21 @@ describe('MD8 · solução analítica', () => {
     igual(ch.resultado as number, l0 <= 1.5 ? 0.658 ** (l0 * l0) : 0.877 / (l0 * l0), 'χ');
     igual(l0, Math.sqrt((num(ch, 'Q') * num(ch, 'A') * (m.materials[0].fy ?? 345)) / num(ch, 'Ne')), 'λ0');
     igual(col.steel!.chi, ch.resultado as number, 'χ do cálculo');
+  });
+});
+
+describe('MD8 · viga com flexo-compressão', () => {
+  it('a viga comprimida ganha a cadeia do pilar e a memória não muda o resultado', () => {
+    const c = rodar(vigaComprimida());
+    const v = c.base.members[0];
+    expect(v.beam?.asColumn).toBeTruthy();
+    const ps = doElemento(c, 'Viga B1 · flexo-compressão');
+    expect(ps.length).toBeGreaterThan(15);
+    const s = um(ps, /Fora do plano/, /^S1 \(flexão no plano/);
+    igual(s.resultado as number, v.beam!.asColumn!.check!.util, 'util');
+    const nu = um(doElemento(c, 'Viga B1'), 'Envoltória ELU', /^Compressão máxima na barra/);
+    igual(nu.resultado as number, v.beam!.axialNu, 'ν');
+    expect(v.beam!.axialNu).toBeGreaterThan(0.1);
   });
 });
 

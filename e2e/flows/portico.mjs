@@ -171,3 +171,61 @@ export const f_PWA_2 = {
       }
     },
   };
+
+export const f_MD8 = {
+    name: 'MD8: memória de cálculo detalhada do pórtico (botão no dimensionar e no memorial, passos de vigas e pilares, γz, filtro, HTML, JSON, CSV e ZIP com OpenSees 2D)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await fileMenu(page, 'Pórtico de galpão');
+      await tab(page, 'Dimensionar');
+      await page.getByRole('button', { name: 'Memória de cálculo detalhada', exact: true }).click();
+      const dlg = page.getByRole('dialog', { name: 'Memória de cálculo detalhada do pórtico' });
+      const doc = dlg.locator('[data-memoria-detalhada]');
+      await doc.waitFor({ timeout: 60000 });
+      const t = await doc.innerText();
+      for (const s of ['Índice', 'Por elemento', 'Cargas', 'Combinações', 'Análise estrutural', 'Esforços de cálculo', 'Dimensionamento', 'Detalhamento', 'Pórtico', 'Viga B2', 'Pilar B1', 'Estabilidade global (γz)', 'Desaprumo global']) assert.ok(t.includes(s), s);
+      assert.match(t, /As = .* cm²/);
+      assert.match(t, /VRd2 = 0,27·/);
+      assert.match(t, /M1d,mín = /);
+      assert.match(t, /γz = 1\/\(1 − /);
+      assert.match(t, /NBR 8681:2003/);
+      const total = await doc.locator('tr[data-passo]').count();
+      assert.ok(total > 300, `passos: ${total}`);
+      assert.equal(await doc.locator('a[href="#md-dimensionamento-viga-b2"]').count(), 2);
+      assert.equal(await doc.locator('#md-dimensionamento-viga-b2').count(), 1);
+      // filtro por elemento: os passos globais e os da viga
+      await dlg.getByLabel(/^Elemento/).selectOption({ label: 'Viga B2' });
+      await page.waitForFunction((n) => document.querySelectorAll('[data-memoria-detalhada] tr[data-passo]').length < n, total);
+      const tf = await doc.innerText();
+      assert.ok(tf.includes('Viga B2') && !tf.includes('Viga B3') && !tf.includes('Pilar B1'));
+      const baixar = async (rot) => {
+        const [dl] = await Promise.all([page.waitForEvent('download'), dlg.getByRole('button', { name: rot, exact: true }).click()]);
+        return { nome: dl.suggestedFilename(), dados: readFileSync(await dl.path()) };
+      };
+      const html = await baixar('Exportar HTML');
+      assert.match(html.nome, /^memoria-detalhada-.*\.html$/);
+      assert.match(html.dados.toString('utf8'), /^<!doctype html>[\s\S]*data-memoria-detalhada[\s\S]*Viga B2/);
+      const json = await baixar('Exportar JSON');
+      const mem = JSON.parse(json.dados.toString('utf8'));
+      assert.equal(mem.versao, 1);
+      assert.ok(mem.passos.length >= total);
+      assert.ok(mem.passos.every((p) => p.id && p.etapa && p.formula && p.expressao && p.unidade !== undefined));
+      const csv = await baixar('Exportar CSV');
+      assert.match(csv.nome, /\.csv$/);
+      assert.ok(csv.dados.toString('utf8').startsWith('id;etapa;elemento'));
+      const zip = await baixar('Dados da análise e OpenSees (ZIP)');
+      assert.match(zip.nome, /\.zip$/);
+      assert.equal(zip.dados.subarray(0, 2).toString('latin1'), 'PK');
+      const texto = zip.dados.toString('latin1');
+      for (const f of ['analise/nos.csv', 'analise/barras.csv', 'analise/combinacoes.csv', 'analise/reacoes_combinacoes.csv', 'analise/esforcos_combinacoes.csv', 'memoria/memoria.csv', 'opensees/portico2d.py']) assert.ok(texto.includes(f), f);
+      assert.ok(texto.includes('"-ndm", 2, "-ndf", 3'));
+      await dlg.getByRole('button', { name: 'Fechar', exact: true }).click();
+      await dlg.waitFor({ state: 'detached' });
+      // também pelo memorial de cálculo
+      await page.getByRole('button', { name: 'Abrir memorial de cálculo' }).click();
+      const memorial = page.getByRole('dialog', { name: 'Memorial de cálculo', exact: true });
+      await memorial.waitFor();
+      await memorial.getByRole('button', { name: 'Memória de cálculo detalhada', exact: true }).click();
+      await dlg.locator('[data-memoria-detalhada]').waitFor({ timeout: 60000 });
+    },
+  };
