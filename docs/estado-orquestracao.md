@@ -16,11 +16,17 @@ Atualizado em 24/10/2026. Ler junto com o Andamento de `docs/plano-execucao.md`.
 4. Briefing padrão dos agentes: citar `docs/regras-agentes.md`. Antes: ver as rodadas recentes no histórico desta sessão; regras fixas — worktree próprio + `ln -s /home/user/new-toll/node_modules node_modules`; consultar `docs/mapa-codigo.md`; e2e com `{ exact: true }` exceto NumField/Select (regex ancorada); cada cartão compila sozinho; não criar tarefas agendadas; sem processos em segundo plano; relatório UMA vez; `npm run mapa` no fim.
 
 ## Rodada em andamento
-25/10/2026 (conferir ao retomar): MD5c (memória do radier e vigas de fundação, branch md5c) e V7g (torção do pilar-parede + cobrimento do estado da seção, branch v7g).
+PAUSADO em 25/10/2026 a pedido do usuário. Nenhum agente rodando.
 
-No main: E6a, E6c, E6d, correção kGiro (giro relativo nas cascas), barra–casca (pivô nulo relativo; referência do pilar virtual no nó), FU7d, MD4 + correção do C″ da punção (anéis até atender; 10 resultados de nervurada com ábaco mudaram), MD5a/MD5b, V7c–V7f, desempenho do método geral (vitest 964 → ~400 s). 2.334 testes, 143 e2e, pacote 6.142 KB.
-Decisões do usuário (25/10, "utilize o que a norma pede e o padrão do CYPECAD"): (1) ancoragem medida da face (NBR 18.3.2.4.1) também no padrão do sistema; (2) γz com M1,tot,d e ΔMtot,d de cálculo (15.5.3); (3) ligação barra–casca no plano rígida, distribuída aos nós vizinhos ('a confirmar'); (4) aviso de punção sugere aumentar o ábaco. FILA: agente A = 1+2+4 (Sonnet alto); agente B = 3 (Opus). Antigas pendências: (1) `vigaAncoragemEixo` (R8a) mede do eixo no padrão do sistema (NBR: da face); (2) ligação barra–casca no plano fica quase rotulada (distribuir pelos nós vizinhos?); (3) sugerir "aumentar o ábaco" quando o C″ exigir anéis muito além do ábaco.
-Restam: N4a, N4b, E6b (material do usuário), MD7–MD9, fechamento (pacote 6,1 MB: memória sob demanda).
+Situação ao pausar:
+- `main` = 79b425c (gate verde: MD8, MD9, decisões ancoragem/γz/ábaco, pacote dividido).
+- Branch da sessão `claude/quirky-curie-uqb7br` = main + desaprumo global no Edifício + ligação rígida barra–casca + punção com desaprumo (todos com tsc e testes próprios verdes; e2e completo 153/153).
+- BLOQUEIO do envio ao main: `src/core/building/desempenho.test.ts` (13 pavimentos ≤ 3 s) reprovou no vitest completo (3133 ms). Medido lado a lado: branch 2,82–2,90 s × main 2,64–2,68 s (+7–8 %). Causa provável: casos D (4 direções × casos verticais) e as ELU extras do desaprumo, e/ou a ligação rígida. PRIMEIRA TAREFA AO RETOMAR: agente de desempenho (perfil V8) para recuperar o custo sem mudar resultados (ex.: resolver os casos D como RHS da mesma fatoração, deduplicar combinações, cache), sem aumentar o limite do teste; depois gate completo e push no main.
+
+Restante (13 itens dos checklists + fechamento; estimativa 8–12 h):
+- V6a (C3.31, C3.33 cortes nas pranchas), V6b (C12.22 várias janelas de deformada), V6c (C11.49 3D da viga de fundação), K1.11.46 (resíduo N2).
+- N4a (fogo NBR 15200: C4.44, C10.6, K1.5.15, K1.9.23), N4b (ábacos NBR 6123, Tab. 19.2: K1.5.23, K1.5.29, K1.13.2.4-2), E6b (C7.100 igualação entre panos): material do usuário em docs/pendencias-usuario.md; sem ele, padrão do CYPECAD + "a confirmar".
+- Fechamento: limpar passos duplicados na memória do pórtico 2D (MD8 e MD9 instrumentaram γz/desaprumo do 2D), auditoria final independente, revisão final dos "a confirmar", atualizar contagem de testes no CLAUDE.md (hoje ~2.590), republicar o artifact (`npm run build:artifact`).
 
 ## Próxima rodada (depois desta)
 1. Demais E5 (b–g, i–k), FU7d.
