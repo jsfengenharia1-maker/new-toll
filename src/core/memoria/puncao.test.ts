@@ -126,7 +126,35 @@ function refazSolicitacao(c: Caso, el: string, r: ResultadoPuncao) {
     for (const kk of Object.keys(g1.entradas)) if (kk.startsWith('γ_')) s += Math.abs(num(g1, kk) * num(g1, `m_${kk.slice(2)}`));
     expect(rel(s, g1.resultado as number)).toBeLessThan(1e-9);
     const cv = todos(c, el, tp, `Momento ${nome} com vento`)[0];
-    if (!cv) return s;
+    const comDes = (Mv: number) => {
+      const dp = todos(c, el, tp, `Momento ${nome} com desaprumo`)[0];
+      if (!dp) return Mv;
+      const E = dp.entradas, gq = num(dp, 'gq');
+      const soma = (pref: 'γ_' | 'γW_', mk: (id: string) => number) => Object.keys(E).filter((kk) => kk.startsWith(pref)).reduce((t, kk) => t + Math.abs(num(dp, kk) * mk(kk.slice(pref.length))), 0);
+      const tomb = (pref: 'γ_' | 'γW_') => Math.abs(Object.keys(E).filter((kk) => kk.startsWith(pref)).reduce((t, kk) => t + num(dp, kk) * (num(dp, `md_${kk.slice(pref.length)}`) ?? 0), 0));
+      let M = Mv, n = 0;
+      expect(num(dp, 'thetaA')).toBeGreaterThan(0);
+      for (let i = 1; E[`c${i}_tipo`] !== undefined; i++, n++) {
+        const tipo = num(dp, `c${i}_tipo`), dir = num(dp, `c${i}_dir`), pref = tipo === 2 ? 'γW_' : 'γ_', fw = tipo === 1 ? gq * 0.6 : gq;
+        const base = soma(pref, (id) => num(dp, `m_${id}`));
+        const Md = tomb(pref), dec = String(E[`c${i}_decisao`]);
+        expect(Math.abs(Md - num(dp, `c${i}_Md`))).toBeLessThan(1e-9 * Math.max(1, Md));
+        let w = 0, d = 0;
+        if (tipo === 0) { expect(dec).toBe('sem-vento'); d = soma(pref, (id) => num(dp, `mD${dir}_${id}`)); } else {
+          const nv = String(E[`c${i}_vento`]), Mw = fw * num(dp, `M1_${nv}`);
+          expect(Math.abs(Mw - num(dp, `c${i}_Mw`))).toBeLessThan(1e-9 * Math.max(1, Mw));
+          const esperado = Md < 1e-9 ? 'sem-desaprumo' : 0.3 * Mw >= Md ? 'so-vento' : Mw < 0.3 * Md ? 'so-desaprumo' : 'ambos';
+          expect(dec).toBe(esperado);
+          if (dec !== 'so-desaprumo') w = fw * Math.abs(num(dp, `mW_${nv}`)) * num(dp, `amp_${nv}`);
+          if (dec === 'so-desaprumo' || dec === 'ambos') d = soma(pref, (id) => num(dp, `mD${dir}_${id}`));
+        }
+        M = Math.max(M, base + w + d);
+      }
+      expect(n).toBeGreaterThan(0);
+      expect(rel(M, dp.resultado as number)).toBeLessThan(1e-9);
+      return M;
+    };
+    if (!cv) return comDes(s);
     let W = 0, M2 = 0;
     for (const kk of Object.keys(cv.entradas)) {
       if (kk.startsWith('amp_')) W = Math.max(W, Math.abs(num(cv, `mW_${kk.slice(4)}`)) * num(cv, kk));
@@ -138,7 +166,7 @@ function refazSolicitacao(c: Caso, el: string, r: ResultadoPuncao) {
     expect(gq).toBeGreaterThan(0);
     const M = Math.max(s + gq * 0.6 * W, M2 + gq * W);
     expect(rel(M, cv.resultado as number)).toBeLessThan(1e-9);
-    return M;
+    return comDes(M);
   };
   const Mx = momento('Mx', 0), My = momento('My', 1);
   const a = (r.angulo * Math.PI) / 180;
@@ -371,7 +399,7 @@ function refazVerificacao(c: Caso, el: string, rot: string, x: Ref, opt: { comC3
     const disp = passosDe(c, el, T('Armadura de punção – disposição'))[0];
     expect(disp.etapa).toBe('detalhamento');
     expect(num(disp, 'total')).toBe(arm!.total);
-    expect(JSON.parse(disp.entradas.posicoes as string)).toEqual(arm!.posicoes);
+    expect(JSON.parse(disp.entradas.posicoes as string)).toEqual(JSON.parse(JSON.stringify(arm!.posicoes))); // o JSON não guarda o sinal do zero (-0)
   }
   return { ...out, AswAuto, escolha: esc };
 }

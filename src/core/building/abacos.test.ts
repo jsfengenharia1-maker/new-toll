@@ -3,6 +3,7 @@
 // (C′ e C″ à mão) e ábaco manual com aviso.
 import { describe, expect, it } from 'vitest';
 import { analisarEdificio } from './analitico';
+import { ANTES_DESAPRUMO } from './antesDesaprumo';
 import { dimensionarEdificio } from './dimensionamento';
 import { comandosEdificioPadrao, Sessao } from '../commands';
 import { barArea, beamFlexure } from '../concrete';
@@ -26,6 +27,7 @@ function lisa(opts: { gerar?: boolean | Record<string, unknown>; hAbaco?: number
   for (const c of comandosEdificioPadrao()) s.executar(c.nome, c.params, 'sistema');
   const ok = (n: string, p: Record<string, unknown>) => { const r = s.executar(n, p); expect(r.ok, `${n}: ${r.erros.map((e) => e.mensagem).join(' ')}`).toBe(true); };
   ok('vento.definir', { ativo: false });
+  ok('opcoes.definir', { valores: ANTES_DESAPRUMO }); // baselines de punção de antes do desaprumo global
   ok('lote', { comandos: XS.flatMap((x) => XS.map((y) => ({ nome: 'pilar.inserir', params: { x, y, secao: { tipo: 'ret', b: 0.5, h: 0.5 } } }))) });
   ok('laje.criar', { grupo: 'g_3', contorno: [[0, 0], [12.5, 0], [12.5, 12.5], [0, 12.5]], tipo: { tipo: 'nervurada', forma: 'cat:rec-60-30', hTotal: 0.35, capa: 0.05 } });
   const gerar = opts.gerar ?? true;

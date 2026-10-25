@@ -9,8 +9,9 @@ import { vrd1 } from './vigotas';
 import type { P } from '../geom/faces';
 import { comandosEdificioPadrao, Sessao } from '../commands';
 import { analisarEdificio } from './analitico';
+import { ANTES_DESAPRUMO } from './antesDesaprumo';
 import { dimensionarEdificio } from './dimensionamento';
-import { envoltoriaLajes, sitiosPuncao } from './puncao';
+import { envoltoriaLajes, fatoresPuncao, sitiosPuncao } from './puncao';
 import { revisarEdificio } from './revisao';
 import { edificioExemplo } from '../sheets/exemplo';
 import { montarPranchasLajes } from '../sheets/armacaoLajes';
@@ -294,11 +295,12 @@ describe('punção: armadura e cortante', () => {
 
 
 /** Laje lisa 12 × 12 m de h (m) em 3 × 3 pilares 50×50 (bordas coladas nas faces: 4 de canto, 4 de borda e 1 interno). */
-function lisa(h: number, q?: number, extra?: (ok: (n: string, p: Record<string, unknown>) => void, s: Sessao) => void) {
+function lisa(h: number, q?: number, extra?: (ok: (n: string, p: Record<string, unknown>) => void, s: Sessao) => void, comDesaprumo = false) {
   const s = new Sessao();
   for (const c of comandosEdificioPadrao()) s.executar(c.nome, c.params, 'sistema');
   const ok = (n: string, p: Record<string, unknown>) => { const r = s.executar(n, p); expect(r.ok, `${n}: ${r.erros.map((e) => e.mensagem).join(' ')}`).toBe(true); };
   ok('vento.definir', { ativo: false });
+  if (!comDesaprumo) ok('opcoes.definir', { valores: ANTES_DESAPRUMO }); // baselines de punção de antes do desaprumo global; o desaprumo tem testes próprios abaixo
   if (q !== undefined) ok('grupo.editar', { id: 'g_3', q });
   const xs = [0.25, 6, 11.75];
   ok('lote', { comandos: xs.flatMap((x) => xs.map((y) => ({ nome: 'pilar.inserir', params: { x, y, secao: { tipo: 'ret', b: 0.5, h: 0.5 } } }))) });
@@ -518,5 +520,61 @@ describe('punção: limite do contorno C′ conforme a armadura (NBR 6118, 19.5.
     const m = r.mensagens.join(' ');
     expect(m).not.toMatch(/informada atende/);
     expect(m).toMatch(/Vc da laje .* cobre a solicitação; nenhuma armadura é necessária e nenhuma foi informada/);
+  });
+});
+
+describe('punção no edifício: desaprumo global (NBR 6118, 11.3.3.4.1), modelo integrado sem vento', () => {
+  it('M = Σ|γ·m| dos casos verticais + o pior dos quatro desaprumos (módulos caso a caso), conferido à mão; τSd cresce nos pilares de borda, de canto e no interno', () => {
+    const com = lisa(0.22, undefined, undefined, true), sem = lisa(0.22);
+    expect(com.an.desaprumo?.casos.length).toBeGreaterThan(0);
+    const b = com.s.modelo, pav = b.pavimentos.find((p) => p.nome === 'Tipo 1')!, g = com.an.grelhas.find((x) => x.pavimento === pav.id)!;
+    const { fat } = fatoresPuncao(b, com.an);
+    const t1 = com.d.puncao!.filter((r) => r.pavimento === 'Tipo 1'), t0 = sem.d.puncao!.filter((r) => r.pavimento === 'Tipo 1');
+    expect(t1).toHaveLength(9);
+    for (const r of t1) {
+      const mp = g.momentos![r.pilar], base = [0, 1].map((k) => com.an.casos.reduce((t, id, ic) => t + Math.abs(fat[ic] * (mp[id]?.[k] ?? 0)), 0));
+      const des = [0, 90, 180, 270].map((dir) => [0, 1].map((k) => com.an.casos.reduce((t, id, ic) => t + Math.abs(fat[ic] * (mp[`D${dir}°[${id}]`]?.[k] ?? 0)), 0)));
+      const Mx = [0, 1].map((k) => base[k] + Math.max(...des.map((x) => x[k])));
+      const a = (r.angulo * Math.PI) / 180, co = Math.cos(a), si = Math.sin(a);
+      const Mu = Math.abs(Mx[0] * co) + Math.abs(Mx[1] * si), Mv = Math.abs(Mx[0] * si) + Math.abs(Mx[1] * co);
+      expect(Math.abs(r.M[0] - Mv)).toBeLessThan(1e-9 * Math.max(1, Mv));
+      expect(Math.abs(r.M[1] - Mu)).toBeLessThan(1e-9 * Math.max(1, Mu));
+      const r0 = t0.find((x) => x.pilar === r.pilar)!;
+      expect(r.F).toBeCloseTo(r0.F, 9); // a força de punção não muda (o desaprumo só soma momento)
+      expect(r.M[0] + r.M[1]).toBeGreaterThan(r0.M[0] + r0.M[1] + 1e-6);
+      expect(r.contornos[1].tau).toBeGreaterThan(r0.contornos[1].tau);
+    }
+    // o pilar interno, sem momento antes, passa a ter o do desaprumo
+    const i0 = t0.find((r) => r.tipo === 'interno')!, i1 = t1.find((r) => r.tipo === 'interno')!;
+    expect(i0.M[0] + i0.M[1]).toBeLessThan(1e-6);
+    expect(i1.M[0] + i1.M[1]).toBeGreaterThan(1);
+  });
+});
+
+describe('punção do radier: desaprumo global (casos D nas combinações ELU)', () => {
+  const radierCom = (antes: boolean) => {
+    const s = new Sessao();
+    for (const c of comandosEdificioPadrao()) s.executar(c.nome, c.params, 'sistema');
+    const ok = (n: string, p: Record<string, unknown>) => { const r = s.executar(n, p); expect(r.ok, `${n}: ${r.erros.map((e) => e.mensagem).join(' ')}`).toBe(true); };
+    ok('vento.definir', { ativo: false });
+    if (antes) ok('opcoes.definir', { valores: ANTES_DESAPRUMO });
+    ok('lote', { comandos: [[1, 1], [7, 1], [7, 6], [1, 6]].map(([x, y]) => ({ nome: 'pilar.inserir', params: { x, y, secao: { tipo: 'ret', b: 0.3, h: 0.3 } } })) });
+    ok('lote', { comandos: [[[1, 1], [7, 1]], [[1, 6], [7, 6]], [[1, 1], [1, 6]], [[7, 1], [7, 6]]].map((p) => ({ nome: 'viga.tracar', params: { grupo: 'g_3', pontos: p, secao: { b: 0.15, h: 0.5 } } })) });
+    ok('radier.criar', { contorno: [[0, 0], [8, 0], [8, 7], [0, 7]], h: 0.25, k: 40000, sigmaAdm: 300 });
+    const an = analisarEdificio(s.modelo);
+    return { an, d: dimensionarEdificio(s.modelo, an) };
+  };
+  it('sem vento, a combinação determinante é a de um dos desaprumos e o momento MSd no pé cresce (os dois desaprumos de sinal oposto somam em módulo)', () => {
+    const com = radierCom(false), sem = radierCom(true);
+    expect(com.an.desaprumo?.casos.length).toBeGreaterThan(0);
+    const p1 = com.d.radiers![0].puncao!, p0 = sem.d.radiers![0].puncao!;
+    expect(p1).toHaveLength(4);
+    for (const r of p1) {
+      const r0 = p0.find((x) => x.pilar === r.pilar)!;
+      expect(r.combinacao, r.nome).toMatch(/desaprumo/);
+      expect(r0.combinacao).not.toMatch(/desaprumo/);
+      expect(r.M[0] + r.M[1]).toBeGreaterThan(r0.M[0] + r0.M[1] + 1e-6);
+      expect(r.contornos[1].tau).toBeGreaterThan(r0.contornos[1].tau);
+    }
   });
 });
