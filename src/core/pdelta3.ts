@@ -46,6 +46,8 @@ export interface ResultadoIteracao {
   /** Forças fictícias −K_G(N)·u (cargas nodais equivalentes aos efeitos de 2ª ordem). */
   forcas: { no: number; f: number[] }[];
   iteracoes: number; convergiu: boolean;
+  /** Por iteração (memória MD9): maior correção |Δu|, maior |u| (todos os gdl) e maior deslocamento horizontal; e o de 1ª ordem. */
+  historico: { iteracao: number; du: number; um: number; uh: number }[]; uh1: number;
   /** Maior deslocamento horizontal de 2ª ordem ÷ o de 1ª ordem (nós do modelo). */
   amplificacao: number;
   erro?: string;
@@ -59,7 +61,7 @@ const maxHoriz = (u: ArrayLike<number>) => { let m = 0; for (let k = 0; k < u.le
  */
 export function iterarPDelta(fat: Fatorado3, geo: BarraGeo[], u1: Float64Array[], N1: Float64Array[], o: { maxIter?: number; tol?: number } = {}): ResultadoIteracao[] {
   const maxIter = o.maxIter ?? 50, tol = o.tol ?? 1e-5;
-  const estado = u1.map((u, c) => ({ u: Float64Array.from(u), N: Float64Array.from(N1[c]), it: 0, ok: false, erro: undefined as string | undefined, dAnt: Infinity, cresce: 0 }));
+  const estado = u1.map((u, c) => ({ u: Float64Array.from(u), N: Float64Array.from(N1[c]), it: 0, ok: false, erro: undefined as string | undefined, dAnt: Infinity, cresce: 0, hist: [] as ResultadoIteracao['historico'] }));
   const ug = new Float64Array(12), ul = new Float64Array(12);
   for (let it = 1; it <= maxIter; it++) {
     const ativos = estado.map((s, c) => (s.ok || s.erro ? -1 : c)).filter((c) => c >= 0);
@@ -71,6 +73,7 @@ export function iterarPDelta(fat: Fatorado3, geo: BarraGeo[], u1: Float64Array[]
       for (let i = 0; i < d.length; i++) { const v = u0[i] + d[i]; du = Math.max(du, Math.abs(v - s.u[i])); um = Math.max(um, Math.abs(v)); s.u[i] = v; }
       geo.forEach((g, j) => { s.N[j] = N1[c][j] + normalMedia(esforcosBarra(g.e, d, -1, ug, ul)); });
       s.it = it;
+      s.hist.push({ iteracao: it, du, um, uh: maxHoriz(s.u) });
       if (!Number.isFinite(um) || um > 1e6) { s.erro = 'instabilidade'; return; }
       // diverge quando a correção cresce em iterações seguidas (carga acima da crítica)
       if (du > s.dAnt * 1.0001) s.cresce++; else s.cresce = 0;
@@ -82,7 +85,7 @@ export function iterarPDelta(fat: Fatorado3, geo: BarraGeo[], u1: Float64Array[]
   return estado.map((s, c) => {
     const a1 = maxHoriz(u1[c]);
     const erro = s.erro ? 'Instabilidade global: a carga da combinação atinge ou supera a carga crítica (a iteração P-Δ diverge).' : !s.ok ? `P-Δ não convergiu em ${maxIter} iterações.` : undefined;
-    return { u: s.u, N: s.N, forcas: forcasGeometricas(geo, s.N, s.u), iteracoes: s.it, convergiu: s.ok, amplificacao: a1 > 1e-12 ? maxHoriz(s.u) / a1 : 1, ...(erro ? { erro } : {}) };
+    return { u: s.u, N: s.N, forcas: forcasGeometricas(geo, s.N, s.u), iteracoes: s.it, convergiu: s.ok, historico: s.hist, uh1: a1, amplificacao: a1 > 1e-12 ? maxHoriz(s.u) / a1 : 1, ...(erro ? { erro } : {}) };
   });
 }
 

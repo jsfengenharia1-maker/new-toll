@@ -9,6 +9,7 @@ import { gamas } from '../building/materiais';
 import { temCorridas } from '../building/corridaParede';
 import { casosDaObra, type BuildingModel } from '../building/types';
 import { casosResolvidos } from './dadosAnalise';
+import { registrarAnaliseGlobal } from './analiseGlobal';
 import { registrarEscadasCalculo } from './escadasCalculo';
 import { ETAPAS_MEMORIA, Registrador, comMemoria, fm, type PassoMemoria } from './registrador';
 
@@ -66,11 +67,6 @@ function passosGlobais(reg: Registrador, b: BuildingModel, an: AnaliseEdificio) 
     for (const r of c.res.reacoes[c.ic].values()) Rz += r[2];
     reg.passo({ etapa: 'analise', elemento: GLOBAL, topico: 'Equilíbrio por caso', descricao: `Soma das reações verticais do pórtico no caso ${c.nome}`, formula: 'ΣRz', expressao: `ΣRz = ${fm(Rz)} kN`, resultado: Rz, unidade: 'kN', entradas: {} });
   }
-  for (const cv of an.vento?.casos ?? []) {
-    const F = cv.forcas;
-    const tot = F.reduce((t, f) => t + f.F, 0), M = F.reduce((t, f) => t + Math.abs(f.F) * f.z, 0);
-    reg.passo({ etapa: 'cargas', elemento: GLOBAL, topico: 'Vento (NBR 6123)', descricao: `Caso ${cv.nome}: forças por pavimento (F; z)`, formula: 'ΣF; M1 = Σ|F|·z', expressao: `${F.map((f) => `(${fm(f.F)} kN; ${fm(f.z)} m)`).join(' ')} → ΣF = ${fm(tot)} kN; M1 = ${fm(M)} kN·m`, resultado: tot, unidade: 'kN', norma: 'NBR 6123:1988', entradas: { M1: M } });
-  }
   // ---- combinações
   reg.passo({ etapa: 'combinacoes', elemento: GLOBAL, topico: 'Coeficientes', descricao: 'Coeficientes de ponderação adotados', formula: 'γg, γq, γc, γs', expressao: `γg = ${fm(g.g)}; γq = ${fm(g.q)}; γc = ${fm(g.c)}; γs = ${fm(g.s)}`, resultado: g.g, unidade: '', norma: 'NBR 6118:2023, 11.7 e 12.4; NBR 8681:2003', entradas: { gg: g.g, gq: g.q, gc: g.c, gs: g.s } });
   const combs = combinacoesEdificio(b, an), elu = combinacoesDoEstado(b, an, 'concreto', combs), freq = combinacoesDoEstado(b, an, 'fissuracao', combs);
@@ -83,7 +79,7 @@ function passosGlobais(reg: Registrador, b: BuildingModel, an: AnaliseEdificio) 
   // ---- análise
   const pm = an.portico, m = pm.modelo;
   reg.passo({ etapa: 'analise', elemento: GLOBAL, topico: 'Modelo', descricao: 'Pórtico espacial (rigidez direta, elementos de barra com trechos rígidos e diafragma rígido por pavimento)', formula: 'K·u = F', expressao: `${m.nos.length} nós; ${m.barras.length} barras; ${an.gdl} gdl`, resultado: an.gdl, unidade: 'gdl', entradas: { nos: m.nos.length, barras: m.barras.length } });
-  for (const gz of an.vento?.gamaZ ?? []) reg.passo({ etapa: 'analise', elemento: GLOBAL, topico: 'Estabilidade global (γz)', descricao: `Vento a ${gz.direcao}°: γz com o vento principal e com o uso principal (rigidez reduzida, 15.7.3)`, formula: 'γz = 1/(1 − ΔMtot,d/M1,tot,d); ampliação 0,95·γz se γz > 1,1', expressao: `γz = máx(${fm(gz.ventoPrincipal)}; ${fm(gz.usoPrincipal)}) = ${fm(gz.max)}; ampliação ${fm(gz.ampliacao)}`, resultado: gz.max, unidade: '', norma: 'NBR 6118:2023, 15.5.3 e 15.7.2', entradas: { ventoPrincipal: gz.ventoPrincipal, usoPrincipal: gz.usoPrincipal, ampliacao: gz.ampliacao } });
+  registrarAnaliseGlobal(reg, b, an); // vento por pavimento, γz por pavimento, P-Δ por iteração e desaprumo (MD9)
   for (const c of casosResolvidos(an)) {
     if (c.origem === 'pDelta') continue;
     const u = c.res.desloc[c.ic];

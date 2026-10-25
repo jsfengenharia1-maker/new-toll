@@ -51,6 +51,7 @@ import type { ResultadoVigaFundacao } from './vigasFundacao';
 import { TAXAS } from './premissas';
 import { puncaoAbacos } from './abacosPuncao';
 import { cortanteLaje, puncaoEdificio, puncaoRadier, sitiosPuncao, type CortanteLaje, type DetCortanteBruto, type ResultadoPuncao } from './puncao';
+import { registrarReacoesLaje } from '../memoria/reacoesLajes';
 import { registrarLajeBarras, registrarLajeBase, registrarLajeCortante, registrarLajeFissuracao, registrarLajeFlecha, registrarLajeFlexao, registrarMomentosLaje, type DetBarra, type DetFiss, type DetNoWA, type ExtremoLaje, type ItemFissuracao, type MomentosLaje } from '../memoria/lajeMacica';
 import { detalharRadier, dimensionarBaseElastica, resumoAcoRadiers, type ResultadoRadier, type ResultadoVigaElastica } from './baseElastica';
 import { calcularCorridas, type ResultadoCorrida } from './sapataCorrida';
@@ -1701,6 +1702,7 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
           // memória detalhada (MD2): cargas, materiais, momentos da grelha e flexão
           const gr = b.grupos.find((x) => x.id === pav.grupo);
           registrarLajeBase(mem, elL, { nome: l.nome, pavimento: pav.nome, h, vaos: vaos(l), inclinada: !!l.plano, gRev: gr?.gRev ?? 0, q: gr?.q ?? 0, gammaC: GAMA_CONCRETO, gg: gm.g, gq: gm.q, c, fydInf: fInf, fydSup: fSup, acoInf: acoDe(b, 'lajeInf').aco, acoSup: acoDe(b, 'lajeSup').aco, cobInf: cob.inf, cobSup: cob.sup, dI, dS, caa, wkLim });
+          registrarReacoesLaje(mem, elL, g, l.id, an.casos, (id) => b.vigas.find((x) => x.id === id)?.nome ?? id); // MD9: carga da laje nas vigas
           registrarMomentosLaje(mem, elL, momELU);
           registrarOpcoesProprias(mem, elL, 'laje', l.opcoes);
           registrarLajeFlexao(mem, elL, { c, sec, h, dI, dS, fydInf: fInf, fydSup: fSup, taxaUsuario: opL.lajeTaxaMin, amin: amin, grelha: grelhaELU, mPos, mNeg, minimos, As0: { pos: [...As.pos] as [number, number], neg: [...As.neg] as [number, number] } });

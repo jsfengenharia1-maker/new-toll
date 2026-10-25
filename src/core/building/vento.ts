@@ -27,7 +27,9 @@ export function s2(cat: CategoriaVento, classe: Classe, z: number): number {
  * `larguraCorrigida` = b′ = b·(2a + h)/h do último pavimento com platibanda de altura a (h = pé-direito), que aplicada à
  * meia faixa h/2 dá a mesma área de exposição b·(h/2 + a); nos demais, igual à largura.
  */
-export interface ForcaPavimento { pavimento: string; zona: number; z: number; altura: number; largura: number; larguraCorrigida: number; s2: number; vk: number; q: number; F: number; Mz: number }
+export interface ForcaPavimento { pavimento: string; zona: number; z: number; altura: number; largura: number; larguraCorrigida: number; s2: number; vk: number; q: number; F: number; Mz: number;
+  /** Intermediários do cálculo (memória detalhada, MD9): coeficientes, faixa de exposição e repartição entre as zonas do pavimento. */
+  det?: { coef: number; ca: number; viz: number; sent: number; hPav: number; plat: number; larguraPav: number; larguraCorrigidaPav: number; Fpav: number; bz: number; sb: number; nz: number; exc: number; meio: number; largRef: number; linha: number; cy: number; cx: number } }
 /** Ca e fator de vizinhança em uso por eixo: `auto` = vieram dos ábacos digitados. */
 export interface CoefVento { x: number; y: number; auto: boolean }
 export interface CasoVento { nome: string; direcao: 0 | 90 | 180 | 270; exc: -1 | 0 | 1; forcas: ForcaPavimento[] }
@@ -114,7 +116,8 @@ export function casosVento(b: BuildingModel, zonas: (pav: string) => ZonaVento[]
         const linha = meio + exc * v.excentricidade * (zs.length > 1 ? lz : largura);
         const Fx = emX ? sinal * Fi : 0, Fy = emX ? 0 : sinal * Fi;
         const Mz = emX ? -(linha - zn.cy) * Fx : (linha - zn.cx) * Fy;
-        forcas.push({ pavimento: p.id, zona: k, z, altura, largura: zs.length > 1 ? lz : largura, larguraCorrigida: zs.length > 1 ? lz * (largura > 1e-9 ? larguraCorrigida / largura : 1) : larguraCorrigida, s2: S2, vk, q, F: sinal * Fi, Mz });
+        forcas.push({ pavimento: p.id, zona: k, z, altura, largura: zs.length > 1 ? lz : largura, larguraCorrigida: zs.length > 1 ? lz * (largura > 1e-9 ? larguraCorrigida / largura : 1) : larguraCorrigida, s2: S2, vk, q, F: sinal * Fi, Mz,
+          det: { coef: (emX ? ca.x : ca.y) * (emX ? fvz.x : fvz.y) * coefSentido, ca: emX ? ca.x : ca.y, viz: emX ? fvz.x : fvz.y, sent: coefSentido, hPav, plat, larguraPav: largura, larguraCorrigidaPav: larguraCorrigida, Fpav: F, bz: bz[k], sb, nz: zs.length, exc: v.excentricidade, meio, largRef: zs.length > 1 ? lz : largura, linha, cy: zn.cy, cx: zn.cx } });
       });
     });
     casos.push({ nome: `W${direcao}°${exc ? (exc > 0 ? '+e' : '−e') : ''}`, direcao, exc, forcas });
