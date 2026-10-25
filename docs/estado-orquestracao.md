@@ -20,7 +20,7 @@ Atualizado em 24/10/2026. Ler junto com o Andamento de `docs/plano-execucao.md`.
 
 No main: E6a, E6c, E6d, correção kGiro (giro relativo nas cascas), barra–casca (pivô nulo relativo; referência do pilar virtual no nó), FU7d, MD4 + correção do C″ da punção (anéis até atender; 10 resultados de nervurada com ábaco mudaram), MD5a/MD5b, V7c–V7f, desempenho do método geral (vitest 964 → ~400 s). 2.334 testes, 143 e2e, pacote 6.142 KB.
 Decisões pendentes do usuário: (1) `vigaAncoragemEixo` (R8a) mede do eixo no padrão do sistema (NBR: da face); (2) ligação barra–casca no plano fica quase rotulada (distribuir pelos nós vizinhos?); (3) sugerir "aumentar o ábaco" quando o C″ exigir anéis muito além do ábaco.
-Restam: N4a, N4b, E6b (material do usuário), MD6–MD9, fechamento (pacote 6,1 MB: memória sob demanda).
+Restam: N4a, N4b, E6b (material do usuário), MD7–MD9, fechamento (pacote 6,1 MB: memória sob demanda).
 
 ## Próxima rodada (depois desta)
 1. Demais E5 (b–g, i–k), FU7d.

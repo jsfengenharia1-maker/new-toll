@@ -36,7 +36,7 @@ import type { Diagnostico } from './verify';
 export type CasoEscada = 'G' | 'Q';
 const CASOS: CasoEscada[] = ['G', 'Q'];
 const EPS = 1e-6;
-const NU = 0.2;
+export const NU = 0.2;
 /**
  * Fração de Hughes-Brezzi do giro no plano acoplado à rotação da membrana (`Casca3.acoplarGiro`). Com o giro pouco acoplado (`kGiro` pequeno, relativo)
  * as dobras entre trechos e patamares ficam moles demais (reação do apoio do patamar 3,5 % abaixo do OpenSees, na escada em L);
@@ -56,6 +56,8 @@ export interface ApoioCalculado {
   rigido: boolean;
   /** Rigidez do apoio elástico por metro de borda (kN/m por m); só no elástico. */
   kLinha?: number;
+  /** Só no elástico (memória detalhada): módulo do material (kN/m²), largura da parede/tirante (m) e altura adotada (m), com kLinha = módulo·largura/altura. */
+  modulo?: number; largura?: number; altura?: number;
   /** Grupo que recebe a carga ('fundacao' = nível de fundação). */
   grupo?: string;
   /** Peso próprio da parede ou do tirante (kN/m, caso G), somado à reação ao gerar a carga. */
@@ -342,7 +344,7 @@ function calcularLance(b: BuildingModel, g: GeometriaEscada, l: LanceGeo, ordem:
     if (!(alt > 0.05)) avisos.push(`${pre}: altura do apoio ${li.borda} do patamar ${li.patamar + 1} (${fmt(alt)} m) muito pequena; adotado 0,05 m`);
     const Eap = li.tipo === 'concreto' ? E : EAlv;
     const kLinha = (Eap * ap.largura) / Math.max(0.05, alt);
-    const a2 = mkApoio({ id, tipo: 'patamar', rotulo, tipoApoio: li.tipo, patamar: li.patamar, a: li.a, b: li.b, rigido: false, kLinha, grupo: li.sobre === 'acima' ? grupoTopo : grupoIni, pesoProprio: li.valor }, nl);
+    const a2 = mkApoio({ id, tipo: 'patamar', rotulo, tipoApoio: li.tipo, patamar: li.patamar, a: li.a, b: li.b, rigido: false, kLinha, modulo: Eap, largura: ap.largura, altura: Math.max(0.05, alt), grupo: li.sobre === 'acima' ? grupoTopo : grupoIni, pesoProprio: li.valor }, nl);
     for (const x of nl) { const k = kLinha * x.peso; molas.push({ no: x.no, gdl: 2, k }); a2.molaDe.set(x.no, (a2.molaDe.get(x.no) ?? 0) + k); }
   }
 

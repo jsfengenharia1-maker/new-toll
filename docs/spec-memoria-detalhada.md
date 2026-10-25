@@ -86,6 +86,13 @@ Mesmo gancho da 5a (`registrarFundacoes`, depois do cálculo, com `dadosDoProjet
 - Testes `baseFundacao.test.ts` (10 casos): radier com 4 pilares sobre molas (σ, recalque, Wood-Armer por nó com `woodArmer`, envoltória = mPos/mNeg, Md, As,flexão, As,mín, As necessária, aumento por fissuração = armadura final, barras, peso e volume, punção referenciada, filtro e HTML) e três vigas (equilíbrio com alavanca refeita por `diagramaAlavanca` e `diagramaBiapoiada`; seção T com cortes R8b; travamento de bloco de 1 estaca); `toEqual` da memória ligada contra a desligada; e2e `MD5c` (radier e vigas, no `MD.mjs`).
 - Não coberto: a decomposição por caso dos esforços ELU da viga de fundação (a alavanca e a biapoiada são registradas por parcela, não por caso), o detalhamento de cada tentativa da busca da seção (só a inicial, o motivo e a adotada) e a curva de armadura necessária decalada dos cortes (só o resultado dos grupos).
 
+## Fase 6 (feita)
+
+Escadas (`src/core/memoria/escadasCalculo.ts` e `escadasArmadura.ts`), um elemento por lance ("Escada E1 · Lance 1"):
+- **Cálculo** (E4c, registrado a partir do `ResultadoEscadas`, porque a análise das escadas roda dentro de `analisarEdificio`, antes de a memória ser ligada): modelo de casca; cargas por trecho (g·A com as faixas de degraus do patamar, q·A) e corrimão (w/2 em cada borda inclinada), totais G e Q; apoios rígidos e elásticos (k′ = E·largura/altura); equilíbrio vertical, deslocamentos e reação de cada apoio; envoltória dos momentos da casca; reações como cargas lineares (q = R/ℓ + peso próprio) e a carga gravada na obra (6 casas; maior valor entre instâncias iguais).
+- **Armadura** (E4d, registrada por `armarLance` com a memória ligada): materiais, d, As,mín e combinações; esforços por faixa (elemento de casca determinante, Wood-Armer de γg·G + f·Q com f = γq ou 0, cortante, momentos de serviço); flexão por faixa (x, C, As), mínimos e cadeia completa na faixa de maior momento; negativa de borda, igualações, armadura necessária do trecho; fissuração (aumento de 10 % e abertura wk); distribuição mínima; cortante (VRd1, VRd2, Vc, Asw); flecha (fator de fluência, f∞, limite); ancoragens nos apoios e nas quinas, esperas (traspasse), barras (As,ef, quantidade, comprimento com as partes) e peso de aço.
+- Testes: `escadas.test.ts` (5 casos, 41 testes) refaz das `entradas` a 1e-9 cargas, equilíbrio, k′, q, Wood-Armer, flexão, mínimos, fissuração, cortante, flecha, ancoragem, esperas, barras e peso; a armadura e o cálculo com a memória ligada são `toEqual` aos da memória desligada; o lance reto biapoiado da E4d confere Md = 44,01 kN·m/m e As ≈ 9,3 cm²/m contra q·ℓ²/8. e2e `MD6`.
+
 ## Rollout (fases seguintes)
 
 Uma fatia por frente, mesmo padrão (contexto de registro + teste de exatidão a 1e-9 + seção no HTML). Estimativas de esforço por fatia (agente Sonnet alto; Haiku só para a seção do HTML quando seguir o padrão):
@@ -96,7 +103,7 @@ Uma fatia por frente, mesmo padrão (contexto de registro + teste de exatidão a
 | MD3 | Nervuradas e treliçadas | geometria da seção T equivalente, flexão das nervuras, cortante, flecha (Branson por alinhamento), vigotas (ficha) | 1 fatia média |
 | MD4 (feita) | Punção | perímetros C, C′, C″, τSd com momentos (K), τRd1/τRd2/τRd3, armadura de punção | 1 fatia pequena |
 | MD5 (feita) | Fundações | sapatas (σ, CEB-70/bielas, cisalhamento), blocos (bielas e tirantes, Blévot), estacas (Décourt-Quaresma por camada, Padm), tubulões, radier/viga em base elástica | 3 fatias (rasas, profundas e radier/vigas de fundação, feitas) |
-| MD6 | Escadas | casca espessa do lance (reações por apoio), armadura por trecho, fissuração e flecha | 1 fatia pequena |
+| MD6 (feita) | Escadas | casca espessa do lance (reações por apoio), armadura por trecho, fissuração e flecha | 1 fatia pequena |
 | MD7 | Paredes e pilares-parede | esforços por lado/fatia, flexo-compressão, armadura distribuída, alvenaria estrutural | 1 fatia média |
 | MD8 | Pórtico 2D | módulo de pórticos planos (esforços por combinação, dimensionamento NBR 6118/8800) com o mesmo registrador | 1 fatia média |
 | MD9 | Análise (detalhe) | intermediários do γz (M1, ΔM por pavimento), P-Δ por iteração, vento por pavimento (S2, q, F), cargas das lajes nas vigas | 1 fatia pequena |
