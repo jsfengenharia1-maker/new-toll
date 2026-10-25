@@ -91,7 +91,7 @@ export const f_MD2 = {
       await dlg.getByLabel(/^Elemento/).selectOption({ label: 'Laje L2' });
       await page.waitForFunction((n) => document.querySelectorAll('[data-memoria-detalhada] tr[data-passo]').length < n, total);
       const tf = await dlg.locator('[data-memoria-detalhada]').innerText();
-      assert.ok(tf.includes('Laje L2') && !tf.includes('Laje L1 ') && !tf.includes('Viga V1') && tf.includes('Wood-Armer'));
+      assert.ok(tf.includes('Laje L2') && !tf.includes('Laje L1 ') && (await dlg.locator('[id$="-viga-v1"]').count()) === 0 && tf.includes('Wood-Armer'));
       const baixar = async (rot) => {
         const [dl] = await Promise.all([page.waitForEvent('download'), dlg.getByRole('button', { name: rot, exact: true }).click()]);
         return { nome: dl.suggestedFilename(), dados: readFileSync(await dl.path()) };
