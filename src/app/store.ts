@@ -52,6 +52,8 @@ interface State {
   trainResult: { key: string; data: unknown } | null;
   message: string;
   memorialOpen: boolean;
+  /** Memória de cálculo detalhada do pórtico (frente MD). */
+  memoriaDetalhadaOpen: boolean;
   libraryOpen: boolean;
   module: 'portico' | 'fundacoes' | 'edificio';
   libraryId: string | null;
@@ -134,6 +136,7 @@ export const useStore = create<State>((set, get) => ({
   trainStatic: null,
   trainResult: null,
   memorialOpen: false,
+  memoriaDetalhadaOpen: false,
   libraryOpen: false,
   module: 'portico',
   libraryId: null,

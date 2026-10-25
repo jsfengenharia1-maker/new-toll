@@ -149,6 +149,7 @@ export function Memorial({ onClose }: { onClose: () => void }) {
         <Spacer />
         <Button variant="primary" onClick={printMemo} title="Abre a impressão do navegador só com o memorial (A4, cabeçalho e paginação). Escolha “Salvar como PDF”.">Imprimir / PDF</Button>
         <Button onClick={exportHtml}>Exportar HTML</Button>
+        <Button disabled={!!err} title="Registro passo a passo de todas as contas, com os dados da análise e o script OpenSees" onClick={() => { onClose(); st.set({ memoriaDetalhadaOpen: true }); }}>Memória de cálculo detalhada</Button>
         <Button onClick={onClose}>Fechar</Button>
       </div>
       <div className="memo-form">
