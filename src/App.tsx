@@ -1,16 +1,8 @@
 import { PropriedadesPortico } from './app/panels/PropriedadesPortico';
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useStore, type Tab } from './app/store';
 import { Canvas, fitView, svgSize } from './app/Canvas';
 import { EstruturaPanel } from './app/panels/Estrutura';
-import { CargasPanel } from './app/panels/Cargas';
-import { ResultadosPanel } from './app/panels/Resultados';
-import { InfluenciaPanel } from './app/panels/Influencia';
-import { DimensionarPanel } from './app/panels/Dimensionar';
-import { Memorial } from './app/Memorial';
-import { MemoriaDetalhadaPortico } from './app/MemoriaDetalhadaPortico';
-import { Library } from './app/Library';
-import { Fundacoes } from './app/Fundacoes';
 import { SAMPLES } from './app/samples';
 import { addMember, deleteSelection, ensureNode, importTables, nbrCombinations } from './core/edit';
 import { emptyModel, type ForceUnit, type LengthUnit, type Model } from './core/types';
@@ -18,20 +10,33 @@ import { FORCE_UNITS, LENGTH_UNITS, makeUnits } from './app/units';
 import { AjudaProvider, BotaoAjuda, copyText, download, Dock, StatusBar, ThemeSelect, useIndicioRolagem, useRoving } from './app/ui';
 import { FaixaModulo } from './app/FaixaModulo';
 import { FaixaPortico } from './app/FaixaPortico';
-import { FaixaFundacoes } from './app/FaixaFundacoes';
 import { FaixaArquivo, type AcoesArquivo } from './app/FaixaArquivo';
-import { FaixaEdificio, ROTULO_CTX } from './app/edificio/FaixaEdificio';
-import { ControlesPlanta } from './app/edificio/ControlesPlanta';
-import { LinhaComando } from './app/edificio/Edificio';
+import { ROTULO_CTX } from './app/edificio/rotulosCtx';
 import { useAlvoSelecionado } from './app/edificio/alvo';
 import { useAnalysis, resultFor, sourceLabel } from './app/results';
-import { buildDxf } from './app/dxf';
 import { svgExportCss } from './app/exportCss';
 import { adoptLaunchedFile, buildWorkspace, canPickFiles, launchQueue, currentFileName, forgetFile, mergeWorkspace, parseWorkspace, pickFromDisk, writeToDisk, WORKSPACE_EXT } from './app/workspace';
 import { logActivity } from './app/history';
-import { AtalhosEdificio, Edificio, NomeObra } from './app/edificio/Edificio';
-import { edificioParaArquivo, useBuilding } from './app/edificio/store';
+import { carregarEdificio, edificioCarregado, useEdificio } from './app/edificio/ponte';
 import { memo } from './app/design/tokens';
+
+// Partes fora da tela de abertura (módulo Pórtico) carregam sob demanda: cada import() vira um arquivo à parte no build
+// publicado (Netlify/PWA); no build do artifact tudo fica no mesmo HTML e o import() só adia a execução.
+const CargasPanel = lazy(() => import('./app/panels/Cargas').then((m) => ({ default: m.CargasPanel })));
+const ResultadosPanel = lazy(() => import('./app/panels/Resultados').then((m) => ({ default: m.ResultadosPanel })));
+const InfluenciaPanel = lazy(() => import('./app/panels/Influencia').then((m) => ({ default: m.InfluenciaPanel })));
+const DimensionarPanel = lazy(() => import('./app/panels/Dimensionar').then((m) => ({ default: m.DimensionarPanel })));
+const Memorial = lazy(() => import('./app/Memorial').then((m) => ({ default: m.Memorial })));
+const MemoriaDetalhadaPortico = lazy(() => import('./app/MemoriaDetalhadaPortico').then((m) => ({ default: m.MemoriaDetalhadaPortico })));
+const Library = lazy(() => import('./app/Library').then((m) => ({ default: m.Library })));
+const Fundacoes = lazy(() => import('./app/Fundacoes').then((m) => ({ default: m.Fundacoes })));
+const FaixaFundacoes = lazy(() => import('./app/FaixaFundacoes').then((m) => ({ default: m.FaixaFundacoes })));
+const FaixaEdificio = lazy(() => import('./app/edificio/FaixaEdificio').then((m) => ({ default: m.FaixaEdificio })));
+const ControlesPlanta = lazy(() => import('./app/edificio/ControlesPlanta').then((m) => ({ default: m.ControlesPlanta })));
+const Edificio = lazy(() => import('./app/edificio/Edificio').then((m) => ({ default: m.Edificio })));
+const AtalhosEdificio = lazy(() => import('./app/edificio/Edificio').then((m) => ({ default: m.AtalhosEdificio })));
+const NomeObra = lazy(() => import('./app/edificio/Edificio').then((m) => ({ default: m.NomeObra })));
+const LinhaComando = lazy(() => import('./app/edificio/Edificio').then((m) => ({ default: m.LinhaComando })));
 
 const TABS: { t: Tab; label: string }[] = [
   { t: 'estrutura', label: 'Estrutura' },
@@ -56,7 +61,13 @@ function setTab(t: Tab) {
 export default function App() {
   const st = useStore();
   const a = useAnalysis();
-  const bd = useBuilding();
+  // o store do edifício só carrega ao entrar no módulo (fora do pacote de abertura); até lá, valores neutros
+  const nErr = useEdificio((s) => s.diags.filter((d) => d.severidade === 'erro').length, 0);
+  const nPavimentos = useEdificio((s) => s.sessao.modelo.pavimentos.length, 0);
+  const podeDesfazerEd = useEdificio((s) => s.sessao.podeDesfazer, false);
+  const podeRefazerEd = useEdificio((s) => s.sessao.podeRefazer, false);
+  const desfazerEd = () => edificioCarregado()?.useBuilding.getState().desfazer();
+  const refazerEd = () => edificioCarregado()?.useBuilding.getState().refazer();
   const svgRef = useRef<SVGSVGElement>(null);
   const modtabs = useRef<HTMLElement>(null);
   useRoving(modtabs, '[role="tab"]');
@@ -65,6 +76,8 @@ export default function App() {
   const [panelOpen, setPanelOpen] = useState(true);
   const [coord, setCoord] = useState('');
 
+
+  useEffect(() => { if (st.module === 'edificio') void carregarEdificio(); }, [st.module]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -76,7 +89,8 @@ export default function App() {
       }
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
-      const ed = s.module === 'edificio' ? useBuilding.getState() : null;
+      const ed = s.module === 'edificio' ? (edificioCarregado()?.useBuilding.getState() ?? null) : null;
+      if (s.module === 'edificio' && !ed) return;
       const undo = ed ? ed.desfazer : s.undo, redo = ed ? ed.refazer : s.redo;
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
@@ -113,7 +127,7 @@ export default function App() {
     try {
       const { model, workspace, edificio } = parseWorkspace(txt);
       load(model, true);
-      useBuilding.getState().carregar(edificio);
+      (await carregarEdificio()).useBuilding.getState().carregar(edificio);
       st.set({ libraryId: null, module: 'portico' });
       const n = workspace ? await mergeWorkspace(workspace) : 0;
       logActivity(`Trabalho aberto do arquivo ${fileName}`, model.name);
@@ -131,7 +145,7 @@ export default function App() {
 
   const saveWork = async (saveAs = false) => {
     const s = useStore.getState();
-    const ws = await buildWorkspace(s.model, edificioParaArquivo());
+    const ws = await buildWorkspace(s.model, (await carregarEdificio()).edificioParaArquivo());
     const txt = JSON.stringify(ws);
     const name = `${slug(s.model.name)}${WORKSPACE_EXT}`;
     let r: string = await writeToDisk(name, txt, saveAs);
@@ -230,6 +244,7 @@ export default function App() {
   const exportDXF = async () => {
     const s = useStore.getState();
     const ok = !a.prep.error;
+    const { buildDxf } = await import('./app/dxf');
     const txt = buildDxf({
       model: s.model, analysis: ok ? a : null, results: ok ? resultFor(a, s.source) : [], resultLabel: sourceLabel(s.model, s.source),
       caseId: s.activeCase, diagScale: s.diagScale, mTension: s.mTension, dims: true,
@@ -251,7 +266,6 @@ export default function App() {
     }
   };
 
-  const nErr = bd.diags.filter((d) => d.severidade === 'erro').length;
   const alvo = useAlvoSelecionado();
   const acoes: AcoesArquivo = {
     novo: () => { const m = emptyModel(); forgetFile(); load(m); logActivity('Novo modelo', m.name); },
@@ -262,11 +276,11 @@ export default function App() {
     podeSalvarComo: canPickFiles(),
   };
   const corpoFaixa = (aba: string) => aba === 'arquivo' ? <FaixaArquivo a={acoes} edificio={st.module === 'edificio'} />
-    : st.module === 'edificio' ? <FaixaEdificio aba={aba} />
+    : st.module === 'edificio' ? <Suspense fallback={null}><FaixaEdificio aba={aba} /></Suspense>
     : st.module === 'portico' ? <FaixaPortico aba={aba} setTab={setTab} enquadrar={fit} />
-    : <FaixaFundacoes aba={aba} />;
+    : <Suspense fallback={null}><FaixaFundacoes aba={aba} /></Suspense>;
 
-  const status = st.module === 'edificio' ? { cls: nErr ? 'bad' : 'ok', text: `${bd.sessao.modelo.pavimentos.length} pavimentos${nErr ? ` · ${nErr} erro(s)` : ''}` } : a.prep.error ? { cls: 'bad', text: 'Instável' } : { cls: 'ok', text: `${st.model.nodes.length} nós · ${st.model.members.length} barras · ${a.prep.free.length} gdl` };
+  const status = st.module === 'edificio' ? { cls: nErr ? 'bad' : 'ok', text: `${nPavimentos} pavimentos${nErr ? ` · ${nErr} erro(s)` : ''}` } : a.prep.error ? { cls: 'bad', text: 'Instável' } : { cls: 'ok', text: `${st.model.nodes.length} nós · ${st.model.members.length} barras · ${a.prep.free.length} gdl` };
 
   return (
     <AjudaProvider>
@@ -279,13 +293,13 @@ export default function App() {
         </div>
           <input ref={tablesRef} type="file" accept={`${WORKSPACE_EXT},.json,application/json`} hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) importTablesFrom(f); e.target.value = ''; }} />
           <input ref={fileRef} type="file" accept={`${WORKSPACE_EXT},.json,application/json`} hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) openFile(f); e.target.value = ''; }} />
-        {st.module === 'edificio' && <AtalhosEdificio />}
+        {st.module === 'edificio' && <Suspense fallback={null}><AtalhosEdificio /></Suspense>}
         <div className="mname" title={st.module === 'edificio' ? 'Nome da obra' : 'Nome do modelo'}>
-          {st.module === 'edificio' ? <NomeObra /> : <input aria-label="Nome do modelo" value={st.model.name} onChange={(e) => st.commit((m) => { m.name = e.target.value; })} />}
+          {st.module === 'edificio' ? <Suspense fallback={null}><NomeObra /></Suspense> : <input aria-label="Nome do modelo" value={st.model.name} onChange={(e) => st.commit((m) => { m.name = e.target.value; })} />}
         </div>
         <div className="tgroup">
-          <button type="button" className="tbtn icon" title="Desfazer (Ctrl+Z)" disabled={st.module === 'edificio' ? !bd.sessao.podeDesfazer : !st.past.length} onClick={st.module === 'edificio' ? bd.desfazer : st.undo}><svg viewBox="0 0 22 22"><path d="M8 5 L3 10 L8 15M3 10 H13 a5 5 0 0 1 0 10 H10" /></svg></button>
-          <button type="button" className="tbtn icon" title="Refazer (Ctrl+Y)" disabled={st.module === 'edificio' ? !bd.sessao.podeRefazer : !st.future.length} onClick={st.module === 'edificio' ? bd.refazer : st.redo}><svg viewBox="0 0 22 22"><path d="M14 5 L19 10 L14 15M19 10 H9 a5 5 0 0 0 0 10 H12" /></svg></button>
+          <button type="button" className="tbtn icon" title="Desfazer (Ctrl+Z)" disabled={st.module === 'edificio' ? !podeDesfazerEd : !st.past.length} onClick={st.module === 'edificio' ? desfazerEd : st.undo}><svg viewBox="0 0 22 22"><path d="M8 5 L3 10 L8 15M3 10 H13 a5 5 0 0 1 0 10 H10" /></svg></button>
+          <button type="button" className="tbtn icon" title="Refazer (Ctrl+Y)" disabled={st.module === 'edificio' ? !podeRefazerEd : !st.future.length} onClick={st.module === 'edificio' ? refazerEd : st.redo}><svg viewBox="0 0 22 22"><path d="M14 5 L19 10 L14 15M19 10 H9 a5 5 0 0 0 0 10 H12" /></svg></button>
         </div>
         <button type="button" className={`tbtn memo-btn${st.unsaved ? ' unsaved' : ''}`} onClick={() => saveWork(false)} title={st.unsaved ? 'Há alterações não salvas no computador (Ctrl+S)' : 'Salvar no computador (Ctrl+S)'}>{st.unsaved ? '● ' : ''}Salvar</button>
         <button type="button" className="tbtn memo-btn" onClick={() => st.set({ libraryOpen: true })}>Biblioteca</button>
@@ -302,6 +316,7 @@ export default function App() {
 
       <div className="work">
       <FaixaModulo modulo={st.module} corpo={corpoFaixa} contextual={st.module === 'edificio' && alvo ? { id: 'ctx', label: ROTULO_CTX[alvo.tipo] ?? 'Elemento' } : undefined} />
+      <Suspense fallback={<div className="main" aria-busy="true" />}>
       {st.module === 'fundacoes' ? <Fundacoes /> : st.module === 'edificio' ? <Edificio /> : (
       <div className={`main${panelOpen ? '' : ' nopanel'}`}>
         <section className="stage">
@@ -320,22 +335,27 @@ export default function App() {
             </div>
             {st.tab === 'estrutura' && <PropriedadesPortico />}
             {st.tab === 'estrutura' && <EstruturaPanel />}
-            {st.tab === 'cargas' && <CargasPanel />}
-            {st.tab === 'resultados' && <ResultadosPanel />}
-            {st.tab === 'influencia' && <InfluenciaPanel />}
-            {st.tab === 'dimensionar' && <DimensionarPanel />}
+            <Suspense fallback={null}>
+              {st.tab === 'cargas' && <CargasPanel />}
+              {st.tab === 'resultados' && <ResultadosPanel />}
+              {st.tab === 'influencia' && <InfluenciaPanel />}
+              {st.tab === 'dimensionar' && <DimensionarPanel />}
+            </Suspense>
           </aside>
           </Dock>
         )}
       </div>
 
       )}
+      </Suspense>
       </div>
-      {st.memorialOpen && <Memorial onClose={() => st.set({ memorialOpen: false })} />}
-      {st.memoriaDetalhadaOpen && <MemoriaDetalhadaPortico onClose={() => st.set({ memoriaDetalhadaOpen: false })} />}
-      {st.libraryOpen && <Library />}
+      <Suspense fallback={null}>
+        {st.memorialOpen && <Memorial onClose={() => st.set({ memorialOpen: false })} />}
+        {st.memoriaDetalhadaOpen && <MemoriaDetalhadaPortico onClose={() => st.set({ memoriaDetalhadaOpen: false })} />}
+        {st.libraryOpen && <Library />}
+      </Suspense>
       <StatusBar mensagem={st.message}>
-        {st.module === 'edificio' && <LinhaComando />}
+        {st.module === 'edificio' && <Suspense fallback={null}><LinhaComando /></Suspense>}
         <span className={`status ${status.cls}`}>{status.text}</span>
         {st.module === 'portico' && (<>
         <form className="coordin" onSubmit={(e) => { e.preventDefault(); submitCoord(); }}>
@@ -364,7 +384,7 @@ export default function App() {
           </select>
         </label>
         </>)}
-        {st.module === 'edificio' && <ControlesPlanta />}
+        {st.module === 'edificio' && <Suspense fallback={null}><ControlesPlanta /></Suspense>}
       </StatusBar>
     </div>
     </AjudaProvider>

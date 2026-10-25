@@ -6,6 +6,20 @@ import { iniciarTema } from './app/design/tema';
 
 iniciarTema();
 
+// Partes carregadas sob demanda têm nome com hash: depois de uma nova publicação, uma aba aberta com a versão antiga pede arquivos
+// que não existem mais. Recarrega uma vez para pegar a versão nova (o trabalho fica salvo no navegador); sem laço se o erro persistir.
+window.addEventListener('vite:preloadError', (e) => {
+  try {
+    // só as partes do próprio app (assets/): os vendors opcionais (three, IFC, DWG) falham de propósito no artifact e têm o seu caminho alternativo
+    if (!String((e as Event & { payload?: { message?: string } }).payload?.message ?? '').includes('/assets/')) return;
+    if (sessionStorage.getItem('statikos:recarregou')) return;
+    sessionStorage.setItem('statikos:recarregou', '1');
+    e.preventDefault();
+    location.reload();
+  } catch { /* sem sessionStorage: segue o erro normal */ }
+});
+window.addEventListener('load', () => { setTimeout(() => { try { sessionStorage.removeItem('statikos:recarregou'); } catch { /* ok */ } }, 10000); });
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

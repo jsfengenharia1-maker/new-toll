@@ -1,13 +1,14 @@
 // Elemento (viga, pilar, laje, fundação) que está selecionado na planta, para "Resultados do elemento" e para a aba contextual da faixa.
-import { useBuilding } from './store';
+import { useEdificio } from './ponte';
 import { usePlanta } from './plantaStore';
 import { pavimentosOrdenados } from '../../core/building/types';
 import type { Alvo } from './Revisao';
 
 export function useAlvoSelecionado(): Alvo | null {
-  const b = useBuilding((s) => s.sessao.modelo);
+  const b = useEdificio((s) => s.sessao.modelo, null);
   const sel = usePlanta((s) => s.selecao);
   const pav = usePlanta((s) => s.pavimento);
+  if (!b) return null;
   const ps = pavimentosOrdenados(b);
   const atual = ps.find((p) => p.id === pav) ?? ps[Math.min(1, ps.length - 1)];
   for (const id of sel) {

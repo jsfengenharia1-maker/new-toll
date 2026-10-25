@@ -8,7 +8,8 @@ Reconstrução limpa de um analisador de pórticos 2D. A especificação veio do
 npm i
 npm run dev        # desenvolvimento
 npm test           # 225 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI e MCP)
-npm run build      # gera dist/index.html único + manifest, service worker e ícones (public/)
+npm run build      # gera dist/ (index.html pequeno + assets/ sob demanda + manifest, service worker e ícones de public/)
+npm run build:artifact  # gera dist-artifact/index.html único (artifact do claude.ai)
 npm run e2e        # testes de interface (Playwright): build, vite preview numa porta livre e fluxos de e2e/flows.mjs
 npm run cli        # gera dist-cli/statikos.mjs (linha de comando + servidor MCP, Node ≥ 20)
 ```

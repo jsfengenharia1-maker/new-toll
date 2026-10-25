@@ -1,14 +1,24 @@
 // Service worker do Statikos: deixa o app abrir sem internet depois da primeira visita.
 // Estratégia: rede primeiro, com cópia no cache; sem rede (ou rede muito lenta), usa o cache.
 // Assim cada nova publicação aparece na próxima abertura com internet.
-// O app inteiro é um único index.html (vite-plugin-singlefile); as fontes do Google ficam em cache à parte.
-const CACHE = 'statikos-v1';
+// O app é um index.html pequeno + arquivos em assets/ (nomes com hash; partes carregadas sob demanda). No build, o
+// vite.config.ts troca /*__PRECACHE__*/ pela lista de assets/ e __BUILD__ por um hash: tudo é guardado na instalação
+// (o app abre sem internet inclusive nas telas ainda não visitadas) e a versão antiga do cache é apagada ao ativar.
+// As fontes do Google ficam em cache à parte.
+const CACHE = 'statikos-__BUILD__';
+const PRECACHE = [/*__PRECACHE__*/];
 const FONTS = 'statikos-fonts-v1';
 const CORE = ['./', './manifest.webmanifest', './favicon.svg', './icon-192.png', './icon-512.png'];
 const NAV_TIMEOUT_MS = 6000;
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE)
+    .then(async (c) => {
+      await c.addAll(CORE);
+      // o pré-cache não impede a instalação se falhar (rede instável): o que faltar entra no cache quando for pedido
+      await c.addAll(PRECACHE).catch(() => {});
+    })
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {
@@ -25,7 +35,9 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   if (url.origin === self.location.origin) {
     if (url.pathname.endsWith('/sw.js')) return;
-    e.respondWith(networkFirst(req, req.mode === 'navigate' || url.pathname.endsWith('/index.html')));
+    // assets/ tem nome com hash do conteúdo: o cache nunca fica velho, então responde primeiro e dispensa a rede
+    if (url.pathname.includes('/assets/')) e.respondWith(cacheFirst(req));
+    else e.respondWith(networkFirst(req, req.mode === 'navigate' || url.pathname.endsWith('/index.html')));
   } else if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
     e.respondWith(staleWhileRevalidate(req));
   }
@@ -53,6 +65,16 @@ async function networkFirst(req, isPage) {
     if (hit) return hit;
     return Response.error();
   }
+}
+
+async function cacheFirst(req) {
+  const cache = await caches.open(CACHE);
+  // ignoreVary: o servidor pode mandar Vary: Origin; o pedido do módulo traz Origin e o do pré-cache não
+  const hit = await cache.match(req, { ignoreVary: true });
+  if (hit) return hit;
+  const res = await fetch(req);
+  if (res.ok && res.type === 'basic') cache.put(req, res.clone());
+  return res;
 }
 
 async function staleWhileRevalidate(req) {
