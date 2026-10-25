@@ -10,6 +10,8 @@ import {
   grossProps, crackWidth, type BarChoice, type BeamSection, type ColumnCombo, type ColumnDesign, type Concrete, type CrackResult, type FlexureResult, type ShearResult,
 } from './concrete';
 import { designSteel, type SteelCombo, type SteelDesign } from './steel';
+import { memoriaAtiva } from './memoria/registrador';
+import { registrarDesaprumo2D, registrarGamaZ2D, registrarPDelta2D, registrarRegra30, type DetRegra30 } from './memoria/estabilidade2D';
 import { defaultDesign, type ComboKind, type DesignSettings, type Model } from './types';
 
 export interface NamedCombo { name: string; factors: Record<number, number>; kind: ComboKind; auto?: boolean; windAmp?: number; /** desaprumo: +1 / −1 (sentido de x) ou ausente */ desap?: number }
@@ -208,28 +210,33 @@ function withImperfection(model: Model, elu: NamedCombo[], imp: Imperfection, eq
     model.nodes.forEach((n, k) => { m += (horizontal ? F[k * 3] : imp.thetaA * -F[k * 3 + 1]) * (n.y - ybase); });
     return m;
   };
-  const out: NamedCombo[] = [];
+  const out: NamedCombo[] = [], reg = memoriaAtiva();
   for (const cb of elu) {
     let Mw = 0, Md = 0, hasW = false;
+    const termos: DetRegra30['termos'] = [];
     for (const [id, f] of Object.entries(cb.factors)) {
       const c = model.cases.find((x) => x.id === +id);
       if (!c || !f) continue;
-      Md += f * momentOf(c.id, false);
-      if (c.nature === 'W') { hasW = true; Mw += f * momentOf(c.id, true); }
+      const md = momentOf(c.id, false);
+      Md += f * md;
+      if (c.nature === 'W') { hasW = true; const mw = momentOf(c.id, true); Mw += f * mw; if (reg) termos.push({ caso: c.name, f, Md: md, Mw: mw }); } else if (reg) termos.push({ caso: c.name, f, Md: md });
     }
     Md = Math.abs(Md);
-    if (Md < 1e-9) { out.push(cb); continue; }
+    const nota = (saida: string) => { if (reg) registrarRegra30(reg, { combo: cb.name, hasW, Mw, Md, saida, termos }); };
+    if (Md < 1e-9) { nota('sem desaprumo (sem carga vertical)'); out.push(cb); continue; }
     if (!hasW || Math.abs(Mw) < 1e-9) {
+      nota('sem vento: desaprumo nos dois sentidos (+x e −x)');
       out.push({ ...cb, name: `${cb.name} · desaprumo +x`, desap: 1 }, { ...cb, name: `${cb.name} · desaprumo −x`, desap: -1 });
       continue;
     }
     const sign = Math.sign(Mw);
-    if (0.3 * Math.abs(Mw) >= Md) out.push(cb);
+    if (0.3 * Math.abs(Mw) >= Md) { nota('só vento (0,3·|Mw| ≥ Md)'); out.push(cb); }
     else if (Math.abs(Mw) < 0.3 * Md) {
+      nota('só desaprumo (|Mw| < 0,3·Md)');
       const f = { ...cb.factors };
       for (const c of model.cases) if (c.nature === 'W') delete f[c.id];
       out.push({ ...cb, name: `${cb.name} · só desaprumo (vento < 30%)`, factors: f, desap: sign });
-    } else out.push({ ...cb, name: `${cb.name} + desaprumo`, desap: sign });
+    } else { nota('vento + desaprumo no mesmo sentido'); out.push({ ...cb, name: `${cb.name} + desaprumo`, desap: sign }); }
   }
   return out;
 }
@@ -296,9 +303,11 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
   const mode = settings.secondOrder ?? 'gammaZ';
   const eq = new Map(model.cases.map((c) => [c.id, equivalentNodal(a, c.id)]));
   const imp = imperfectionOf(model, settings);
+  { const reg = memoriaAtiva(); if (reg && imp) registrarDesaprumo2D(reg, imp, settings.imperfectionColumns !== undefined); }
   const elu1 = imp ? withImperfection(model, elu0, imp, eq) : elu0;
   if (imp) warnings.push(`Desaprumo global θa = 1/${Math.round(1 / imp.thetaA)} (H = ${imp.H.toFixed(2)} m, n = ${imp.n} prumadas) nas combinações ELU (NBR 6118, 11.3.3.4.1).`);
   const gz = gammaZ(model, elu1, modulus, imp, eq);
+  { const reg = memoriaAtiva(); if (reg) registrarGamaZ2D(reg, gz.rows, modulus); }
   let elu = elu1;
   const soRows: SecondOrderRow[] = [];
   let eluResults: (CaseResult | null)[];
@@ -315,6 +324,7 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
       soRows.push({ combo: cb.name, amplification: r.amplification, iterations: r.iterations, converged: r.converged, error: r.error });
       return r.result;
     });
+    { const reg = memoriaAtiva(); if (reg) registrarPDelta2D(reg, soRows.map((r) => ({ combo: r.combo, amplification: r.amplification, iterations: r.iterations, converged: r.converged, error: r.error }))); }
     const bad = soRows.filter((r) => !r.converged);
     warnings.push(`Efeitos globais de 2ª ordem por análise P-Δ (matriz geométrica, rigidez reduzida 0,4/0,8·${modulus}·Ic). Amplificação máxima dos deslocamentos horizontais: ${Math.max(1, ...soRows.map((r) => (Number.isFinite(r.amplification) ? r.amplification : 1))).toFixed(3)}.`);
     if (bad.length) warnings.push(`P-Δ sem convergência em ${bad.length} combinação(ões): ${bad[0].error ?? ''}`);
