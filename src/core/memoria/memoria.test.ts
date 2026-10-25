@@ -309,6 +309,53 @@ describe('vento no OpenSees (MD9)', () => {
   }, 240000);
 });
 
+describe('desaprumo no OpenSees (modelo integrado)', () => {
+  it('os casos de desaprumo entram no script do modelo integrado e, com o openseespy, deslocamentos e reações iguais aos do Statikos', async () => {
+    const ND = (an.desaprumo?.casos ?? []).map((c) => c.nome).filter((_, i) => i % 3 === 0).slice(0, 4);
+    expect(ND.length).toBeGreaterThan(1);
+    const me = modeloExportavel(b, an);
+    for (const d of ND) expect(me.casos.map((c) => c.nome)).toContain(d);
+    const sc = scriptOpenSees(me, { casos: ND });
+    expect(sc.casos).toEqual(ND);
+    expect(sc.completo).toBe(true);
+    const rs = ND.map((d) => resolver3(modeloDoCaso(me, d), [me.casos.find((c) => c.nome === d)!.caso!]));
+    for (const x of rs) expect(x.erro).toBeUndefined();
+    const pm = an.portico, nomesH = (an.vento?.casos ?? []).map((c) => c.nome).concat((an.desaprumo?.casos ?? []).map((c) => c.nome));
+    const nosPil = new Set<number>();
+    pm.barras.forEach((t, i) => { if (t.tipo === 'pilar') { nosPil.add(pm.modelo.barras[i].i); nosPil.add(pm.modelo.barras[i].j); } });
+    ND.forEach((d, k) => {
+      const ref = pm.resVento!.desloc[nomesH.indexOf(d)];
+      let e = 0, mx = 0;
+      for (const n of nosPil) for (let g = 0; g < 6; g++) { e = Math.max(e, Math.abs(rs[k].desloc[0][n * 6 + g] - ref[n * 6 + g])); mx = Math.max(mx, Math.abs(ref[n * 6 + g])); }
+      expect(mx).toBeGreaterThan(0);
+      expect(e / mx, `desaprumo ${d}`).toBeLessThan(1e-8);
+    });
+    const CP = 'node:child_process', FS = 'node:fs', OS = 'node:os', PATH = 'node:path';
+    const cp = (await import(/* @vite-ignore */ CP)) as { execFileSync: (c: string, a: string[], o?: object) => unknown };
+    try { cp.execFileSync('python3', ['-c', 'import openseespy.opensees'], { stdio: 'ignore' }); } catch { return; }
+    const fs = (await import(/* @vite-ignore */ FS)) as { mkdtempSync: (p: string) => string; writeFileSync: (p: string, d: string) => void; readFileSync: (p: string, e: string) => string };
+    const os = (await import(/* @vite-ignore */ OS)) as { tmpdir: () => string };
+    const path = (await import(/* @vite-ignore */ PATH)) as { join: (...p: string[]) => string };
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'statikos-os-d-'));
+    fs.writeFileSync(path.join(dir, 'portico.py'), sc.script);
+    cp.execFileSync('python3', [path.join(dir, 'portico.py')], { stdio: 'ignore', timeout: 120000 });
+    const R = JSON.parse(fs.readFileSync(path.join(dir, 'resultados_opensees.json'), 'utf8')) as { casos: Record<string, { desloc: number[][]; reacoes: Record<string, number[]> }> };
+    ND.forEach((nome, k) => {
+      const u = rs[k].desloc[0], d = R.casos[nome].desloc;
+      let err = 0, umx = 0;
+      d.forEach((x, n) => { for (let g = 0; g < 6; g++) { err = Math.max(err, Math.abs(u[n * 6 + g] - x[g])); umx = Math.max(umx, Math.abs(x[g])); } });
+      expect(err / umx, `desloc ${nome}`).toBeLessThan(1e-6);
+      let er = 0, rmx = 0;
+      for (const [no, f] of rs[k].reacoes[0]) { const o = R.casos[nome].reacoes[String(no)]; for (let g = 0; g < 6; g++) { er = Math.max(er, Math.abs(f[g] - o[g])); rmx = Math.max(rmx, Math.abs(o[g])); } }
+      expect(er / rmx, `reações ${nome}`).toBeLessThan(1e-6);
+      let ec = 0, rc = 0;
+      for (const [no, f] of pm.resVento!.reacoes[nomesH.indexOf(nome)]) { const o = R.casos[nome].reacoes[String(no)]; if (!o) continue; for (let g = 0; g < 6; g++) { ec = Math.max(ec, Math.abs(f[g] - o[g])); rc = Math.max(rc, Math.abs(o[g])); } }
+      expect(ec / rc, `reações do condensado ${nome}`).toBeLessThan(1e-6);
+    });
+    console.log(`OpenSees (desaprumo): ${ND.join(', ')} conferidos contra o Statikos`);
+  }, 240000);
+});
+
 describe('vento no OpenSees, modelo separado (grelha à parte)', () => {
   it('o pórtico exportado dá o vento do Statikos (área real dos pilares) e, com o openseespy, deslocamentos iguais', async () => {
     const s = new Sessao();

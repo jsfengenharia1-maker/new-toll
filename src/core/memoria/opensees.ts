@@ -7,6 +7,7 @@
 import { baseBarra, type Caso3, type Modelo3 } from '../fe3d';
 import { analisarEdificio, type AnaliseEdificio } from '../building/analitico';
 import type { BuildingModel } from '../building/types';
+import { casosHorizontais } from '../building/desaprumo';
 import { casosResolvidos } from './dadosAnalise';
 
 /** Modelo a exportar: barras e casos. */
@@ -49,8 +50,8 @@ export function modeloExportavel(b: BuildingModel, an: AnaliseEdificio): ModeloE
       // vento (MD9): cargas nodais nos nós mestres dos diafragmas (índices do pórtico, preservados no modelo cheio); o diafragma rígido e as
       // vigas/lajes vão como barras; a área dos pilares é a real (o modelo cheio vem do modelo das cargas verticais, com EA × axialPilares).
       const { axial, fVento } = barrasAxiais(an, true);
-      const vento = (an.vento?.casos ?? []).map((c, ic) => ({ nome: c.nome, caso: pm.casosVento?.[ic], escA: fVento })).filter((c) => !!c.caso);
-      return { modelo: ch.modelo, casos: [...an.casos.map((nome, ic) => ({ nome, caso: ch.casos[ic] })), ...vento], avisos: ['Modelo integrado: exportado o modelo cheio equivalente (lajes como barras), com os casos da obra e os de vento (forças nos diafragmas, área real dos pilares).'], cheio: true, axial };
+      const vento = casosHorizontais(an).map((c, ic) => ({ nome: c.nome, caso: pm.casosVento?.[ic], escA: fVento })).filter((c) => !!c.caso);
+      return { modelo: ch.modelo, casos: [...an.casos.map((nome, ic) => ({ nome, caso: ch.casos[ic] })), ...vento], avisos: ['Modelo integrado: exportado o modelo cheio equivalente (lajes como barras), com os casos da obra, os de vento e os de desaprumo (forças nos diafragmas, área real dos pilares).'], cheio: true, axial };
     }
   }
   const { axial, fVento } = barrasAxiais(an, false);

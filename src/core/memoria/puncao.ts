@@ -59,7 +59,22 @@ export function registrarSolicitacaoPuncao(mem: Registrador, el: string, s: DetS
         const e: Record<string, ValorMemoria> = { gq: g.gq, g1: g.g1[k] };
         g.casos.forEach((q) => { if (q.fW !== 0) { e[`γW_${q.caso}`] = q.fW; e[`m_${q.caso}`] = q.m[k]; } });
         g.vento.forEach((q) => { e[`amp_${q.nome}`] = q.amp; e[`mW_${q.nome}`] = q.m[k]; });
-        P({ descricao: `Momento ${k === 0 ? 'Mx' : 'My'} com vento: pior de (uso principal + 0,6·vento) e (vento principal + uso reduzido por ψ0); vento ampliado pelo fator do modelo`, formula: `M = máx(M1 + γq·0,6·W; M2 + γq·W), W = máx|amp·mW|; M2 = Σ |γW,i·mi|`, expressao: `W = ${fm(g.W[k])}; M2 = ${fm(g.g2![k])}; M = máx(${fm(g.g1[k])} + ${fm(g.gq)}·0,6·${fm(g.W[k])}; ${fm(g.g2![k])} + ${fm(g.gq)}·${fm(g.W[k])}) = ${fm(g.resultado[k])} kN·m`, resultado: g.resultado[k], unidade: 'kN·m', norma: `${NBR}, 11.8 e 19.5.2.2`, entradas: { ...e, W: g.W[k], M2: g.g2![k] } });
+        P({ descricao: `Momento ${k === 0 ? 'Mx' : 'My'} com vento: pior de (uso principal + 0,6·vento) e (vento principal + uso reduzido por ψ0); vento ampliado pelo fator do modelo`, formula: `M = máx(M1 + γq·0,6·W; M2 + γq·W), W = máx|amp·mW|; M2 = Σ |γW,i·mi|`, expressao: `W = ${fm(g.W[k])}; M2 = ${fm(g.g2![k])}; M = máx(${fm(g.g1[k])} + ${fm(g.gq)}·0,6·${fm(g.W[k])}; ${fm(g.g2![k])} + ${fm(g.gq)}·${fm(g.W[k])}) = ${fm(g.resultadoVento[k])} kN·m`, resultado: g.resultadoVento[k], unidade: 'kN·m', norma: `${NBR}, 11.8 e 19.5.2.2`, entradas: { ...e, W: g.W[k], M2: g.g2![k] } });
+      }
+    }
+    if (g.desaprumo) {
+      const ds = g.desaprumo;
+      for (const k of [0, 1] as const) {
+        const e: Record<string, ValorMemoria> = { gq: g.gq, thetaA: ds.thetaA };
+        g.casos.forEach((q) => { if (q.f !== 0 || q.fW !== 0) e[`m_${q.caso}`] = q.m[k]; if (q.f !== 0) e[`γ_${q.caso}`] = q.f; if (q.fW !== 0) e[`γW_${q.caso}`] = q.fW; });
+        Object.entries(ds.md).forEach(([id, v]) => { e[`md_${id}`] = v; });
+        Object.entries(ds.M1).forEach(([id, v]) => { e[`M1_${id}`] = v; });
+        g.vento.forEach((q) => { e[`amp_${q.nome}`] = q.amp; e[`mW_${q.nome}`] = q.m[k]; });
+        for (const [ch, m] of Object.entries(ds.mD)) e[`mD${ch.replace('|', '_')}`] = m[k];
+        ds.candidatos.forEach((c, i) => { e[`c${i + 1}_tipo`] = c.tipo; e[`c${i + 1}_dir`] = c.direcao; e[`c${i + 1}_vento`] = c.vento ?? ''; e[`c${i + 1}_decisao`] = c.decisao; e[`c${i + 1}_Mw`] = c.Mw; e[`c${i + 1}_Md`] = c.Md; });
+        e.Mvento = g.resultadoVento[k];
+        const lin = ds.candidatos.map((c) => `${c.nome} [${c.decisao}]: ${fm(c.base[k])} + ${fm(c.w[k])} + ${fm(c.d[k])} = ${fm(c.M[k])}`);
+        P({ descricao: `Momento ${k === 0 ? 'Mx' : 'My'} com desaprumo global (NBR 6118, 11.3.3.4.1, regra dos 30 % do vento): em cada combinação ELU o desaprumo entra conforme Mw (vento) e Md (desaprumo) na base; momentos dos casos D somados em módulo`, formula: `M = máx(M${k === 0 ? 'x' : 'y'},vento; Mbase,i + Mvento,i + Mdes,i), Mdes,i = Σ |γi·mD,i|`, expressao: `${lin.join('; ') || '—'}; M = máx(${fm(g.resultadoVento[k])}; ...) = ${fm(g.resultado[k])} kN·m`, resultado: g.resultado[k], unidade: 'kN·m', norma: `${NBR}, 11.3.3.4.1 e 19.5.2.2`, entradas: e });
       }
     }
   } else P({ descricao: 'Momentos transmitidos ao pilar: nenhum (sem molas de rotação nem superelemento na grelha do pavimento)', formula: 'Mx = My = 0', expressao: 'Mx = 0; My = 0', resultado: 0, unidade: 'kN·m', entradas: {} });

@@ -17,7 +17,8 @@ import type { AnaliseEdificio, GrelhaPavimento } from './analitico';
 import type { Resultado3 } from '../fe3d';
 import { forcaBasePilar, type ResultadoRadier } from './baseElastica';
 import type { CombinacaoEd } from './combinacoes';
-import { casosHorizontais } from './desaprumo';
+import { casosHorizontais, DIRECOES_DESAPRUMO, momentoVento, nomeCasoDesaprumo } from './desaprumo';
+import { decidirRegra30, type DecisaoRegra30 } from '../desaprumo';
 import { secaoBase } from './fundacao';
 import type { ResultadoLaje } from './dimensionamento';
 import type { OpcoesCalculo } from './opcoes';
@@ -655,22 +656,62 @@ function momentosIntegrado(mp: Record<string, [number, number]> | undefined, an:
   const g1 = soma(fat);
   const W: [number, number] = [0, 0];
   const vento: { nome: string; amp: number; m: [number, number] }[] = [];
+  const ampDe = (cv: { direcao: number }) => (an.segundaOrdem ? Math.max(1, an.segundaOrdem.amplificacaoMax) : Math.max(1, an.vento?.gamaZ.find((x) => x.direcao === cv.direcao)?.ampliacao ?? 1));
   for (const cv of an.vento?.casos ?? []) {
     const m = mp[cv.nome];
     if (!m) continue;
     // com P-Δ (N2c) a ampliação dos momentos do vento na laje é a maior amplificação dos deslocamentos das combinações
-    const amp = an.segundaOrdem ? Math.max(1, an.segundaOrdem.amplificacaoMax) : Math.max(1, an.vento?.gamaZ.find((x) => x.direcao === cv.direcao)?.ampliacao ?? 1);
+    const amp = ampDe(cv);
     if (det) vento.push({ nome: cv.nome, amp, m: [m[0], m[1]] });
     for (const k of [0, 1]) W[k] = Math.max(W[k], Math.abs(m[k]) * amp);
   }
   const casos = det ? an.casos.map((id, ic) => ({ caso: id, f: fat[ic], fW: fatW[ic], m: [mp[id]?.[0] ?? 0, mp[id]?.[1] ?? 0] as [number, number] })) : [];
-  if (!W[0] && !W[1]) {
-    if (det) det.integrado = { gq, g1, W, casos, vento, resultado: g1 };
-    return g1;
+  let res: [number, number] = g1, g2: [number, number] | undefined;
+  if (W[0] || W[1]) {
+    g2 = soma(fatW);
+    res = [0, 1].map((k) => Math.max(g1[k] + gq * 0.6 * W[k], g2![k] + gq * W[k])) as [number, number];
   }
-  const g2 = soma(fatW);
-  const res = [0, 1].map((k) => Math.max(g1[k] + gq * 0.6 * W[k], g2[k] + gq * W[k])) as [number, number];
-  if (det) det.integrado = { gq, g1, g2, W, casos, vento, resultado: res };
+  const resVento = res;
+  // desaprumo global (11.3.3.4.1): cada combinação ELU recebe o desaprumo pela regra dos 30 % do vento (`decidirRegra30`, a mesma de
+  // `combinacoesComRegras`); os momentos dos casos D<dir>°[caso] somam-se em módulo caso a caso, como os demais. Sem vento: as quatro
+  // direções; vento principal e uso principal (vento acompanhante) decidem cada um pelos seus momentos de tombamento.
+  const des = an.desaprumo;
+  let desDet: NonNullable<NonNullable<DetSolicitacao['integrado']>['desaprumo']> | undefined;
+  if (des?.casos.length) {
+    const fw = (tipo: 1 | 2) => (tipo === 1 ? gq * 0.6 : gq);
+    const Mdes = (f: number[], d: number) => [0, 1].map((k) => an.casos.reduce((t, id, ic) => t + Math.abs(f[ic] * (mp[nomeCasoDesaprumo(id, d)]?.[k] ?? 0)), 0)) as [number, number];
+    const Mtomb = (f: number[]) => Math.abs(an.casos.reduce((t, id, ic) => t + f[ic] * (des.md[id] ?? 0), 0));
+    const cands: NonNullable<typeof desDet>['candidatos'] = [];
+    const nulo: [number, number] = [0, 0];
+    const soma3 = (x: [number, number], y: [number, number], z: [number, number]) => [x[0] + y[0] + z[0], x[1] + y[1] + z[1]] as [number, number];
+    const gerar = (tipo: 0 | 1 | 2, f: number[], base: [number, number]) => {
+      const Md = Mtomb(f);
+      if (tipo === 0) {
+        if (Md < 1e-9) return;
+        for (const d of DIRECOES_DESAPRUMO) { const dd = Mdes(f, d); cands.push({ nome: `sem vento · desaprumo ${d}°`, tipo, direcao: d, decisao: 'sem-vento', Mw: 0, Md, base, w: nulo, d: dd, M: soma3(base, nulo, dd) }); }
+        return;
+      }
+      for (const cv of an.vento?.casos ?? []) {
+        const m = mp[cv.nome];
+        if (!m) continue;
+        const Mw = fw(tipo) * momentoVento(cv), decisao = decidirRegra30(Mw, Md, true);
+        const amp = ampDe(cv), w: [number, number] = [fw(tipo) * Math.abs(m[0]) * amp, fw(tipo) * Math.abs(m[1]) * amp];
+        const d = decisao === 'so-desaprumo' || decisao === 'ambos' ? Mdes(f, cv.direcao) : nulo, w2 = decisao === 'so-desaprumo' ? nulo : w;
+        cands.push({ nome: `${tipo === 1 ? 'uso principal' : 'vento principal'} · ${cv.nome}`, tipo, vento: cv.nome, direcao: cv.direcao, decisao, Mw, Md, base, w: w2, d, M: soma3(base, w2, d) });
+      }
+    };
+    gerar(0, fat, g1);
+    if (W[0] || W[1]) { gerar(1, fat, g1); gerar(2, fatW, g2!); }
+    if (cands.length) {
+      res = [0, 1].map((k) => Math.max(res[k], ...cands.map((c) => c.M[k]))) as [number, number];
+      if (det) {
+        const mD: Record<string, [number, number]> = {};
+        for (const d of DIRECOES_DESAPRUMO) for (const id of an.casos) { const m = mp[nomeCasoDesaprumo(id, d)]; if (m) mD[`${d}|${id}`] = [m[0], m[1]]; }
+        desDet = { thetaA: des.thetaA, md: { ...des.md }, M1: Object.fromEntries((an.vento?.casos ?? []).map((cv) => [cv.nome, momentoVento(cv)])), mD, candidatos: cands };
+      }
+    }
+  }
+  if (det) det.integrado = { gq, g1, ...(g2 ? { g2 } : {}), W, casos, vento, resultado: res, resultadoVento: resVento, ...(desDet ? { desaprumo: desDet } : {}) };
   return res;
 }
 
@@ -717,11 +758,20 @@ export function solicitacaoPuncao(an: AnaliseEdificio, g: GrelhaPavimento, p: Pi
   return { F, M: [Mv, Mu], angulo };
 }
 
+/** Combinação candidata do modelo integrado com o desaprumo: tipo 0 = sem vento (uso, uma direção), 1 = uso principal, 2 = vento principal; parcelas Mx, My (kN·m). */
+export interface CandidatoDesaprumo { nome: string; tipo: 0 | 1 | 2; vento?: string; direcao: number; decisao: DecisaoRegra30; Mw: number; Md: number; base: [number, number]; w: [number, number]; d: [number, number]; M: [number, number] }
+
 /** Intermediários da solicitação de punção (memória detalhada): reações por caso, momentos do modelo integrado ou das molas de rotação e a rotação aos eixos do pilar. */
 export interface DetSolicitacao {
   casos: { caso: string; f: number; R: number }[];
   F: number; Mx: [number, number]; angulo: number; M: [number, number];
-  integrado?: { gq: number; g1: [number, number]; g2?: [number, number]; W: [number, number]; casos: { caso: string; f: number; fW: number; m: [number, number] }[]; vento: { nome: string; amp: number; m: [number, number] }[]; resultado: [number, number] };
+  integrado?: {
+    gq: number; g1: [number, number]; g2?: [number, number]; W: [number, number]; casos: { caso: string; f: number; fW: number; m: [number, number] }[]; vento: { nome: string; amp: number; m: [number, number] }[];
+    /** Resultado final (com o desaprumo, se houver) e o resultado só com o vento. */
+    resultado: [number, number]; resultadoVento: [number, number];
+    /** Desaprumo global: momentos dos casos D<dir>°[caso] (chave `dir|caso`) e as combinações candidatas (regra dos 30 %). */
+    desaprumo?: { thetaA: number; /** Md,k de cada caso vertical (kN·m) e M1 de cada vento (kN·m) */ md: Record<string, number>; M1: Record<string, number>; mD: Record<string, [number, number]>; candidatos: CandidatoDesaprumo[] };
+  };
   molas?: { no: number; dist: number; kx: number; ky: number; casos: { caso: string; f: number; rx: number; ry: number }[]; resultado: [number, number] };
 }
 
@@ -797,6 +847,7 @@ export function puncaoEdificio(b: BuildingModel, an: AnaliseEdificio, lajesRes: 
       }
       const msgs = v.mensagens.map((m) => m.replace(/^(Punção|Cortante da laje)/, `$1 em ${p.nome}`));
       if (st.avisoViga) msgs.unshift(st.avisoViga);
+      if (!g.momentos && ((an.vento?.casos.length ?? 0) > 0 || (an.desaprumo?.casos.length ?? 0) > 0)) msgs.push(`Punção em ${p.nome}: no modelo separado a laje não recebe o momento do vento nem do desaprumo global (só o modelo integrado transmite as ações horizontais à laje); considerar o modelo integrado [a confirmar].`);
       for (const g2 of manual) if (g2.s > 0.75 * d + 1e-9) msgs.push(`Punção em ${p.nome}: espaçamento informado de ${(g2.s * 100).toFixed(0)} cm maior que 0,75d = ${(0.75 * d * 100).toFixed(1).replace('.', ',')} cm (NBR 6118, 19.5.3.5).`);
       if (v.tipo !== 'interno' && !st.viga) { /* borda e canto: contorno reduzido u* */ }
       if (Math.max(w, hh) > 5 * Math.min(w, hh)) msgs.push(`Pilar-parede ${p.nome} (${(w * 100).toFixed(0)}×${(hh * 100).toFixed(0)} cm): a distribuição de tensões no contorno não é uniforme; punção verificada no contorno completo [a confirmar].`);

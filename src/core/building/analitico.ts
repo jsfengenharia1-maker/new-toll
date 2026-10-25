@@ -1937,6 +1937,11 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
   // desaprumo global (11.3.3.4.1): forças θa·V por pavimento, caso vertical e direção, resolvidas junto com o vento (depois dele)
   const nPrumadas = bases.length + (noParedes ? Object.keys(noParedes.base).filter((q) => noParedes.base[q].length).length : 0);
   const desaprumo = op.desaprumoGlobal ? calcularDesaprumo({ pavimentos: ps.map((p) => ({ id: p.id, cota: p.cota })), zonas: (pav) => zonas[pav] ?? [], cargas: cargasPavimento, casos: casosDaObra(b).map((c) => ({ id: c.id, natureza: c.natureza })), nAuto: nPrumadas, nInformado: op.desaprumoPrumadas }) : null;
+  // casos W lançados pelo usuário (cargas de pilar Hx/Hy): a regra dos 30 % só compara o vento da NBR 6123 (momento de tombamento dos casos W<dir>°);
+  // com o caso do usuário o desaprumo entra nas quatro direções, sem redução (a favor da segurança) [a confirmar]
+  if (desaprumo && casosDaObra(b).some((c) => c.natureza === 'W')) avisos.push('Desaprumo global: há casos de vento lançados pelo usuário (natureza W); a regra dos 30 % do vento (NBR 6118, 11.3.3.4.1) compara apenas o vento automático da NBR 6123. Nas combinações com o caso do usuário o desaprumo entra integral, nas quatro direções, sem redução [a confirmar].');
+  // situações de cálculo cadastradas pelo usuário (modo "usuário"): os fatores são os do usuário; o desaprumo só entra se ele mesmo incluir os casos D<dir>°[<caso>]
+  if (desaprumo && (b.situacoes ?? []).length) avisos.push('Desaprumo global: as situações de cálculo cadastradas pelo usuário usam os fatores informados; o desaprumo (casos D<direção>°[caso]) e a regra dos 30 % do vento não são acrescentados a elas automaticamente [a confirmar].');
   const casosD: Caso3[] = (desaprumo?.casos ?? []).map((cd) => ({
     nodais: cd.forcas.flatMap((f) => { const zn = zonas[f.pavimento]?.[f.zona]; return zn ? [{ no: zn.no, f: cd.direcao === 0 || cd.direcao === 180 ? [f.F, 0, 0, 0, 0, 0] : [0, f.F, 0, 0, 0, 0] }] : []; }),
     distribuidas: [],
