@@ -387,6 +387,8 @@ export interface OpcoesCalculo {
   pilarParedeLimite: number;
   /** Pilar-parede (E1b): altura da viga fictícia no topo de cada lado casca, que liga vigas e lajes em qualquer posição (cm). */
   pilarParedeVigaAltura: number;
+  /** Ligação de barra que sai da casca (viga que chega à parede, lado curto do pilar-parede em barra, viga perpendicular) a nó de casca, no plano da casca: 1 = rígida (o giro do nó segue o giro médio da vizinhança na casca, raio = altura da viga); 0 = só o giro no plano da casca (estabilização fraca, quase rótula; anterior a 25/10/2026). */
+  ligacaoBarraCasca: number;
   /** Viga apoiada ao longo de pilar-parede ou parede (E1b): o diagrama e a armadura prolongam-se a partir da face deste fator × a altura da viga. */
   vigaApoioLongProlong: number;
   /** Viga apoiada ao longo de pilar-parede ou parede (E1b): as barras não passam do vão de cálculo mais este fator × a altura da viga. */
@@ -1075,6 +1077,8 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Lado do pilar-parede com comprimento ≥ este fator × a espessura é discretizado em casca (membrana e placa, 6 nós); o lado mais curto é tratado como pilar (barra), ligado ao restante por trecho rígido.' },
   { chave: 'pilarParedeVigaAltura', rotulo: 'Pilar-parede: altura da viga fictícia no topo dos lados', unidade: 'cm', min: 10, max: 100, passo: 5, padrao: 25, fonte: 'Programa de referência (viga fictícia de largura igual à espessura e altura constante de 25 cm); a confirmar', aConfirmar: true,
     descricao: 'Em cada nível, uma viga fictícia (largura = espessura do lado, altura = este valor) percorre o topo do lado em casca e recebe as vigas e lajes que chegam em qualquer posição, sem exigir que seus nós coincidam com os da malha.' },
+  { chave: 'ligacaoBarraCasca', rotulo: 'Paredes e pilares-parede: ligação das barras à casca no plano', min: 0, max: 1, passo: 1, padrao: 1, fonte: 'NBR 6118 não trata; padrão esperado do programa de referência (ligação rígida entre viga e parede); a confirmar', aConfirmar: true,
+    descricao: '1 (rígida): no nó da casca de onde sai uma barra para fora da casca (viga que chega à parede no seu plano, lado curto do pilar-parede em barra, viga perpendicular), o giro em torno da normal da casca segue o giro de corpo rígido dos nós vizinhos da casca no mesmo plano, a até a altura da viga (mínimo: os nós mais próximos), do lado de baixo do nível; o momento passa à parede como binário de forças nesses nós, sem enrijecer a casca nem prender ao chão. Barras ao longo da casca (viga apoiada ao longo, embutida, de fundação sob a parede, viga fictícia) já seguem a parede e não ligam. 0: só a estabilização fraca do giro no plano da casca (a ligação fica quase rotulada).' },
   { chave: 'vigaApoioLongProlong', rotulo: 'Viga apoiada ao longo de parede: prolongamento do diagrama e da armadura', unidade: '× h', min: 0, max: 3, passo: 0.25, padrao: 1, fonte: 'Programa de referência (diagrama prolongado a partir da face por um comprimento igual à altura da viga; armadura só nesse trecho); NBR 6118 não fixa; a confirmar', aConfirmar: true,
     descricao: 'Apoio longitudinal (pilar-parede ou parede): o diagrama de esforços da viga prossegue além da face do apoio por este múltiplo da altura da viga, e a armadura é dimensionada e detalhada só nesse trecho; a viga e a armadura são interrompidas depois dele.' },
   { chave: 'vigaApoioLongBarras', rotulo: 'Viga em parede: extensão máxima das barras além do vão de cálculo', unidade: '× h', min: 0, max: 4, passo: 0.25, padrao: 2, fonte: 'Programa de referência (corte de barras não excede o vão de cálculo em mais de duas alturas); a confirmar', aConfirmar: true,
@@ -1307,7 +1311,7 @@ export const OPCOES_ANALISE: ReadonlySet<keyof OpcoesCalculo> = new Set<keyof Op
   // E1a: engaste da base do pilar apoiado em viga ou laje (transição) entra na rigidez do modelo
   'engasteTransicao', 'fundParedeK', 'fundParedeAba', 'fundParedeBarraMola', 'fundBaseIterada', 'fundBaseIterTol', 'fundBaseIterMax',
   // E1b: modelo do pilar-parede (casca ou barra) e viga fictícia do topo
-  'pilarParedeLimite', 'pilarParedeVigaAltura',
+  'pilarParedeLimite', 'pilarParedeVigaAltura', 'ligacaoBarraCasca',
   // N2e: trecho rígido da viga apoiada, barras curtas e desnível entre panos entram no modelo de cálculo
   'vigaApoiadaRigida', 'barraCurtaLimite', 'barraCurtaFator', 'lajeDesnivelFator',
   // E2b: discretização das vigas curvas e rigidez à torção da curvatura

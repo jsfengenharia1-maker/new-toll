@@ -67,6 +67,68 @@ export interface Modelo3 {
   cascas?: Casca3[];
   /** Rigidez axial média de faixas de cascas (E6d, K1.4.30): ver `AxialMedio3`. */
   axiaisMedios?: AxialMedio3[];
+  /** Ligações rígidas barra–casca no plano da casca (ligacaoCasca.ts): giro da barra = giro médio da vizinhança na casca. */
+  ligacoesCasca?: LigacaoCasca3[];
+}
+
+/**
+ * Ligação rígida de barra a um nó de casca, no plano da casca (25/10/2026, 'a confirmar'; padrão esperado do CYPECAD):
+ * energia ½·k·(θ·ñ − ω̄)², com ω̄ = Σ aₖ·uₖ o giro de corpo rígido (mínimos quadrados) dos nós vizinhos em torno do seu
+ * centroide x̄ (aₖ = (n × rₖ)/Σ|rₖ|², rₖ = xₖ − x̄; o próprio nó fica fora, para a força concentrada da barra não contaminar o
+ * giro) e ñ = Σ rₖ × aₖ (≈ n; exatamente o vetor que torna a restrição nula em qualquer
+ * movimento de corpo rígido, logo as forças da ligação são autoequilibradas e o momento global fecha). Não prende ao chão
+ * e não enrijece a casca (só o gdl de giro do nó segue o campo u, v da vizinhança; equivalente ao RBE3 no giro normal).
+ */
+export interface LigacaoCasca3 {
+  /** Nó da casca a que a barra chega. */
+  no: number;
+  /** Normal do plano da casca (unitária). */
+  n: V3;
+  /** Nós vizinhos da casca no mesmo plano. */
+  viz: number[];
+  /** Penalidade (kN·m/rad). */
+  k: number;
+  /** Cascas da vizinhança (índices em `cascas`), para atribuir a ligação a um lance nos esforços por seção. */
+  cascas?: number[];
+}
+
+/** Linha da restrição da ligação: gdl globais e coeficientes c, com c·u = θ·ñ − ω̄ (rad). */
+export function linhaLigacao(nos: V3[], l: LigacaoCasca3): { dofs: number[]; c: number[] } {
+  const n = l.n, m = l.viz.length, xb: V3 = [0, 0, 0];
+  for (const v of l.viz) for (let g = 0; g < 3; g++) xb[g] += nos[v][g] / m;
+  const rs = l.viz.map((v) => [nos[v][0] - xb[0], nos[v][1] - xb[1], nos[v][2] - xb[2]] as V3);
+  const S = rs.reduce((s, r) => s + r[0] * r[0] + r[1] * r[1] + r[2] * r[2] - (r[0] * n[0] + r[1] * n[1] + r[2] * n[2]) ** 2, 0);
+  const dofs: number[] = [], c: number[] = [], nt: V3 = [0, 0, 0];
+  if (!(S > 0)) return { dofs, c }; // vizinhos alinhados com a normal ou um só: sem giro definido (ligacaoCasca.ts exige dois)
+  rs.forEach((r, k) => {
+    const a: V3 = [(n[1] * r[2] - n[2] * r[1]) / S, (n[2] * r[0] - n[0] * r[2]) / S, (n[0] * r[1] - n[1] * r[0]) / S];
+    for (let g = 0; g < 3; g++) { dofs.push(l.viz[k] * 6 + g); c.push(-a[g]); }
+    nt[0] += r[1] * a[2] - r[2] * a[1]; nt[1] += r[2] * a[0] - r[0] * a[2]; nt[2] += r[0] * a[1] - r[1] * a[0];
+  });
+  for (let g = 0; g < 3; g++) { dofs.push(l.no * 6 + 3 + g); c.push(nt[g]); }
+  return { dofs, c };
+}
+
+/** Soma k·c·cᵀ de cada ligação barra–casca na rigidez (gdl mapeados para as equações). */
+function somarLigacoes(K: SpRows, mapa: [number, number][][], nos: V3[], ligs: LigacaoCasca3[] | undefined) {
+  for (const l of ligs ?? []) {
+    const { dofs, c } = linhaLigacao(nos, l), n = dofs.length;
+    for (let a = 0; a < n; a++) for (const [ea, ca] of mapa[dofs[a]]) for (let b = 0; b < n; b++) {
+      const v = l.k * c[a] * c[b];
+      if (!v) continue;
+      for (const [eb, cb] of mapa[dofs[b]]) spAdd(K, ea, eb, ca * cb * v);
+    }
+  }
+}
+
+/** Forças que os nós fazem nas ligações barra–casca (k·c·(c·u)), somadas em `f` (6 por nó). */
+export function forcasLigacoes(nos: V3[], ligs: LigacaoCasca3[] | undefined, u: ArrayLike<number>, f: Float64Array): void {
+  for (const l of ligs ?? []) {
+    const { dofs, c } = linhaLigacao(nos, l);
+    let d = 0;
+    dofs.forEach((g, a) => (d += c[a] * u[g]));
+    dofs.forEach((g, a) => (f[g] += l.k * c[a] * d));
+  }
 }
 
 /**
@@ -392,6 +454,7 @@ export function resolver3(m: Modelo3, casos: Caso3[]): Resultado3 {
   casos.forEach((c, ic) => { for (const pr of c.pressoes ?? []) { const ce = cas[pr.casca], f = cargaPressaoCasca(ce, pr.q); for (let a = 0; a < 36; a++) for (const [e, cf] of mapa[ce.dofs[a]]) P[ic][e] += cf * f[a]; } });
   for (const s of m.molas ?? []) for (const [e, c] of mapa[s.no * 6 + s.gdl]) for (const [e2, c2] of mapa[s.no * 6 + s.gdl]) spAdd(K, e, e2, c * c2 * s.k);
   somarAxiais(K, mapa, m.axiaisMedios);
+  somarLigacoes(K, mapa, m.nos, m.ligacoesCasca);
   casos.forEach((c, ic) => { for (const n of c.nodais) n.f.forEach((v, g) => { for (const [e, cf] of mapa[n.no * 6 + g]) P[ic][e] += cf * v; }); });
 
   const vazio: Resultado3 = { desloc: [], esforcos: [], reacoes: [], neq, hb: 0 };
@@ -436,6 +499,7 @@ export function resolver3(m: Modelo3, casos: Caso3[]): Resultado3 {
       ax.dofs.forEach((g, a) => (forcasNo[g] += ax.c[a] * N));
       if (cas.length) for (const { casca, fator } of ax.cascas ?? []) esfCascas[esfCascas.length - 1][casca][1] += fator * N;
     }
+    forcasLigacoes(m.nos, m.ligacoesCasca, u, forcasNo);
     const rc = new Map<number, number[]>();
     const nodaisNo = new Map<number, Caso3['nodais']>();
     for (const n of caso.nodais) { const l = nodaisNo.get(n.no); if (l) l.push(n); else nodaisNo.set(n.no, [n]); }
@@ -541,6 +605,7 @@ export function fatorar3(m: Modelo3): Fatorado3 {
   }
   for (const s of m.molas ?? []) for (const [e, c] of mapa[s.no * 6 + s.gdl]) for (const [e2, c2] of mapa[s.no * 6 + s.gdl]) spAdd(K, e, e2, c * c2 * s.k);
   somarAxiais(K, mapa, m.axiaisMedios);
+  somarLigacoes(K, mapa, m.nos, m.ligacoesCasca);
   const { order, hb } = neq ? rcmOrder(K, Array.from({ length: neq }, (_, i) => i)) : { order: [], hb: 0 };
   const pos = new Int32Array(neq);
   order.forEach((e, p) => (pos[e] = p));

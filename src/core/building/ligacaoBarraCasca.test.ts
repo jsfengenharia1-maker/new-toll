@@ -147,10 +147,49 @@ describe('barras ligadas a cascas: análise estável e equilíbrio global de for
       return s;
     }],
   ];
+  it('nós com ligação rígida (opção ligacaoBarraCasca = 1): só onde a barra sai da casca; barras ao longo da casca não ligam', () => {
+    const n = (nome: string) => analisarEdificio(casos.find(([c]) => c === nome)![1]().modelo).portico.modelo.ligacoesCasca?.length ?? 0;
+    expect(n('pilar-parede em L com o lado curto em barra, base engastada')).toBe(2); // trecho rígido do lado curto, um por nível (Tipo 1 + nível intermediário)
+    expect(n('pilar-parede reto com viga chegando perpendicular ao meio (torção da viga no giro da parede)')).toBe(1);
+    expect(n('pilar-parede reto com viga apoiada ao longo e vão até um pilar')).toBe(1); // só na ponta de onde a viga sai
+    expect(n('parede com viga embutida')).toBe(0);
+    expect(n('parede com viga apoiada (não embutida)')).toBe(0);
+    expect(n('parede com base em viga de fundação (viga sobre base elástica nos nós da casca)')).toBe(0);
+  });
   for (const [nome, montar] of casos) {
     it(nome, () => {
       const { rel } = residuoGlobal(montar().modelo);
       for (let k = 0; k < 6; k++) expect(rel[k], `componente ${k}`).toBeLessThan(lim(nome));
+    });
+  }
+});
+
+describe('ligação rígida barra–casca no plano (opção ligacaoBarraCasca, 25/10/2026): viga entre duas paredes no seu plano', () => {
+  // paredes de 3 m (eixos [0, 3] e [9, 12]) e viga 20 × 50 de x = 3 a x = 9 só com o peso próprio (2,5 kN/m): qL²/12 = 7,5 kN·m
+  function montar(lig: number, modeloGlobal: number) {
+    const s = padrao({ ligacaoBarraCasca: lig, modeloGlobal }), t1 = s.modelo.pavimentos.find((p) => p.nome === 'Tipo 1')!;
+    ok(s, 'parede.criar', { pontos: [[0, 0], [3, 0]], espessura: 0.2, morre: t1.id });
+    ok(s, 'parede.criar', { pontos: [[9, 0], [12, 0]], espessura: 0.2, morre: t1.id });
+    ok(s, 'viga.tracar', { grupo: t1.grupo, pontos: [[3, 0], [9, 0]], secao: { b: 0.2, h: 0.5 } });
+    return s;
+  }
+  const Mref = (25 * 0.2 * 0.5 * 36) / 12;
+  for (const [rot, mg] of [['modelo clássico', 0], ['modelo integrado', 1]] as const) {
+    it(`${rot}: rígida → momento negativo nas faces ≈ qL²/12 (95 a 100 %); giro (anterior) → bem menor; equilíbrio`, () => {
+      const faces = (lig: number) => {
+        const an = analisarEdificio(montar(lig, mg).modelo);
+        expect(an.erro).toBeUndefined();
+        const vb = an.portico.barras.flatMap((t, i) => (t.tipo === 'viga' ? [i] : [])).sort((a, c) => an.portico.modelo.nos[an.portico.modelo.barras[a].i][0] - an.portico.modelo.nos[an.portico.modelo.barras[c].i][0]);
+        const f0 = an.portico.res!.esforcos[0][vb[0]], f1 = an.portico.res!.esforcos[0][vb.at(-1)!];
+        return { Mi: Math.abs(f0[5]), Mj: Math.abs(f1[11]), n: an.portico.modelo.ligacoesCasca?.length ?? 0, b: montar(lig, mg).modelo };
+      };
+      const rig = faces(1), giro = faces(0);
+      expect(rig.n).toBeGreaterThanOrEqual(2);
+      expect(giro.n).toBe(0);
+      for (const M of [rig.Mi, rig.Mj]) { expect(M / Mref).toBeGreaterThan(0.95); expect(M / Mref).toBeLessThan(1); }
+      for (const M of [giro.Mi, giro.Mj]) expect(M / Mref).toBeLessThan(0.75);
+      const { rel } = residuoGlobal(rig.b);
+      for (let k = 0; k < 6; k++) expect(rel[k], `componente ${k}`).toBeLessThan(1e-7);
     });
   }
 });
