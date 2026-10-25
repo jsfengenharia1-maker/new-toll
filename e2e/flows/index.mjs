@@ -23,6 +23,7 @@ export const flows = [
   m_portico.f_estabilidade_e_vibracao,
   m_portico.f_exportar_desenho_DXF,
   m_portico.f_perfil_metalico_de_catalogo,
+  m_portico.f_MD8,
   m_portico.f_PWA,
   m_portico.f_PWA_2,
   m_edificio_geral.f_edificio,

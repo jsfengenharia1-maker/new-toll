@@ -37,6 +37,7 @@ export function DimensionarPanel() {
       {rep.warnings.map((w, i) => <Note key={i}>{w}</Note>)}
       <div className="gbody u-pt-10">
         <Button variant="primary" onClick={() => st.set({ memorialOpen: true })}>Abrir memorial de cálculo</Button>
+        <Button title="Registro passo a passo de todas as contas (fórmulas, valores, normas) e exportação dos dados da análise e do modelo para o OpenSees" onClick={() => st.set({ memoriaDetalhadaOpen: true })}>Memória de cálculo detalhada</Button>
         <div className="row">
           <Button onClick={async () => { try { const r = await saveCharacteristics(st.model, rep); st.set({ message: r.mode === 'cloud' ? 'Características salvas na sua conta. Use em Fundações ou na Biblioteca.' : 'Características salvas neste navegador.' }); } catch (e) { st.set({ message: (e as Error).message }); } }}>Salvar características</Button>
           <Button variant="ghost" onClick={() => st.set({ module: 'fundacoes' })}>Dimensionar fundações →</Button>

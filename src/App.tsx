@@ -8,6 +8,7 @@ import { ResultadosPanel } from './app/panels/Resultados';
 import { InfluenciaPanel } from './app/panels/Influencia';
 import { DimensionarPanel } from './app/panels/Dimensionar';
 import { Memorial } from './app/Memorial';
+import { MemoriaDetalhadaPortico } from './app/MemoriaDetalhadaPortico';
 import { Library } from './app/Library';
 import { Fundacoes } from './app/Fundacoes';
 import { SAMPLES } from './app/samples';
@@ -331,6 +332,7 @@ export default function App() {
       )}
       </div>
       {st.memorialOpen && <Memorial onClose={() => st.set({ memorialOpen: false })} />}
+      {st.memoriaDetalhadaOpen && <MemoriaDetalhadaPortico onClose={() => st.set({ memoriaDetalhadaOpen: false })} />}
       {st.libraryOpen && <Library />}
       <StatusBar mensagem={st.message}>
         {st.module === 'edificio' && <LinhaComando />}
