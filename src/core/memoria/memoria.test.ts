@@ -12,7 +12,7 @@ import { Registrador, comMemoria, fm, memoriaAtiva, type PassoMemoria } from './
 import { csvMemoria, memoriaDetalhada, type MemoriaDetalhada } from './edificio';
 import { htmlMemoriaCorpo } from './html';
 import { csvTabela, jsonTabelas, tabelasAnalise, zipDados } from './dadosAnalise';
-import { modeloExportavel, scriptOpenSees } from './opensees';
+import { modeloDoCaso, modeloExportavel, scriptOpenSees } from './opensees';
 import { ServidorMcp } from '../../cli/mcp';
 
 function predio(): BuildingModel {
@@ -253,6 +253,101 @@ describe('exportação para o OpenSees', () => {
       expect(er / rmx, `reações ${nome}`).toBeLessThan(1e-6);
     }
   }, 180000);
+});
+
+describe('vento no OpenSees (MD9)', () => {
+  const NW = ['W0°', 'W90°+e', 'W180°−e'];
+  it('os casos de vento entram no script do modelo integrado; o modelo exportado dá os deslocamentos do pórtico condensado e, com o openseespy, deslocamentos e reações iguais', async () => {
+    const me = modeloExportavel(b, an);
+    for (const w of NW) expect(me.casos.map((c) => c.nome)).toContain(w);
+    const sc = scriptOpenSees(me, { casos: NW });
+    expect(sc.casos).toEqual(NW);
+    expect(sc.script).toContain('"W0°"');
+    expect(sc.completo).toBe(true);
+    const idx = NW.map((w) => me.casos.findIndex((c) => c.nome === w));
+    // o vento usa a área real dos pilares (as cargas verticais, A × EA dos pilares das opções): `modeloDoCaso` aplica o fator do caso
+    expect(an.opcoes.axialPilares).toBeGreaterThan(1);
+    expect(me.casos.find((c) => c.nome === 'W0°')!.escA).toBe(1 / an.opcoes.axialPilares);
+    const rs = NW.map((w, k) => resolver3(modeloDoCaso(me, w), [me.casos[idx[k]].caso!]));
+    for (const x of rs) expect(x.erro).toBeUndefined();
+    const r = { desloc: rs.map((x) => x.desloc[0]), reacoes: rs.map((x) => x.reacoes[0]) };
+    // nos nós dos pilares, o modelo exportado dá o mesmo do pórtico condensado (vento)
+    const pm = an.portico, nosPil = new Set<number>();
+    pm.barras.forEach((t, i) => { if (t.tipo === 'pilar') { nosPil.add(pm.modelo.barras[i].i); nosPil.add(pm.modelo.barras[i].j); } });
+    NW.forEach((w, k) => {
+      const iw = (an.vento?.casos ?? []).findIndex((c) => c.nome === w), ref = pm.resVento!.desloc[iw];
+      let e = 0, mx = 0;
+      for (const n of nosPil) for (let g = 0; g < 6; g++) { e = Math.max(e, Math.abs(r.desloc[k][n * 6 + g] - ref[n * 6 + g])); mx = Math.max(mx, Math.abs(ref[n * 6 + g])); }
+      expect(mx).toBeGreaterThan(0);
+      expect(e / mx, `vento ${w}`).toBeLessThan(1e-8);
+    });
+    const CP = 'node:child_process', FS = 'node:fs', OS = 'node:os', PATH = 'node:path';
+    const cp = (await import(/* @vite-ignore */ CP)) as { execFileSync: (c: string, a: string[], o?: object) => unknown };
+    try { cp.execFileSync('python3', ['-c', 'import openseespy.opensees'], { stdio: 'ignore' }); } catch { return; }
+    const fs = (await import(/* @vite-ignore */ FS)) as { mkdtempSync: (p: string) => string; writeFileSync: (p: string, d: string) => void; readFileSync: (p: string, e: string) => string };
+    const os = (await import(/* @vite-ignore */ OS)) as { tmpdir: () => string };
+    const path = (await import(/* @vite-ignore */ PATH)) as { join: (...p: string[]) => string };
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'statikos-os-w-'));
+    fs.writeFileSync(path.join(dir, 'portico.py'), sc.script);
+    cp.execFileSync('python3', [path.join(dir, 'portico.py')], { stdio: 'ignore', timeout: 120000 });
+    const R = JSON.parse(fs.readFileSync(path.join(dir, 'resultados_opensees.json'), 'utf8')) as { casos: Record<string, { desloc: number[][]; reacoes: Record<string, number[]> }> };
+    NW.forEach((nome, k) => {
+      const u = r.desloc[k], d = R.casos[nome].desloc;
+      let err = 0, umx = 0;
+      d.forEach((x, n) => { for (let g = 0; g < 6; g++) { err = Math.max(err, Math.abs(u[n * 6 + g] - x[g])); umx = Math.max(umx, Math.abs(x[g])); } });
+      expect(err / umx, `desloc ${nome}`).toBeLessThan(1e-6);
+      let er = 0, rmx = 0;
+      for (const [no, f] of r.reacoes[k]) { const o = R.casos[nome].reacoes[String(no)]; for (let g = 0; g < 6; g++) { er = Math.max(er, Math.abs(f[g] - o[g])); rmx = Math.max(rmx, Math.abs(o[g])); } }
+      expect(er / rmx, `reações ${nome}`).toBeLessThan(1e-6);
+      // reações do OpenSees no vento = reações do pórtico condensado do Statikos nos apoios dos pilares
+      const iw = (an.vento?.casos ?? []).findIndex((c) => c.nome === nome);
+      let ec = 0, rc = 0;
+      for (const [no, f] of pm.resVento!.reacoes[iw]) { const o = R.casos[nome].reacoes[String(no)]; if (!o) continue; for (let g = 0; g < 6; g++) { ec = Math.max(ec, Math.abs(f[g] - o[g])); rc = Math.max(rc, Math.abs(o[g])); } }
+      expect(ec / rc, `reações do condensado ${nome}`).toBeLessThan(1e-6);
+    });
+    console.log(`OpenSees (vento): ${NW.join(', ')} conferidos contra o Statikos`);
+  }, 240000);
+});
+
+describe('vento no OpenSees, modelo separado (grelha à parte)', () => {
+  it('o pórtico exportado dá o vento do Statikos (área real dos pilares) e, com o openseespy, deslocamentos iguais', async () => {
+    const s = new Sessao();
+    for (const c of comandosEdificioPadrao()) s.executar(c.nome, c.params, 'sistema');
+    s.executar('opcoes.definir', { valores: { modeloGlobal: 0 } });
+    s.executar('lote', { comandos: [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => ({ nome: 'pilar.inserir', params: { x, y, secao: { tipo: 'ret', b: 0.25, h: 0.25 } } })) });
+    const v = (p: number[][]) => ({ nome: 'viga.tracar', params: { grupo: 'g_3', pontos: p, secao: { b: 0.15, h: 0.4 } } });
+    s.executar('lote', { comandos: [v([[0, 0], [6, 0]]), v([[0, 5], [6, 5]]), v([[0, 0], [0, 5]]), v([[6, 0], [6, 5]])] });
+    s.executar('laje.detectarPanos', { grupo: 'g_3', tipo: { tipo: 'macica', h: 0.12 } });
+    const b2 = s.modelo, an2 = analisarEdificio(b2), me = modeloExportavel(b2, an2);
+    expect(me.cheio).toBe(false);
+    const k = me.casos.findIndex((c) => c.nome === 'W0°'), iw = an2.vento!.casos.findIndex((c) => c.nome === 'W0°');
+    expect(me.casos[k].escA).toBe(1 / an2.opcoes.axialPilares);
+    const r = resolver3(modeloDoCaso(me, 'W0°'), [me.casos[k].caso!]);
+    const ref = an2.portico.resVento!.desloc[iw];
+    let e = 0, mx = 0;
+    ref.forEach((x, i) => { e = Math.max(e, Math.abs(x - r.desloc[0][i])); mx = Math.max(mx, Math.abs(x)); });
+    expect(e / mx).toBeLessThan(1e-9);
+    // com a área das cargas verticais (sem o fator do vento) o deslocamento difere: o fator é necessário
+    const r2 = resolver3(me.modelo, [me.casos[k].caso!]);
+    let e2 = 0;
+    ref.forEach((x, i) => { e2 = Math.max(e2, Math.abs(x - r2.desloc[0][i])); });
+    expect(e2 / mx).toBeGreaterThan(1e-4);
+    const sc = scriptOpenSees(me, { casos: ['W0°'] });
+    expect(sc.script).toContain('"escA": 0.5');
+    const CP = 'node:child_process', FS = 'node:fs', OS = 'node:os', PATH = 'node:path';
+    const cp = (await import(/* @vite-ignore */ CP)) as { execFileSync: (c: string, a: string[], o?: object) => unknown };
+    try { cp.execFileSync('python3', ['-c', 'import openseespy.opensees'], { stdio: 'ignore' }); } catch { return; }
+    const fs = (await import(/* @vite-ignore */ FS)) as { mkdtempSync: (p: string) => string; writeFileSync: (p: string, d: string) => void; readFileSync: (p: string, e: string) => string };
+    const os = (await import(/* @vite-ignore */ OS)) as { tmpdir: () => string };
+    const path = (await import(/* @vite-ignore */ PATH)) as { join: (...p: string[]) => string };
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'statikos-os-s-'));
+    fs.writeFileSync(path.join(dir, 'portico.py'), sc.script);
+    cp.execFileSync('python3', [path.join(dir, 'portico.py')], { stdio: 'ignore', timeout: 120000 });
+    const R = JSON.parse(fs.readFileSync(path.join(dir, 'resultados_opensees.json'), 'utf8')) as { casos: Record<string, { desloc: number[][] }> };
+    let eo = 0, mo = 0;
+    R.casos['W0°'].desloc.forEach((x, n) => { for (let g = 0; g < 6; g++) { eo = Math.max(eo, Math.abs(ref[n * 6 + g] - x[g])); mo = Math.max(mo, Math.abs(x[g])); } });
+    expect(eo / mo).toBeLessThan(1e-6);
+  }, 240000);
 });
 
 describe('MCP', () => {
