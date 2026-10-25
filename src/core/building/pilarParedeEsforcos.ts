@@ -175,7 +175,8 @@ function secoesDoConjunto(an: AnaliseEdificio, pid: string, lances: { id: string
     const cascas = (an.paredes?.info ?? []).filter((e) => e.pp === pid && e.lance === lance.id).map((e) => e.k), conj = new Set(cascas);
     const axiais = (m.axiaisMedios ?? []).flatMap((a, i) => (a.cascas?.some((c) => conj.has(c.casca)) ? [i] : []));
     const barras = ladosBarra.map((id) => an.portico.barras.findIndex((t) => t.tipo === 'pilar' && t.ref === id && t.pavimento === lance.id)).filter((bi) => bi >= 0);
-    const el: ElementosDoLance = { cascas, axiais, barras };
+    const ligacoes = (m.ligacoesCasca ?? []).flatMap((l, i) => (l.cascas?.length && conj.has(l.cascas[0]) ? [i] : []));
+    const el: ElementosDoLance = { cascas, axiais, barras, ligacoes };
     if (!cascas.length && !barras.length) continue;
     const corte = nosDeCorte(m, el), pr = prepararElementos(m, el);
     // o vento é resolvido com as cascas brutas (sem multiplicador axial nem faixas axiais): as forças nodais usam essas cascas

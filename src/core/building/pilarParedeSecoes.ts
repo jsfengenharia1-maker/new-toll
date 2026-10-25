@@ -5,13 +5,13 @@
 // base: N > 0 compressão, eixos globais; momentos em torno do centroide na cota do corte). Núcleo puro.
 import { esforcosCasca, rigidezCasca, type ElementoCasca } from '../casca';
 import type { ParedesNoPortico } from './pilarParedeModelo';
-import { elementoBarra, type Caso3, type ElementoBarra, type Modelo3 } from '../fe3d';
+import { elementoBarra, forcasLigacoes, type Caso3, type ElementoBarra, type Modelo3 } from '../fe3d';
 
 /** Cargas de uma seção no pilar-parede (kN e kN·m; N > 0 compressão; eixos globais; Mz anti-horário + visto de cima). */
 export interface ForcasSecao { N: number; Vx: number; Vy: number; Mx: number; My: number; Mz: number }
 
-/** Índices (em `Modelo3`) dos elementos do conjunto abaixo da seção ou entre duas seções: cascas, faixas axiais e barras. */
-export interface ElementosDoLance { cascas: number[]; axiais: number[]; barras: number[] }
+/** Índices (em `Modelo3`) dos elementos do conjunto abaixo da seção ou entre duas seções: cascas, faixas axiais, barras e ligações barra–casca. */
+export interface ElementosDoLance { cascas: number[]; axiais: number[]; barras: number[]; ligacoes?: number[] }
 
 /** Elementos preparados (rigidez das cascas e transformação das barras), reaproveitados em todos os casos. */
 export interface ElementosPreparados { el: ElementosDoLance; cas: Map<number, ElementoCasca>; bar: Map<number, ElementoBarra> }
@@ -41,6 +41,7 @@ export function forcasNosDosElementos(m: Modelo3, pr: ElementosPreparados, u: Ar
     const N = ax.k * d;
     ax.dofs.forEach((g, a) => (f[g] += ax.c[a] * N));
   }
+  if (pr.el.ligacoes?.length) forcasLigacoes(m.nos, pr.el.ligacoes.map((i) => m.ligacoesCasca![i]), u, f);
   for (const [bi, e] of pr.bar) {
     const fl = fBarras?.[bi];
     if (!fl) continue;
@@ -67,6 +68,7 @@ export function nosDeCorte(m: Modelo3, el: ElementosDoLance, tol = 1e-3): { base
   for (const k of el.cascas) for (const n of m.cascas![k].nos) nos.add(n);
   for (const bi of el.barras) { nos.add(m.barras[bi].i); nos.add(m.barras[bi].j); }
   for (const i of el.axiais) for (const g of m.axiaisMedios![i].dofs) nos.add((g - (g % 6)) / 6);
+  for (const i of el.ligacoes ?? []) { const l = m.ligacoesCasca![i]; nos.add(l.no); for (const v of l.viz) nos.add(v); }
   const zs = [...nos].map((n) => m.nos[n][2]), zBase = Math.min(...zs), zTopo = Math.max(...zs);
   return { base: [...nos].filter((n) => m.nos[n][2] < zBase + tol), topo: [...nos].filter((n) => m.nos[n][2] > zTopo - tol), zBase, zTopo };
 }

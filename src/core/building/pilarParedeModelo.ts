@@ -45,6 +45,10 @@ export interface ParedesNoPortico {
    * Só para montar a parcela axial (`axiaisDasFaixas`); não vai para o resultado.
    */
   faixasAxiais?: FaixaAxial[];
+  /** Índices (em `pm.barras`) das barras da viga fictícia do topo: não contam como barra ligada à casca (ligação rígida no plano). Só para a montagem. */
+  ficticias?: number[];
+  /** Ligações rígidas barra–casca no plano (opção `ligacaoBarraCasca`): por nó, pilar-parede/parede, nº de vizinhos e raio (m). */
+  ligacoes?: { pp: string; no: number; viz: number; R: number }[];
   /** Resumo das faixas axiais que vai para o resultado (memória detalhada, MD7): pilar-parede, EA/Δz da faixa (kN/m) e número de cascas. */
   axial?: { pp: string; EAporDz: number; cascas: number }[];
 }
@@ -215,6 +219,7 @@ export function incluirParedes(e: EntradaParedes): ParedesNoPortico {
       const t = g.esp(pav).t, h = e.hViga, bar = e.ret(t, h);
       for (let q = 0; q + 1 < linha.length; q++) {
         // só a rigidez no plano da parede (A e Iz) distribui as cargas; a flexão fora do plano e a torção, já dadas pela placa, entram a 1 %
+        (out.ficticias ??= []).push(pm.barras.length);
         pm.barras.push({ i: ids[linha[q].i], j: ids[linha[q + 1].i], E: e.Ev, G: e.Gv, A: bar.A, Iz: bar.I, Iy: (h * t ** 3) / 1200, J: bar.J * 0.01 });
         e.etiqueta(g.id, pav); out.nBarras++;
       }

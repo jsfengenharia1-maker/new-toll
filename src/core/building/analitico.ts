@@ -5,6 +5,7 @@
 //   os esforços das vigas e lajes incluindo as ações horizontais;
 // - separado (premissa 20, o comportamento anterior): as lajes são resolvidas na grelha com molas nos pilares e as
 //   forças que elas passam às vigas viram cargas do pórtico, junto com o peso das vigas, das paredes e dos pilares.
+import { ligacoesBarraCasca } from '../ligacaoCasca';
 import { baseBarra, elementoBarra, fatorar3, resolver3, rigidezCondensada, type Barra3, type Caso3, type ElementoBarra, type Modelo3, type Resultado3, type V3 } from '../fe3d';
 import { condensar, forcaFronteira, recuperarInternos, type Condensado } from '../condensacao';
 import { spAdd, type SpRows } from '../math';
@@ -400,7 +401,7 @@ function modeloCheio(pmV: Modelo3, casosV: Caso3[], detalhes: { pav: string; gb:
 }
 
 /** Paredes no resultado sem as faixas axiais (só servem à montagem das cargas verticais, E6d). */
-const semFaixas = ({ faixasAxiais: f, ...r }: ParedesNoPortico): ParedesNoPortico => (f?.length ? { ...r, axial: f.map((x) => ({ pp: x.pp, EAporDz: x.EAporDz, cascas: x.cascas.length })) } : r);
+const semFaixas = ({ faixasAxiais: f, ficticias: _fi, ...r }: ParedesNoPortico): ParedesNoPortico => (f?.length ? { ...r, axial: f.map((x) => ({ pp: x.pp, EAporDz: x.EAporDz, cascas: x.cascas.length })) } : r);
 
 /** Cópia do modelo sem as funções de recuperação dos superelementos (o resultado vai do worker para a interface). */
 const semFuncoes = (m: Modelo3): Modelo3 => (m.superelementos ? { ...m, superelementos: m.superelementos.map(({ dofs, K }) => ({ dofs, K })) } : m);
@@ -1802,6 +1803,45 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
     if (br.engJ && (nBarras.get(br.j) ?? 0) < 2 && !pm.apoios.has(br.j)) delete br.engJ;
     if (br.engI && (nBarras.get(br.i) ?? 0) < 2 && !pm.apoios.has(br.i)) delete br.engI;
   });
+  // ligação rígida barra–casca no plano (25/10/2026, opção ligacaoBarraCasca; a confirmar): nós das cascas de onde sai uma barra
+  // para fora do plano da casca (viga que chega à parede, lado curto em barra, viga perpendicular; no modelo integrado, a barra
+  // fina da viga indica a grelha condensada). Barra com as duas pontas na casca do mesmo plano (viga ao longo ou embutida, viga
+  // de fundação sob a parede, viga fictícia do topo) não liga: ali a parede já governa o giro. Raio = altura da viga.
+  if (op.ligacaoBarraCasca && pm.cascas?.length && noParedes) {
+    const doNo = new Map<number, number[]>();
+    pm.cascas.forEach((c, k) => { for (const n of c.nos) (doNo.get(n) ?? doNo.set(n, []).get(n)!).push(k); });
+    /** O ponto P está no triângulo (vértices) da casca k, no seu plano (tolerância 1e-6 m)? */
+    const naCascaK = (k: number, P: V3) => {
+      const c = pm.cascas![k], [a, b2, d] = [pm.nos[c.nos[0]], pm.nos[c.nos[1]], pm.nos[c.nos[2]]];
+      const u = [b2[0] - a[0], b2[1] - a[1], b2[2] - a[2]], v = [d[0] - a[0], d[1] - a[1], d[2] - a[2]], w = [P[0] - a[0], P[1] - a[1], P[2] - a[2]];
+      const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]], A2 = Math.hypot(n[0], n[1], n[2]);
+      if (Math.abs(n[0] * w[0] + n[1] * w[1] + n[2] * w[2]) / A2 > 1e-6) return false;
+      const uu = u[0] * u[0] + u[1] * u[1] + u[2] * u[2], vv = v[0] * v[0] + v[1] * v[1] + v[2] * v[2], uv = u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
+      const wu = w[0] * u[0] + w[1] * u[1] + w[2] * u[2], wv = w[0] * v[0] + w[1] * v[1] + w[2] * v[2], D = uu * vv - uv * uv;
+      const s1 = (wu * vv - wv * uv) / D, s2 = (wv * uu - wu * uv) / D, tol = 1e-9;
+      return s1 >= -tol && s2 >= -tol && s1 + s2 <= 1 + tol;
+    };
+    const fic = new Set(noParedes.ficticias ?? []), alvos = new Set<number>(), raio = new Map<number, number>(), hPadrao = op.pilarParedeVigaAltura / 100;
+    const vigaH = new Map((b.vigas ?? []).map((v) => [v.id, v.secao.h]));
+    // barras do pórtico e, no modelo integrado, as barras finas das vigas (pendentes: entram no pórtico só depois da análise)
+    const lista: [Barra3, BarraPortico | undefined, boolean][] = pm.barras.map((br, bi) => [br, ptags[bi], fic.has(bi)]);
+    for (const l of pendentes.values()) for (const { nb, tag } of l) lista.push([nb, tag, false]);
+    lista.forEach(([br, tag, ficticia]) => {
+      if (ficticia) return;
+      const h = tag?.tipo === 'viga' ? vigaH.get(tag.ref) : undefined;
+      const M: V3 = [(pm.nos[br.i][0] + pm.nos[br.j][0]) / 2, (pm.nos[br.i][1] + pm.nos[br.j][1]) / 2, (pm.nos[br.i][2] + pm.nos[br.j][2]) / 2];
+      for (const n of [br.i, br.j]) {
+        const inc = doNo.get(n);
+        if (!inc) continue;
+        if (inc.some((k) => naCascaK(k, M))) continue; // barra ao longo da casca (o meio da barra está numa casca do nó)
+        alvos.add(n);
+        if (h !== undefined) raio.set(n, Math.max(raio.get(n) ?? 0, h));
+      }
+    });
+    pm.ligacoesCasca = ligacoesBarraCasca(pm, alvos, { raio: (n) => raio.get(n) ?? hPadrao, abaixo: true });
+    const ppDe = new Map(noParedes.info.map((e) => [e.k, e.pp]));
+    noParedes.ligacoes = pm.ligacoesCasca.map((l) => ({ pp: ppDe.get(l.cascas?.[0] ?? -1) ?? '', no: l.no, viz: l.viz.length, R: Math.max(...l.viz.map((v) => Math.hypot(pm.nos[v][0] - pm.nos[l.no][0], pm.nos[v][1] - pm.nos[l.no][1], pm.nos[v][2] - pm.nos[l.no][2]))) }));
+  }
   // cargas verticais: multiplicador axial dos pilares (premissa 25)
   const pmV: Modelo3 = { ...pm, barras: pm.barras.map((br, i) => (ptags[i].tipo === 'pilar' ? { ...br, A: br.A * op.axialPilares } : br)), ...(pm.cascas ? (op.axialParedeSeparado === 2 ? { axiaisMedios: axiaisDasFaixas(noParedes?.faixasAxiais, op.axialPilares) } : { cascas: (op.axialParedeSeparado ? axialCascas : reduzirCascas)(pm.cascas, op.axialPilares) }) : {}) };
   const res = resolver3(pmV, casosV);

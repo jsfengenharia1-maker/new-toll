@@ -25,6 +25,17 @@ export function registrarBasesParedes(mem: Registrador, b: BuildingModel, an: An
     if (!nos.length && !axial.length) continue;
     const el = elementoParede(a.kind, a.nome, 'Base');
     if (!mem.aceita(el)) continue;
+    // ligação das barras à casca no plano (25/10/2026, opção ligacaoBarraCasca)
+    const ligs = (an.paredes?.ligacoes ?? []).filter((x) => x.pp === a.id);
+    mem.passo({
+      etapa: 'analise', elemento: el, topico: 'Ligação das barras à casca (no plano)',
+      descricao: op.ligacaoBarraCasca ? `Ligação rígida: em ${ligs.length} nó(s) da casca de onde saem barras (vigas que chegam à parede, lado curto em barra, vigas perpendiculares; barras ao longo da casca não ligam), o giro em torno da normal segue o giro de corpo rígido dos nós vizinhos da casca a até R (altura da viga; mínimo: nós mais próximos), do lado de baixo do nível` : 'Ligação pelo giro no plano da casca (estabilização fraca γ·∫(θn − ω)²; quase rótula)',
+      formula: 'θ·n = ω̄ = Σ(n × rₖ)·uₖ / Σ|rₖ|² (rₖ a partir do centroide dos vizinhos); penalidade k = 10³·E·h·R²',
+      expressao: op.ligacaoBarraCasca ? (ligs.map((x) => `nó ${x.no}: ${x.viz} vizinhos, R = ${fm(x.R)} m`).join('; ') || 'nenhuma barra ligada à casca') : `opção ligacaoBarraCasca = ${fm(op.ligacaoBarraCasca)}`,
+      resultado: op.ligacaoBarraCasca ? ligs.length : 0, unidade: 'ligações', norma: 'NBR 6118 não trata; padrão esperado do programa de referência (ligação rígida)', aConfirmar: true,
+      entradas: { ligacaoBarraCasca: op.ligacaoBarraCasca, ligacoes: JSON.stringify(ligs.map((x) => [x.no, x.viz, x.R])) },
+      observacao: 'ligacoes = [nó, nº de vizinhos, raio (m)]; as forças da ligação são autoequilibradas (não prendem ao chão).',
+    });
     const T = 'Base e vinculação externa';
     const set = new Set(nos);
     const sm = molas.filter((m) => set.has(m.no));
