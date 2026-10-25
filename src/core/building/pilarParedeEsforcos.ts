@@ -6,6 +6,7 @@ import { combinacoesDoEstado } from './combinacoes';
 import { ladosDoPP, lancesDoPP, tipoDoPilarParede } from './pilarParede';
 import { ppDaParede } from './paredesBase';
 import { cotaFundacao, pavimentosOrdenados, type BuildingModel } from './types';
+import { cargasProprias, nosDeCorte, prepararElementos, secoesDoLance, type ElementosDoLance, type ForcasSecao } from './pilarParedeSecoes';
 
 /** Resultante num lado e pavimento (kN, kN·m; N > 0 tração). Lado em casca: média sobre a altura do painel; em barra: extremo do lance. */
 export interface Resultante {
@@ -31,6 +32,18 @@ export interface EsforcosLado {
   elu: Record<keyof Resultante, Extremo>;
 }
 
+/**
+ * Forças internas numa seção horizontal do conjunto do pilar-parede (V7h, C4.60), por caso: base ou topo de um lance. Vêm das
+ * forças nodais dos elementos do lance (equilíbrio do corpo livre, exato), em torno do centroide na cota da seção, na
+ * convenção da carga da base (parte inferior sobre a superior; N > 0 compressão; eixos globais). A base do primeiro lance
+ * coincide com `base`.
+ */
+export interface SecaoPilarParede {
+  /** Pavimento do topo do lance, nome, posição da seção no lance e cota (m). */
+  lance: string; nomePav: string; posicao: 'base' | 'topo'; cota: number;
+  casos: Record<string, ForcasSecao>;
+}
+
 export interface ResultadoPilarParede {
   id: string; nome: string; tipo: string; nomeTipo: string;
   /** 'casca' se todos os lados são cascas, 'barra' se todos são barras, senão 'misto'. */
@@ -42,6 +55,8 @@ export interface ResultadoPilarParede {
   /** Cargas na base por caso (N > 0 compressão; eixos globais, kN e kN·m) e extremos ELU de N. */
   base: Record<string, { N: number; Vx: number; Vy: number; Mx: number; My: number; /** Torçor da reação em torno do eixo vertical pelo centro (V7g; anti-horário +). */ Mz: number }>;
   baseElu: { Nmax: number; Nmin: number; cNmax: string; cNmin: string };
+  /** Seções horizontais (base e topo de cada lance), da base ao topo (V7h). */
+  secoes: SecaoPilarParede[];
   lados: EsforcosLado[];
   mensagens: string[];
 }
@@ -121,14 +136,49 @@ export function esforcosPilaresParede(b: BuildingModel, an: AnaliseEdificio, por
       if (N > Nmax) { Nmax = N; cx = cb.nome; }
       if (N < Nmin) { Nmin = N; cn = cb.nome; }
     }
+    const secoes = secoesDoConjunto(an, pp.id, lances.map((l) => ({ id: l.id, nome: l.nome })), lados.filter((g) => !g.casca).map((g) => g.id), pars?.centro[pp.id] ?? [pp.x, pp.y], casosAn, nomesV);
     const nCascas = lados.filter((g) => g.casca).length;
     out.push({
       id: pp.id, nome: pp.nome, tipo: pp.tipo, nomeTipo: tipo.nome,
       modelo: nCascas === lados.length ? 'casca' : nCascas === 0 ? 'barra' : 'misto', nCascas, ladosBarra: lados.length - nCascas,
       centro: pars?.centro[pp.id] ?? [pp.x, pp.y], base,
       baseElu: { Nmax: Number.isFinite(Nmax) ? Nmax : 0, Nmin: Number.isFinite(Nmin) ? Nmin : 0, cNmax: cx, cNmin: cn },
-      lados: lista, mensagens: [],
+      secoes, lados: lista, mensagens: [],
     });
   }
   return out;
 }
+
+/**
+ * Seções (base e topo de cada lance) por caso: forças nodais dos elementos do lance (cascas do pilar-parede, faixas axiais e
+ * barras dos lados curtos) nos nós da menor e da maior cota, sem as vigas e lajes que chegam ao pavimento.
+ */
+function secoesDoConjunto(an: AnaliseEdificio, pid: string, lances: { id: string; nome: string }[], ladosBarra: string[], O: [number, number], casosAn: string[], nomesV: string[]): SecaoPilarParede[] {
+  const m = an.portico.modelo, res = an.portico.res, resV = an.portico.resVento && !an.portico.resVento.erro ? an.portico.resVento : null;
+  if (!res || (!m.cascas && !ladosBarra.length)) return [];
+  const out: SecaoPilarParede[] = [];
+  for (const lance of lances) {
+    const cascas = (an.paredes?.info ?? []).filter((e) => e.pp === pid && e.lance === lance.id).map((e) => e.k), conj = new Set(cascas);
+    const axiais = (m.axiaisMedios ?? []).flatMap((a, i) => (a.cascas?.some((c) => conj.has(c.casca)) ? [i] : []));
+    const barras = ladosBarra.map((id) => an.portico.barras.findIndex((t) => t.tipo === 'pilar' && t.ref === id && t.pavimento === lance.id)).filter((bi) => bi >= 0);
+    const el: ElementosDoLance = { cascas, axiais, barras };
+    if (!cascas.length && !barras.length) continue;
+    const corte = nosDeCorte(m, el), pr = prepararElementos(m, el);
+    // o vento é resolvido com as cascas brutas (sem multiplicador axial nem faixas axiais): as forças nodais usam essas cascas
+    const mV = an.portico.cascasVento ? { ...m, cascas: an.portico.cascasVento, axiaisMedios: undefined } : m, prV = prepararElementos(mV, { ...el, axiais: [] });
+    const base: SecaoPilarParede = { lance: lance.id, nomePav: lance.nome, posicao: 'base', cota: corte.zBase, casos: {} };
+    const topo: SecaoPilarParede = { lance: lance.id, nomePav: lance.nome, posicao: 'topo', cota: corte.zTopo, casos: {} };
+    // cargas próprias dos elementos do lance (peso próprio e empuxo) aplicadas em nós do corte: pertencem ao lance, não à parte vizinha
+    const proprias = cargasProprias(an.paredes, m, conj);
+    const caso = (nome: string, r: NonNullable<typeof res>, ic: number, c3: { pressoes?: { casca: number; q: number }[] } | undefined, vento: boolean) => {
+      const q = vento ? secoesDoLance(mV, prV, corte, [], O, r.desloc[ic], c3, r.esforcos[ic]) : secoesDoLance(m, pr, corte, proprias.filter((c) => c.caso === ic), O, r.desloc[ic], c3, r.esforcos[ic]);
+      base.casos[nome] = q.base;
+      topo.casos[nome] = q.topo;
+    };
+    casosAn.forEach((c, ic) => caso(c, res, ic, an.portico.casos?.[ic], false));
+    if (resV) nomesV.forEach((n, iv) => caso(n, resV, iv, an.portico.casosVento?.[iv], true));
+    out.push(base, topo);
+  }
+  return out;
+}
+

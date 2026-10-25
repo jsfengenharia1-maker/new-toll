@@ -92,3 +92,37 @@ export function torsorDoPilarParede(pp: ResultadoPilarParede, h: HipoteseEsforco
   }
   return { ref: [P[0], P[1]], centro: [O[0], O[1]], max: Number.isFinite(max) ? max : 0, min: Number.isFinite(min) ? min : 0, porMax, porMin };
 }
+
+/** Seção horizontal do pilar-parede para a hipótese (V7h, C4.60): as seis forças internas, com valor ou extremos e a combinação de cada extremo. */
+export interface LinhaSecaoPilarParede {
+  lance: string; nomePav: string; posicao: 'base' | 'topo'; cota: number;
+  /** Valor da hipótese (caso e combinação: max = min) ou extremos da envoltória (N > 0 compressão; kN e kN·m). */
+  max: BasePilarParede; min: BasePilarParede;
+  porMax: Record<keyof BasePilarParede, string>; porMin: Record<keyof BasePilarParede, string>;
+}
+
+const CHAVES_SEC: (keyof BasePilarParede)[] = ['N', 'Vx', 'Vy', 'Mx', 'My', 'Mz'];
+
+/**
+ * Forças internas de cada seção (base e topo de cada lance) para a hipótese: combinação = soma ponderada dos casos
+ * (superposição exata); envoltória = máximo e mínimo entre as combinações. O torçor Mz sai pelo centroide ou, com `ref`,
+ * pelo polo informado, transportado por combinação como em `torsorDoPilarParede`: Mz(P) = Mz(O) + (Ox − Px)·Vy − (Oy − Py)·Vx.
+ */
+export function secoesDoPilarParedePorHipotese(pp: ResultadoPilarParede, h: HipoteseEsforco, ref?: [number, number]): LinhaSecaoPilarParede[] {
+  const O = pp.centro, P = ref ?? O, ps = partes(h);
+  return (pp.secoes ?? []).map((s) => {
+    const max = { N: -Infinity, Vx: -Infinity, Vy: -Infinity, Mx: -Infinity, My: -Infinity, Mz: -Infinity } as BasePilarParede, min = { N: Infinity, Vx: Infinity, Vy: Infinity, Mx: Infinity, My: Infinity, Mz: Infinity } as BasePilarParede;
+    const porMax = { N: '', Vx: '', Vy: '', Mx: '', My: '', Mz: '' } as Record<keyof BasePilarParede, string>, porMin = { ...porMax };
+    for (const p of ps) {
+      const v: BasePilarParede = { N: 0, Vx: 0, Vy: 0, Mx: 0, My: 0, Mz: 0 };
+      for (const [n, f] of Object.entries(p.fatores)) { const c = s.casos[n]; if (c) for (const k of CHAVES_SEC) v[k] += f * c[k]; }
+      v.Mz += (O[0] - P[0]) * v.Vy - (O[1] - P[1]) * v.Vx;
+      for (const k of CHAVES_SEC) {
+        if (v[k] > max[k]) { max[k] = v[k]; porMax[k] = p.nome; }
+        if (v[k] < min[k]) { min[k] = v[k]; porMin[k] = p.nome; }
+      }
+    }
+    for (const k of CHAVES_SEC) { if (!Number.isFinite(max[k])) max[k] = 0; if (!Number.isFinite(min[k])) min[k] = 0; }
+    return { lance: s.lance, nomePav: s.nomePav, posicao: s.posicao, cota: s.cota, max, min, porMax, porMin };
+  });
+}
