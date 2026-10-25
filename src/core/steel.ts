@@ -1,6 +1,8 @@
 // Verificação de barras de aço — ABNT NBR 8800:2008 (perfis I laminados duplamente simétricos, tubos circulares e caixões).
 // Unidades internas: MN, m, MPa.
 import type { SectionShape } from './types';
+import { memoriaAtiva } from './memoria/registrador';
+import { registrarAco, type ItemAco } from './memoria/porticoAco';
 
 export const E_STEEL = 200000;
 export const G_STEEL = 77000;
@@ -41,7 +43,7 @@ export function steelProps(s: SectionShape): SteelProps | null {
 
 export interface SteelCombo { name: string; N: number; Mmax: number; MA: number; MB: number; MC: number; Mend0: number; MendL: number; V: number; transverse: boolean } // kN, kN·m (MA..MC nos quartos)
 
-export interface SteelInput { shape: SectionShape; fy: number; gammaA1: number; L: number; leIn: number; leOut: number; combos: SteelCombo[] }
+export interface SteelInput { shape: SectionShape; fy: number; gammaA1: number; L: number; leIn: number; leOut: number; combos: SteelCombo[]; /** Nome do elemento na memória de cálculo detalhada (só usado com a memória ligada). */ elemento?: string }
 
 export interface SteelCheck {
   combo: string; NSd: number; NRd: number; MSd: number; MRd: number; VSd: number; VRd: number; B1: number; Cb: number; interaction: number; util: number;
@@ -90,10 +92,12 @@ export function designSteel(inp: SteelInput): SteelDesign {
   const Nex = (Math.PI ** 2 * E * p.Ix) / inp.leIn ** 2;
   const Ney = (Math.PI ** 2 * E * p.Iy) / inp.leOut ** 2;
   let Ne = Math.min(Nex, Ney);
+  let NezMem: number | null = null;
   if (s.kind === 'ishape') {
     const r0 = Math.sqrt(p.rx ** 2 + p.ry ** 2);
     const Nez = ((Math.PI ** 2 * E * p.Cw) / inp.leOut ** 2 + G_STEEL * p.J) / r0 ** 2;
     Ne = Math.min(Ne, Nez);
+    NezMem = Nez;
   }
   const lambda0 = Math.sqrt((Q * p.A * fy) / Ne);
   const chi = lambda0 <= 1.5 ? 0.658 ** (lambda0 ** 2) : 0.877 / lambda0 ** 2;
@@ -104,7 +108,7 @@ export function designSteel(inp: SteelInput): SteelDesign {
   // flexão (Anexo G) e cisalhamento (5.4.3)
   const Mpl = p.Zx * fy;
   const sr = 0.3 * fy;
-  const MRkFor = (Cb: number) => {
+  const MRkFor = (Cb: number, tr?: ItemAco[]) => {
     const caps: number[] = [Mpl];
     if (s.kind === 'ishape') {
       const Lb = inp.leOut;
@@ -113,20 +117,28 @@ export function designSteel(inp: SteelInput): SteelDesign {
       const lr = ((1.38 * Math.sqrt(p.Iy * p.J)) / (p.ry * p.J * b1)) * Math.sqrt(1 + Math.sqrt(1 + (27 * p.Cw * b1 ** 2) / p.Iy));
       const Mr = (fy - sr) * p.Wx;
       const Mcr = ((Cb * Math.PI ** 2 * E * p.Iy) / Lb ** 2) * Math.sqrt((p.Cw / p.Iy) * (1 + (0.039 * p.J * Lb ** 2) / p.Cw));
-      caps.push(lam <= lp ? Mpl : lam <= lr ? Math.min(Mpl, Cb * (Mpl - ((Mpl - Mr) * (lam - lp)) / (lr - lp))) : Math.min(Mpl, Mcr));
+      const mFLT = lam <= lp ? Mpl : lam <= lr ? Math.min(Mpl, Cb * (Mpl - ((Mpl - Mr) * (lam - lp)) / (lr - lp))) : Math.min(Mpl, Mcr);
+      caps.push(mFLT);
       const lf = s.bf / 2 / s.tf, lpf = 0.38 * rt, lrf = 0.83 * Math.sqrt(E / (fy - sr));
-      caps.push(lf <= lpf ? Mpl : lf <= lrf ? Mpl - ((Mpl - Mr) * (lf - lpf)) / (lrf - lpf) : (0.69 * E * p.Wx) / lf ** 2);
+      const mFLM = lf <= lpf ? Mpl : lf <= lrf ? Mpl - ((Mpl - Mr) * (lf - lpf)) / (lrf - lpf) : (0.69 * E * p.Wx) / lf ** 2;
+      caps.push(mFLM);
       const lw = (s.h - 2 * s.tf) / s.tw, lpw = 3.76 * rt, lrw = 5.7 * rt;
       if (lw > lrw) messages.push('Alma esbelta (h/tw > 5,70√(E/fy)): exige Anexo H. Resultado indicativo.');
-      caps.push(lw <= lpw ? Mpl : Mpl - ((Mpl - fy * p.Wx) * (Math.min(lw, lrw) - lpw)) / (lrw - lpw));
+      const mFLA = lw <= lpw ? Mpl : Mpl - ((Mpl - fy * p.Wx) * (Math.min(lw, lrw) - lpw)) / (lrw - lpw);
+      caps.push(mFLA);
+      tr?.push(
+        { rot: 'FLT', valor: mFLT, ent: { Lb, ry: p.ry, lam, lp, lr, b1, Mr, Mcr, Cb, Mpl, Iy: p.Iy, J: p.J, Cw: p.Cw, Wx: p.Wx, E, fy, sr } },
+        { rot: 'FLM', valor: mFLM, ent: { lam: lf, lp: lpf, lr: lrf, Mr, Mpl, Wx: p.Wx, E, fy, sr } },
+        { rot: 'FLA', valor: mFLA, ent: { lam: lw, lp: lpw, lr: lrw, Mpl, Wx: p.Wx, fy, E } },
+      );
     } else if (s.kind === 'tube') {
       const dt = s.d / s.t;
-      if (dt > 0.07 * E / fy) caps.push(dt <= 0.31 * E / fy ? ((0.021 * E) / dt + fy) * p.Wx : (0.33 * E * p.Wx) / dt);
+      if (dt > 0.07 * E / fy) { const mt = dt <= 0.31 * E / fy ? ((0.021 * E) / dt + fy) * p.Wx : (0.33 * E * p.Wx) / dt; caps.push(mt); tr?.push({ rot: 'FLL (tubo)', valor: mt, ent: { dt, E, fy, Wx: p.Wx } }); }
     } else if (s.kind === 'box') {
       const lf = (s.b - 3 * s.t) / s.t, lpf = 1.12 * rt, lrf = 1.4 * rt;
-      if (lf > lpf) caps.push(Mpl - ((Mpl - (fy - sr) * p.Wx) * (Math.min(lf, lrf) - lpf)) / (lrf - lpf));
+      if (lf > lpf) { const mm = Mpl - ((Mpl - (fy - sr) * p.Wx) * (Math.min(lf, lrf) - lpf)) / (lrf - lpf); caps.push(mm); tr?.push({ rot: 'FLM (caixão)', valor: mm, ent: { lam: lf, lp: lpf, lr: lrf, Mpl, Wx: p.Wx, fy, sr } }); }
       const lw = (s.h - 3 * s.t) / s.t, lpw = 2.42 * rt, lrw = 5.7 * rt;
-      if (lw > lpw) caps.push(Mpl - ((Mpl - fy * p.Wx) * (Math.min(lw, lrw) - lpw)) / (lrw - lpw));
+      if (lw > lpw) { const mm = Mpl - ((Mpl - fy * p.Wx) * (Math.min(lw, lrw) - lpw)) / (lrw - lpw); caps.push(mm); tr?.push({ rot: 'FLA (caixão)', valor: mm, ent: { lam: lw, lp: lpw, lr: lrw, Mpl, Wx: p.Wx, fy } }); }
     }
     return Math.min(...caps, 1.5 * p.Wx * fy) / g;
   };
@@ -165,5 +177,12 @@ export function designSteel(inp: SteelInput): SteelDesign {
   const util = check?.util ?? 0;
   const ok = util <= 1 && slenderness <= 200;
   const status: SteelDesign['status'] = !ok ? 'fail' : messages.some((m) => m.includes('indicativo')) ? 'review' : 'ok';
-  return { ok, status, util, Q, chi, lambda0, slenderness, NcRd: NcRd * 1000, NtRd: NtRd * 1000, MRd: MRkFor(1) * 1000, VRd: VRd * 1000, check, checks, messages, limits };
+  const out: SteelDesign = { ok, status, util, Q, chi, lambda0, slenderness, NcRd: NcRd * 1000, NtRd: NtRd * 1000, MRd: MRkFor(1) * 1000, VRd: VRd * 1000, check, checks, messages, limits };
+  const mem = memoriaAtiva();
+  if (mem && inp.elemento && mem.aceita(inp.elemento)) {
+    const tr: ItemAco[] = [];
+    if (check) { const nm = messages.length; MRkFor(check.Cb, tr); messages.length = nm; }
+    registrarAco(mem, inp.elemento, { inp, p, E, G: G_STEEL, rt, Qs, Qa, Q, Nex, Ney, Nez: NezMem, Ne, lambda0, chi, NcRd, NtRd, slenderness, Mpl, sr, VRd, trace: tr, design: out });
+  }
+  return out;
 }

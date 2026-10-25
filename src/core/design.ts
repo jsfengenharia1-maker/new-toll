@@ -4,6 +4,7 @@ import { comboLoading, pDelta } from './secondorder';
 import { designColumnGeneral } from './columnGeneral';
 import { elementMatrices, noLoad } from './element';
 import { P, matVec, transpose } from './math';
+import { sampleXs } from './estacoes';
 import { caseGroup, exclusiveChoices, nbrCombinations } from './edit';
 import {
   CAA_TABLE, ES, barArea, beamAsMin, beamFlexure, beamShear, bransonRatio, chooseBars, concrete, designColumn,
@@ -11,9 +12,17 @@ import {
 } from './concrete';
 import { designSteel, type SteelCombo, type SteelDesign } from './steel';
 import { defaultDesign, type ComboKind, type DesignSettings, type Model } from './types';
+import { memoriaAtiva } from './memoria/registrador';
+import type { CtxPortico } from './memoria/porticoBase';
+import { registrarVigaPortico } from './memoria/porticoViga';
+import { registrarPilarPortico } from './memoria/porticoPilar';
+import { registrarAcoEsforcos } from './memoria/porticoAco';
+import { detalheGamaZ, decisoesDesaprumo, registrarGlobalPortico, type GzDetalhe, type GzNo } from './memoria/porticoGlobal';
 
 export interface NamedCombo { name: string; factors: Record<number, number>; kind: ComboKind; auto?: boolean; windAmp?: number; /** desaprumo: +1 / −1 (sentido de x) ou ausente */ desap?: number }
 
+/** Decisão da regra dos 30 % do vento para o desaprumo numa combinação (só para a memória detalhada). */
+export interface ImperfectionDecision { combo: string; Mw: number; Md: number; temVento: boolean; regra: string }
 export interface Imperfection { H: number; n: number; nAuto: number; theta1: number; thetaA: number }
 export interface SecondOrderRow { combo: string; amplification: number; iterations: number; converged: boolean; error?: string }
 
@@ -209,6 +218,8 @@ function withImperfection(model: Model, elu: NamedCombo[], imp: Imperfection, eq
     return m;
   };
   const out: NamedCombo[] = [];
+  const decisoes: ImperfectionDecision[] = [];
+  const memOn = !!memoriaAtiva();
   for (const cb of elu) {
     let Mw = 0, Md = 0, hasW = false;
     for (const [id, f] of Object.entries(cb.factors)) {
@@ -220,10 +231,12 @@ function withImperfection(model: Model, elu: NamedCombo[], imp: Imperfection, eq
     Md = Math.abs(Md);
     if (Md < 1e-9) { out.push(cb); continue; }
     if (!hasW || Math.abs(Mw) < 1e-9) {
+      if (memOn) decisoes.push({ combo: cb.name, Mw, Md, temVento: hasW, regra: 'sem vento: desaprumo nos dois sentidos' });
       out.push({ ...cb, name: `${cb.name} · desaprumo +x`, desap: 1 }, { ...cb, name: `${cb.name} · desaprumo −x`, desap: -1 });
       continue;
     }
     const sign = Math.sign(Mw);
+    if (memOn) decisoes.push({ combo: cb.name, Mw, Md, temVento: true, regra: 0.3 * Math.abs(Mw) >= Md ? 'só vento (30 % do vento ≥ desaprumo)' : Math.abs(Mw) < 0.3 * Md ? 'só desaprumo (vento < 30 % do desaprumo)' : 'vento e desaprumo no mesmo sentido' });
     if (0.3 * Math.abs(Mw) >= Md) out.push(cb);
     else if (Math.abs(Mw) < 0.3 * Md) {
       const f = { ...cb.factors };
@@ -231,6 +244,7 @@ function withImperfection(model: Model, elu: NamedCombo[], imp: Imperfection, eq
       out.push({ ...cb, name: `${cb.name} · só desaprumo (vento < 30%)`, factors: f, desap: sign });
     } else out.push({ ...cb, name: `${cb.name} + desaprumo`, desap: sign });
   }
+  if (memOn) decisoesDesaprumo.set(out, decisoes);
   return out;
 }
 
@@ -250,14 +264,18 @@ function gammaZ(model: Model, elu: NamedCombo[], modulus: 'Eci' | 'Ecs', imp: Im
   const desap = imp ? desapResults(red, model, imp.thetaA, eq) : new Map<number, CaseResult>();
   const ybase = Math.min(...model.nodes.filter((n) => n.support).map((n) => n.y), ...model.nodes.map((n) => n.y));
   const rows: GammaZRow[] = [];
+  const memOn = !!memoriaAtiva();
+  const dets: GzDetalhe[] = [];
   for (const cb of elu) {
     const r = comboResultWith(red, cb, desap);
     if (!r) continue;
     let M1 = 0, dM = 0, Hsum = 0;
+    const nosDet: GzNo[] = [];
     model.nodes.forEach((n, k) => {
       let H = 0, V = 0;
       for (const [id, f] of Object.entries(cb.factors)) { const F = eq.get(+id); if (F) { H += f * F[k * 3]; V += f * F[k * 3 + 1]; } }
       if (cb.desap && imp) H += cb.desap * imp.thetaA * -V;
+      if (memOn) nosDet.push({ no: n.id, y: n.y, H, V, u: r.u[k * 3] });
       Hsum += Math.abs(H);
       M1 += H * (n.y - ybase);
       dM += -V * r.u[k * 3];
@@ -265,22 +283,18 @@ function gammaZ(model: Model, elu: NamedCombo[], modulus: 'Eci' | 'Ecs', imp: Im
     if (Hsum < 1e-6 || Math.abs(M1) < 1e-6) continue;
     const ratio = dM / M1;
     rows.push({ combo: cb.name, M1, dM, gz: ratio < 1 ? 1 / (1 - ratio) : Infinity });
+    if (memOn) dets.push({ combo: cb.name, ybase, nos: nosDet, desap: cb.desap ?? 0, thetaA: imp?.thetaA ?? 0 });
   }
   const max = rows.reduce((m, r) => Math.max(m, r.gz), 0);
-  return { rows, max, cls: !rows.length ? 'none' : max <= 1.1 ? 'fixed' : max <= 1.3 ? 'mobile' : 'excessive' };
+  const resGz: DesignReport['gammaZ'] = { rows, max, cls: !rows.length ? 'none' : max <= 1.1 ? 'fixed' : max <= 1.3 ? 'mobile' : 'excessive' };
+  if (memOn) detalheGamaZ.set(resGz, dets);
+  return resGz;
 }
 
 /** Δξ = ξ(∞) − ξ(t0), com ξ(t) = 0,68·0,996^t·t^0,32 para t ≤ 70 meses e 2 acima (NBR 6118, 17.3.2.1.2). */
 export function deltaXi(t0: number) {
   const xi = (t: number) => (t > 70 ? 2 : 0.68 * 0.996 ** t * t ** 0.32);
   return 2 - xi(Math.max(0, t0));
-}
-
-function sampleXs(L: number, polys: number[][]) {
-  const xs = new Set<number>();
-  for (let q = 0; q <= 20; q++) xs.add((L * q) / 20);
-  for (const p of polys) for (const x of P.rootsIn(P.derive(p), 0, L)) xs.add(x);
-  return [...xs].sort((p, q) => p - q);
 }
 
 export function runDesign(model: Model, a: Analysis): DesignReport {
@@ -302,6 +316,7 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
   let elu = elu1;
   const soRows: SecondOrderRow[] = [];
   let eluResults: (CaseResult | null)[];
+  let desapMem = new Map<number, CaseResult>();
   if (mode === 'pdelta') {
     const red = prepare(model, { eiFactor: reducedStiffness(model, modulus) });
     eluResults = elu.map((cb) => {
@@ -331,6 +346,7 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
       warnings.push(`γz = ${gz.max.toFixed(3)}: estrutura de nós móveis. Ações de vento majoradas por 0,95·γz nas combinações ELU (NBR 6118, 15.7.2).`);
     } else if (gz.cls === 'excessive') warnings.push(`γz = ${gz.max.toFixed(3)} > 1,3: deslocabilidade excessiva. Use a análise P-Δ (Dimensionar › Efeitos de 2ª ordem) ou enrijeça a estrutura.`);
     const desap = imp ? desapResults(a, model, imp.thetaA, eq) : new Map<number, CaseResult>();
+    desapMem = desap;
     eluResults = elu.map((cb) => comboResultWith(a, cb, desap));
   }
 
@@ -338,6 +354,9 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
   const qpRes = qp.map((cb) => ({ cb, r: comboResult(a, cb.factors) })).filter((x) => x.r) as { cb: NamedCombo; r: CaseResult }[];
   const rareRes = rare.map((cb) => ({ cb, r: comboResult(a, cb.factors) })).filter((x) => x.r) as { cb: NamedCombo; r: CaseResult }[];
   const freqRes = freq.map((cb) => ({ cb, r: comboResult(a, cb.factors) })).filter((x) => x.r) as { cb: NamedCombo; r: CaseResult }[];
+
+  const reg = memoriaAtiva();
+  const cx: CtxPortico | null = reg ? { a, model, mode, desap: desapMem, eluRes, qpRes, freqRes, rareRes } : null;
 
   // cargas transversais por caso/barra
   const transverseByCase = new Map(model.cases.map((c) => [c.id, memberLoads(a.prep, c.id).map((l) => l.qy.some((x) => Math.abs(x) > 1e-12) || l.mi !== 0 || l.mj !== 0)]));
@@ -385,7 +404,7 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
         const N = Math.min(P.evaluate(m.N, 0), P.evaluate(m.N, pm.L)) < 0 ? Math.min(P.evaluate(m.N, 0), P.evaluate(m.N, pm.L)) : Math.max(P.evaluate(m.N, 0), P.evaluate(m.N, pm.L));
         return { name: cb.name, N, Mmax, MA: P.evaluate(m.M, pm.L / 4), MB: P.evaluate(m.M, pm.L / 2), MC: P.evaluate(m.M, (3 * pm.L) / 4), Mend0: P.evaluate(m.M, 0), MendL: P.evaluate(m.M, pm.L), V, transverse: transverse(cb, k) };
       });
-      const sd = designSteel({ shape: sec.shape, fy, gammaA1: settings.gammaA1, L: pm.L, leIn, leOut, combos });
+      const sd = designSteel({ shape: sec.shape, fy, gammaA1: settings.gammaA1, L: pm.L, leIn, leOut, combos, ...(cx ? { elemento: `${role === 'beam' ? 'Viga de aço' : 'Pilar de aço'} B${pm.id}` } : {}) });
       const out: MemberDesign = { ...base, steel: sd, status: sd.status, util: sd.util, messages: [...sd.messages] };
       if (role === 'beam' && rareRes.length) {
         let best = { f: 0, combo: '' };
@@ -395,6 +414,7 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
         out.util = Math.max(out.util, out.deflection.ratio);
         if (out.deflection.ratio > 1) { out.status = 'fail'; out.messages.push(`Flecha ${(best.f * 1000).toFixed(1)} mm > L/${cantilever ? 125 : 250} = ${(limit * 1000).toFixed(1)} mm.`); }
       }
+      if (cx && reg) registrarAcoEsforcos(reg, cx, { el: `${role === 'beam' ? 'Viga de aço' : 'Pilar de aço'} B${pm.id}`, k, L: pm.L, sd, viga: role === 'beam', cantilever, livreJ: freeEnd(mem.nj), defl: out.deflection });
       out.summary = sd.check ? `${sd.check.NSd >= 0 ? 'compressão' : 'tração'} ${Math.abs(sd.check.NSd).toFixed(1)} kN · M ${sd.check.MSd.toFixed(1)} kN·m · interação ${sd.check.interaction.toFixed(2)}`.replace(/\./g, ',') : sd.messages[0] ?? '';
       if (out.status === 'fail') out.suggestion = 'Aumente o perfil ou reduza o comprimento destravado.';
       return out;
@@ -430,6 +450,7 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
           else if (sh.aswS > out.columnShear.provided) { const sReq = Math.max(0.05, Math.floor(((2 * barArea(cd.stirrup.phi)) / sh.aswS) * 100) / 100); cd.stirrup = { ...cd.stirrup, s: sReq }; out.columnShear.provided = (2 * barArea(cd.stirrup.phi)) / sReq; out.messages.push(`Cortante (bw = D, d = 0,8·D, a confirmar): estribos c/${Math.round(sReq * 100)} cm.`); }
         } else if (sec.shape.kind === 'polygon') out.messages.push('Cortante não verificado para seção poligonal.');
         if (cd.layout) out.summary = `${cd.layout.n} φ${cd.layout.phi} (ρ = ${(cd.rho * 100).toFixed(2)}%) · estribo φ${cd.stirrup?.phi} c/${Math.round((cd.stirrup?.s ?? 0) * 100)}`.replace(/(\d)\.(\d)/g, '$1,$2');
+        if (cx && reg) registrarPilarPortico(reg, cx, { el: `Pilar B${pm.id}`, k, L: pm.L, leIn, leOut, cover, conc: c, settings, forma: sec.shape.kind === 'circle' ? { tipo: 'circ', D: sec.shape.d } : { tipo: 'poly', pts: sec.shape.pts }, combos: colCombos(), cd, cortante: out.columnShear });
         if (!cd.ok) out.suggestion = 'Aumente a seção ou a classe do concreto.';
         return out;
       }
@@ -466,6 +487,7 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
         }
       }
       if (cd.layout) out.summary = `${cd.layout.n} φ${cd.layout.phi} (ρ = ${(cd.rho * 100).toFixed(2)}%) · estribo φ${cd.stirrup?.phi} c/${Math.round((cd.stirrup?.s ?? 0) * 100)}`.replace(/(\d)\.(\d)/g, '$1,$2');
+      if (cx && reg) registrarPilarPortico(reg, cx, { el: `Pilar B${pm.id}`, k, L: pm.L, leIn, leOut, cover, conc: c, settings, forma: { tipo: 'rect', b: sec.shape.b, h: sec.shape.h }, combos: inp.combos, cd, cortante: out.columnShear });
       if (!cd.ok || cd.status === 'review') {
         const sizes: [number, number][] = [];
         const dims = [0.19, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0];
@@ -588,6 +610,10 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
     if (bc.pos.double || bc.neg.double) out.messages.push('Armadura dupla necessária (x/d acima do limite de ductilidade).');
     const bars = (b: BarChoice | null) => (b ? `${b.n} φ${b.phi}${b.layers > 1 ? ` (${b.layers} camadas)` : ''}` : '—');
     out.summary = `inf. ${bars(bc.pos.bars)} · sup. ${bc.neg.AsAdopt > 0 ? bars(bc.neg.bars) : '2 φ10 (porta-estribo)'} · estribo ${bc.sh.stirrup ? `φ${bc.sh.stirrup.phi} c/${Math.round(bc.sh.stirrup.s * 100)}` : '—'}`.replace(/(\d)\.(\d)/g, '$1,$2');
+    if (cx && reg) {
+      registrarVigaPortico(reg, cx, { el: `Viga B${pm.id}`, k, L: pm.L, cantilever, livreJ: freeEnd(mem.nj), bs, cover, conc: c, settings, Emat: mat.E, bd, out });
+      if (bd.asColumn) registrarPilarPortico(reg, cx, { el: `Viga B${pm.id} · flexo-compressão`, k, L: pm.L, leIn, leOut, cover, conc: c, settings, forma: { tipo: 'rect', b: bs.bw, h: bs.h }, combos: colCombos(), cd: bd.asColumn });
+    }
     if (fails.length) {
       for (let hh = Math.ceil(bs.h * 20) / 20 + 0.05; hh <= 1.5001; hh += 0.05) {
         const ns: BeamSection = { ...bs, h: hh };
@@ -620,8 +646,9 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
     foundation.push({ nodeId: n.id, perCase, charMax: ch.mx, charMin: ch.mn, perm, designMax: de.mx, designMin: de.mn, charComboMaxN: ch.comboN, designComboMaxN: de.comboN });
   });
 
+  if (cx && reg) registrarGlobalPortico(reg, cx, { eq, elu0, elu, qp, rare, freq, autoElu, rep: { settings, imperfection: imp, gammaZ: gz, secondOrder: { mode, rows: soRows }, foundation }, modulus, gammaZObj: gz, eluDesap: elu1 });
   const ok = members.every((m) => m.status !== 'fail') && (mode === 'pdelta' ? soRows.every((r) => r.converged) : gz.cls !== 'excessive');
   return { settings, conc, elu, qp, rare, autoElu, gammaZ: gz, imperfection: imp, secondOrder: { mode, rows: soRows }, eluResults, members, foundation, warnings, ok };
 }
 
-export { barArea, ES };
+export { barArea, ES, sampleXs };

@@ -1,7 +1,7 @@
 // Corpo HTML imprimível da memória detalhada (MD fase 1): índice por etapa e por elemento e, para cada elemento, os
 // passos por tópico (descrição, fórmula, expressão com valores, resultado, unidade, norma). Usa só as classes do papel
 // (design/memorial.css, escopo .memo); quem embrulha no documento com o CSS é a interface (app/edificio/MemoriaDetalhada).
-import { indiceMemoria, type MemoriaDetalhada } from './edificio';
+import { indiceMemoria, type MemoriaDetalhada } from './saida';
 import { fm, type PassoMemoria } from './registrador';
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
