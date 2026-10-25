@@ -9,6 +9,7 @@ import { elementoParede, registrarCargasBase, registrarResultantesBarra, registr
 import { ppDaParede } from './paredesBase';
 import { cotaFundacao, pavimentosOrdenados, type BuildingModel } from './types';
 import { cargasProprias, nosDeCorte, prepararElementos, secoesDoLance, type ElementosDoLance, type ForcasSecao } from './pilarParedeSecoes';
+import { casosHorizontais } from './desaprumo';
 
 /** Resultante num lado e pavimento (kN, kN·m; N > 0 tração). Lado em casca: média sobre a altura do painel; em barra: extremo do lance. */
 export interface Resultante {
@@ -75,7 +76,7 @@ export function esforcosPilaresParede(b: BuildingModel, an: AnaliseEdificio, por
   if (!alvos.length || !an.portico.res) return [];
   const ps = pavimentosOrdenados(b), zf = cotaFundacao(b);
   const resV = an.portico.resVento && !an.portico.resVento.erro ? an.portico.resVento : null;
-  const nomesV = an.vento?.casos.map((c) => c.nome) ?? [];
+  const nomesV = casosHorizontais(an).map((c) => c.nome);
   const casosAn = an.casos;
   const elu = combinacoesDoEstado(b, an, 'concreto').filter((c) => c.tipo === 'ELU');
   const out: ResultadoPilarParede[] = [], mem = memoriaAtiva();

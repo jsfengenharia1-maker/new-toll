@@ -26,6 +26,10 @@ export interface OpcoesCalculo {
   zonasIndependentes: number;
   /** Limite do γz para a ampliação por 0,95·γz (acima dele, aviso). */
   limiteGamaZ: number;
+  /** Desaprumo global (NBR 6118, 11.3.3.4.1) nas combinações ELU: 1 = forças θa·V por pavimento, com a regra dos 30 % do vento; 0 = desligado (comportamento anterior). */
+  desaprumoGlobal: number;
+  /** Número de prumadas n do desaprumo (θa = θ1·√((1 + 1/n)/2)); 0 = contado (pilares e pilares-parede que chegam à base). */
+  desaprumoPrumadas: number;
   /** 1 = momentos das lajes maciças por Wood-Armer (com o torçor) e média em faixa de 1 m; 0 = extremos das barras. */
   woodArmer: number;
   /** Idade no carregamento (meses) para a fluência: αf = Δξ(t0) (NBR 6118, 17.3.2.1.2). */
@@ -663,6 +667,10 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Partes do pavimento sem vigas entre si (blocos separados por junta) têm diafragmas próprios, e o vento do pavimento é repartido entre elas pela largura de cada uma.' },
   { chave: 'limiteGamaZ', rotulo: 'Limite do γz', min: 1.1, max: 1.5, passo: 0.05, padrao: 1.3, fonte: 'NBR 6118, 15.5.3 e 15.7.2 (ampliação por 0,95·γz até 1,3)', aConfirmar: false,
     descricao: 'Entre 1,1 e o limite, as ações horizontais das ELU são ampliadas por 0,95·γz; acima do limite, aviso (exige análise de 2ª ordem mais rigorosa).' },
+  { chave: 'desaprumoGlobal', rotulo: 'Desaprumo global nas combinações ELU', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6118:2023, 11.3.3.4.1 (θ1 = 1/(100√H), 1/300 ≤ θ1 ≤ 1/200; θa = θ1·√((1 + 1/n)/2); vento × desaprumo pela regra dos 30 %); o programa de referência não tem fonte verificada para o padrão: ligado nos dois perfis (a confirmar)', aConfirmar: true,
+    descricao: 'Ligado: a estrutura é tomada fora de prumo de θa e cada pavimento recebe a força horizontal θa·V (V = carga vertical do pavimento, ponderada pelo fator da combinação) no nó mestre do diafragma. Sem vento na combinação, o desaprumo entra nas quatro direções (uma por vez); com vento, vale a regra dos 30 %: se 30 % do vento ≥ desaprumo, só o vento; se o vento < 30 % do desaprumo, só o desaprumo (na direção do vento); nos demais casos, os dois no mesmo sentido. As combinações raras, quase permanentes e frequentes não o incluem. Desligado: comportamento anterior (sem desaprumo global).' },
+  { chave: 'desaprumoPrumadas', rotulo: 'Desaprumo: número de prumadas n', min: 0, max: 500, passo: 1, padrao: 0, fonte: 'NBR 6118:2023, 11.3.3.4.1 (n = número de elementos verticais contínuos); 0 = contado na obra (pilares e pilares-parede que chegam à base)', aConfirmar: false,
+    descricao: 'Número de prumadas n de θa = θ1·√((1 + 1/n)/2). 0 usa o contado: pilares (e pilares-parede) com nó na base da análise.' },
   { chave: 'woodArmer', rotulo: 'Lajes maciças: Wood-Armer com média em faixa de 1 m', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Wood (1968) e Armer (1968); faixa de 1 m do programa de referência', aConfirmar: false,
     descricao: 'Momentos de dimensionamento nos nós da grelha somando o momento volvente (mx* = mx + |mxy|), com média numa faixa transversal de 1 m. Sem a opção: extremos dos momentos nas pontas das barras.' },
   { chave: 't0Flecha', rotulo: 'Idade no carregamento (fluência)', unidade: 'meses', min: 0.25, max: 70, passo: 0.25, padrao: 1, fonte: 'NBR 6118, 17.3.2.1.2 (Tabela 17.1); padrão 1 mês confirmado no pórtico', aConfirmar: false,
@@ -1291,7 +1299,7 @@ export const OPCOES_INFO: OpcaoInfo[] = [
 /** Opções lidas pela análise estrutural (rigidez, malha, vento, base elástica): mudar uma refaz a análise. */
 export const OPCOES_ANALISE: ReadonlySet<keyof OpcoesCalculo> = new Set<keyof OpcoesCalculo>([
   'malha', 'nervuradaMalha', 'nervuradaInercia', 'nervuradaTorcao', 'nervuradaMacicoViga', 'mesaRigidez', 'torcaoViga', 'torcaoLaje', 'torcaoPilar', 'axialPilares', 'axialParedeSeparado', 'trechoRigido', 'engasteTopoUltimo', 'zonasIndependentes', 'limiteGamaZ',
-  'limiteDeslocTopo', 'limiteDeslocPavimento', 'vigotaRigidez', 'vigotaRigidezFicha', 'modeloGlobal', 'cortanteBarrasLaje', 'planoDiafragma', 'planoCargaProjecao', 'malhaCasca', 'aberturaDiafragma', 'categoriasUso', 'radierK', 'radierMalha', 'corridaBPadrao', 'corridaHPadrao', 'fundBalancoAltura',
+  'limiteDeslocTopo', 'limiteDeslocPavimento', 'desaprumoGlobal', 'desaprumoPrumadas', 'vigotaRigidez', 'vigotaRigidezFicha', 'modeloGlobal', 'cortanteBarrasLaje', 'planoDiafragma', 'planoCargaProjecao', 'malhaCasca', 'aberturaDiafragma', 'categoriasUso', 'radierK', 'radierMalha', 'corridaBPadrao', 'corridaHPadrao', 'fundBalancoAltura',
   // N2c: P-Δ 3D no lugar do γz e trecho rígido no topo dos pilares (face inferior da viga) entram no modelo de cálculo
   'segundaOrdem', 'pilarComprimento',
   // E5m: vigas em desnível dividem o pilar (nós intermediários no pórtico)

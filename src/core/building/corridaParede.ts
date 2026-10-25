@@ -12,6 +12,7 @@ import type { AnaliseEdificio } from './analitico';
 import { niveisDaParede } from './paredesBase';
 import { centroPilar, contornoPilar, deslocarPolilinha, FUNDACAO_VAZIA, secaoNoLance, lancesDoPilar, type BuildingModel, type Parede, type Pilar, type SapataCorrida } from './types';
 import { dentroPoligono, type P } from '../geom/faces';
+import { casosHorizontais } from './desaprumo';
 
 /** Sapata corrida do cálculo: a lançada (com o eixo da parede, se vinculada) ou a derivada da base da parede. */
 export type CorridaEfetiva = SapataCorrida & {
@@ -225,7 +226,7 @@ export function cargasLinearesDaParede(b: BuildingModel, an: AnaliseEdificio, w:
   const nos = an.paredes?.base?.[w.id] ?? [], res = an.portico.res, md = an.portico.modelo;
   if (!nos.length || !res) avisos.push(`a parede ${w.nome} não tem reações na base da análise (calcule a estrutura; só paredes que nascem na fundação transmitem a carga da base)`);
   else {
-    const casosV = an.vento?.casos ?? [], resV = an.portico.resVento && !an.portico.resVento.erro ? an.portico.resVento : null;
+    const casosV = casosHorizontais(an), resV = an.portico.resVento && !an.portico.resVento.erro ? an.portico.resVento : null;
     const leitura = (r3: NonNullable<typeof res>, ic: number) => {
       const itens: Item[] = [];
       for (const n of nos) {

@@ -25,6 +25,7 @@ import { opcoesEmUso, perfilDe, type OpcoesCalculo } from './opcoes';
 import { concretoDe, flambagemLance, gamas } from './materiais';
 import { barrasGeo, iterarPDelta, normalMedia } from '../pdelta3';
 import { combinacoesDoEstado } from './combinacoes';
+import { calcularDesaprumo, type DesaprumoEdificio } from './desaprumo';
 import { apoiosDosPilares, pilaresSobre } from './transicao';
 import { ehVirtual, geometriaParedes, ladosDoPP } from './pilarParede';
 import { larguraDosLados, molasDaBarra, type DimsSapataPP, type IteracaoBaseMolas } from './baseMolasPP';
@@ -481,6 +482,8 @@ export interface AnaliseEdificio {
   fundacao: { pilar: string; caso: string; N: number; Vx: number; Vy: number; Mx: number; My: number; /** Só no pilar-parede (V7g): momento torçor da reação em torno do eixo vertical pelo centroide, anti-horário + (kN·m). */ Mz?: number }[];
   /** Vento (NBR 6123) e estabilidade global (γz por direção, com rigidez reduzida). */
   vento: { classe: Classe; altura: number; ca?: CoefVento; viz?: CoefVento; casos: CasoVento[]; gamaZ: GamaZEdificio[]; deslocamentos?: DeslocamentosVento[]; /** Rigidez reduzida usada no γz e no P-Δ, por tipo de barra (15.7.3; memória MD9). */ rigidez?: RigidezReduzida[] } | null;
+  /** Desaprumo global (NBR 6118, 11.3.3.4.1; opção `desaprumoGlobal`): θa, forças θa·V por pavimento, caso vertical e direção. Os casos são resolvidos no pórtico depois dos de vento (`portico.resVento`). */
+  desaprumo?: DesaprumoEdificio;
   /** Carga vertical característica por pavimento (kN), usada no γz. */
   cargasPavimento: Record<string, Record<CasoAnalise, number>>;
   /** Carga vertical total por caso (kN). */
@@ -1876,25 +1879,34 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
   const idsPilares = [...pilaresA.map((p) => p.id), ...(paredes?.grades.map((g) => g.lado.id) ?? [])];
   const ven = casosVento(b, (pav) => zonas[pav] ?? []);
   avisos.push(...ven.avisos);
+  // desaprumo global (11.3.3.4.1): forças θa·V por pavimento, caso vertical e direção, resolvidas junto com o vento (depois dele)
+  const nPrumadas = bases.length + (noParedes ? Object.keys(noParedes.base).filter((q) => noParedes.base[q].length).length : 0);
+  const desaprumo = op.desaprumoGlobal ? calcularDesaprumo({ pavimentos: ps.map((p) => ({ id: p.id, cota: p.cota })), zonas: (pav) => zonas[pav] ?? [], cargas: cargasPavimento, casos: casosDaObra(b).map((c) => ({ id: c.id, natureza: c.natureza })), nAuto: nPrumadas, nInformado: op.desaprumoPrumadas }) : null;
+  const casosD: Caso3[] = (desaprumo?.casos ?? []).map((cd) => ({
+    nodais: cd.forcas.flatMap((f) => { const zn = zonas[f.pavimento]?.[f.zona]; return zn ? [{ no: zn.no, f: cd.direcao === 0 || cd.direcao === 180 ? [f.F, 0, 0, 0, 0, 0] : [0, f.F, 0, 0, 0, 0] }] : []; }),
+    distribuidas: [],
+  }));
+  /** Nomes dos casos horizontais na ordem dos resultados do pórtico (vento e depois desaprumo). */
+  const nomesH = [...ven.casos.map((c) => c.nome), ...(desaprumo?.casos ?? []).map((c) => c.nome)];
   let resVento: Resultado3 | null = null, vento: AnaliseEdificio['vento'] = null, casosW: Caso3[] = [];
-  if (ven.casos.length) {
-    casosW = ven.casos.map((cv) => ({
+  if (ven.casos.length || casosD.length) {
+    casosW = [...ven.casos.map((cv) => ({
       nodais: cv.forcas.flatMap((f) => { const zn = zonas[f.pavimento]?.[f.zona]; return zn ? [{ no: zn.no, f: cv.direcao === 0 || cv.direcao === 180 ? [f.F, 0, 0, 0, 0, f.Mz] : [0, f.F, 0, 0, 0, f.Mz] }] : []; }),
       distribuidas: [],
-    }));
+    })), ...casosD];
     resVento = resolver3(pm, casosW);
     if (resVento.erro) avisos.push(`Vento: ${resVento.erro}`);
     else {
-      for (const [pid, k] of bases) ven.casos.forEach((cv, ic) => fundacao.push({ pilar: pid, caso: cv.nome, ...reacaoBase(resVento!, ic, pid, k) }));
-      if (noParedes) for (const pid of Object.keys(noParedes.base).filter((q) => noParedes.base[q].length)) ven.casos.forEach((cv, ic) => fundacao.push({ pilar: pid, caso: cv.nome, ...reacaoParede(resVento!, ic, pid) }));
+      for (const [pid, k] of bases) nomesH.forEach((nome, ic) => fundacao.push({ pilar: pid, caso: nome, ...reacaoBase(resVento!, ic, pid, k) }));
+      if (noParedes) for (const pid of Object.keys(noParedes.base).filter((q) => noParedes.base[q].length)) nomesH.forEach((nome, ic) => fundacao.push({ pilar: pid, caso: nome, ...reacaoParede(resVento!, ic, pid) }));
       // momentos que a laje transmite aos pilares no vento (modelo integrado): entram na punção
       // e esforços das vigas do diafragma no vento (grelha condensada, sem cargas)
       for (const { pav, dofs, ig } of seInfo) {
         const mom = momentosGrelha.get(integPav.get(pav)!.gi), pend = pendentes.get(pav) ?? [], gb = integPav.get(pav)!.gb;
         const nosPend = [...new Set(pend.flatMap((pd) => [gb.m.barras[pd.bi].i, gb.m.barras[pd.bi].j]))];
-        ven.casos.forEach((cv, iv) => {
+        nomesH.forEach((nome, iv) => {
           const uB = dofs.map((d) => resVento!.desloc[iv][d]), f = forcaFronteira(ig.cond, uB);
-          if (mom) ig.pils.forEach((p, k) => ((mom[p] ??= {})[cv.nome] = [f[3 * k + 1], f[3 * k + 2]]));
+          if (mom) ig.pils.forEach((p, k) => ((mom[p] ??= {})[nome] = [f[3 * k + 1], f[3 * k + 2]]));
           if (pend.length) { const ug = deslocGrelha(gb, ig, uB, undefined, nosPend); for (const pd of pend) pd.vento[iv] = esforcosGrelha(ig, pd.bi, ug); }
         });
       }
@@ -1907,10 +1919,10 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
       ? { ...pm, barras: pm.barras.map(reduzida).filter((br, i) => !br.soPlano || foraDiaf.has(ptags[i].ref)), superelementos: seInfo.map(({ dofs, ig }) => ({ dofs, K: ig.reduzida().S })), ...cascasR }
       : { ...pm, barras: pm.barras.map(reduzida), ...cascasR };
     const centrados = ven.casos.filter((c) => c.exc === 0);
-    const rR = resolver3(pmR, centrados.map((cv) => casosW[ven.casos.indexOf(cv)]));
+    const rR = centrados.length ? resolver3(pmR, centrados.map((cv) => casosW[ven.casos.indexOf(cv)])) : null;
     const psi0 = b.norma.psiQ?.[0] ?? 0.5;
     const gm = gamas(b), casosOb = casosDaObra(b);
-    const gamaZ = rR.erro ? [] : centrados.map((cv, ic) => {
+    const gamaZ = !rR || rR.erro ? [] : centrados.map((cv, ic) => {
       const ix = cv.direcao === 0 || cv.direcao === 180 ? 0 : 1, sg = cv.direcao === 0 || cv.direcao === 90 ? 1 : -1;
       let M1 = 0, dV = 0, dU = 0;
       const detPav: NonNullable<GamaZEdificio['det']>['pavimentos'] = [];
@@ -1977,7 +1989,7 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
       if (r) { r.kEciMin = Math.min(r.kEciMin, k); r.kEciMax = Math.max(r.kEciMax, k); r.barras++; } else rigTipos.set(t, { tipo: t, fator: fatorRig(t), kEciMin: k, kEciMax: k, barras: 1 });
     });
     if (seInfo.length) for (const [t, fator] of [['viga', 0.4], ['laje', 0.3]] as const) { const c = concretoDe(b, t), k = c.Eci / c.Ecs; rigTipos.set(`${t} (grelha integrada)`, { tipo: `${t} (grelha integrada)`, fator, kEciMin: k, kEciMax: k, barras: seInfo.reduce((n, x) => n + x.ig.barras.filter((_, bi) => !!integPav.get(x.pav)!.gb.trechoDe[bi] === (t === 'viga')).length, 0) }); }
-    vento = { classe: ven.classe, altura: ven.altura, casos: ven.casos, gamaZ, deslocamentos, ca: ven.ca, viz: ven.viz, rigidez: [...rigTipos.values()] };
+    if (ven.casos.length) vento = { classe: ven.classe, altura: ven.altura, casos: ven.casos, gamaZ, deslocamentos, ca: ven.ca, viz: ven.viz, rigidez: [...rigTipos.values()] };
   }
   // ---- 2ª ordem global por P-Δ (N2c, opção segundaOrdem = 1) ----
   // Cada combinação ELU: deslocamentos de 1ª ordem no pórtico com rigidez reduzida (as mesmas do γz; lajes 0,3·Eci·Ic
@@ -1988,7 +2000,7 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
   const casosPD: Caso3[] = [];
   if (op.segundaOrdem === 1) {
     const tPD = typeof performance !== 'undefined' ? performance.now() : 0;
-    const elu = combinacoesDoEstado(b, { vento, opcoes: op } as AnaliseEdificio, 'concreto').filter((c) => c.tipo === 'ELU');
+    const elu = combinacoesDoEstado(b, { vento, opcoes: op, ...(desaprumo ? { desaprumo } : {}) } as AnaliseEdificio, 'concreto').filter((c) => c.tipo === 'ELU');
     const pmRP: Modelo3 = seInfo.length
       ? { ...pm, barras: pm.barras.map(reduzida), superelementos: seInfo.map(({ dofs, ig }) => ({ dofs, K: ig.reduzidaCargas().S })), ...cascasR }
       : { ...pm, barras: pm.barras.map(reduzida), ...cascasR };
@@ -1999,7 +2011,7 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
     const lista: NonNullable<AnaliseEdificio['segundaOrdem']>['combinacoes'] = [];
     if (rR.erro || fat.erro) avisos.push(`P-Δ: ${rR.erro ?? fat.erro}`);
     else {
-      const geo = barrasGeo(pmRP, pil), nomesW = ven.casos.map((c) => c.nome);
+      const geo = barrasGeo(pmRP, pil), nomesW = nomesH;
       const u1s: Float64Array[] = [], N1s: Float64Array[] = [], validas: typeof elu = [];
       for (const cb of elu) {
         const u = new Float64Array(pm.nos.length * 6), N = new Float64Array(pil.length);
@@ -2048,7 +2060,7 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
         ptags.push(pd.tag);
         ig.distDe.forEach((mp, ic) => { for (const q of mp.get(pd.bi) ?? []) casosV[ic].distribuidas.push({ barra: k, q }); });
         CASOS.forEach((_, ic) => res.esforcos[ic].push(g.res!.esforcos[ic][pd.bi]));
-        if (resVento && !resVento.erro) ven.casos.forEach((_, iv) => resVento!.esforcos[iv].push(pd.vento[iv] ?? new Float64Array(12)));
+        if (resVento && !resVento.erro) nomesH.forEach((_, iv) => resVento!.esforcos[iv].push(pd.vento[iv] ?? new Float64Array(12)));
         if (resPD) casosPD.forEach((_, k) => resPD!.esforcos[k].push(pd.pdelta?.[k] ?? new Float64Array(12)));
       }
     }
@@ -2057,7 +2069,7 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
   const ms = (typeof performance !== 'undefined' ? performance.now() : 0) - t0;
   if (base) avisos.push(...avisosBaseElastica(b, base.info));
   const cheio = extra.cheio && detalhes.length ? modeloCheio(pmV, casosV, detalhes, ps, CASOS) : undefined;
-  return { avisos, opcoes: op, casos: CASOS, grelhas, portico: { modelo: modeloFinal, barras: ptags, mestres, zonas, res, resVento, casos: casosV, casosVento: casosW, ...(pm.cascas ? { cascasVento: pm.cascas } : {}), ...(resPD ? { resPDelta: resPD, casosPDelta: casosPD } : {}) }, ...(segundaOrdem ? { segundaOrdem } : {}), ...(inclinadasInfo.length ? { inclinadas: inclinadasInfo } : {}), ...(incInfo.length ? { planos: incInfo.map((x) => ({ pavimento: x.pav, barras: [...x.barP].filter((k) => k >= 0) })) } : {}), ...(base ? { baseElastica: base.info } : {}), ...(noParedes ? { paredes: semFaixas(noParedes) } : {}), ...(des.nos.length ? { desniveis: des } : {}), ...(apoios.size ? { apoiados: Object.fromEntries([...apoios].map(([id, a]) => [id, { apoio: a?.tipo ?? null, ligado: baseLigada.has(id) }])) } : {}), fundacao, vento, cargasPavimento, totais, gdl: res.neq + grelhas.reduce((s, g) => s + (g.res?.neq ?? 0), 0), ms, ...(cheio ? { cheio } : {}) };
+  return { avisos, opcoes: op, casos: CASOS, grelhas, portico: { modelo: modeloFinal, barras: ptags, mestres, zonas, res, resVento, casos: casosV, casosVento: casosW, ...(pm.cascas ? { cascasVento: pm.cascas } : {}), ...(resPD ? { resPDelta: resPD, casosPDelta: casosPD } : {}) }, ...(segundaOrdem ? { segundaOrdem } : {}), ...(inclinadasInfo.length ? { inclinadas: inclinadasInfo } : {}), ...(incInfo.length ? { planos: incInfo.map((x) => ({ pavimento: x.pav, barras: [...x.barP].filter((k) => k >= 0) })) } : {}), ...(base ? { baseElastica: base.info } : {}), ...(noParedes ? { paredes: semFaixas(noParedes) } : {}), ...(des.nos.length ? { desniveis: des } : {}), ...(apoios.size ? { apoiados: Object.fromEntries([...apoios].map(([id, a]) => [id, { apoio: a?.tipo ?? null, ligado: baseLigada.has(id) }])) } : {}), fundacao, vento, ...(desaprumo ? { desaprumo } : {}), cargasPavimento, totais, gdl: res.neq + grelhas.reduce((s, g) => s + (g.res?.neq ?? 0), 0), ms, ...(cheio ? { cheio } : {}) };
 }
 
 // ---------------- auxiliares ----------------

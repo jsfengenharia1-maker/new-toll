@@ -6,7 +6,9 @@
 import type { AnaliseEdificio } from '../building/analitico';
 import { FR, S2_PARAM, classeVento } from '../building/vento';
 import { VENTO_PADRAO, type BuildingModel } from '../building/types';
+import { combinacoesComRegras } from '../building/combinacoes';
 import { fm, type Registrador } from './registrador';
+import { registrarRegra30 } from './estabilidade2D';
 
 const GLOBAL = 'Edifício';
 type Chave = Omit<Parameters<Registrador['passo']>[0], 'elemento' | 'etapa' | 'topico'>;
@@ -16,7 +18,7 @@ export function registrarAnaliseGlobal(reg: Registrador, b: BuildingModel, an: A
   registrarVento(reg, b, an);
   registrarGamaZ(reg, an);
   registrarPDelta(reg, an);
-  registrarDesaprumo(reg, an);
+  registrarDesaprumo(reg, b, an);
 }
 
 function registrarVento(reg: Registrador, b: BuildingModel, an: AnaliseEdificio) {
@@ -133,6 +135,42 @@ function registrarPDelta(reg: Registrador, an: AnaliseEdificio) {
   }
 }
 
-function registrarDesaprumo(reg: Registrador, an: AnaliseEdificio) {
-  reg.passo({ etapa: 'analise', elemento: GLOBAL, topico: 'Desaprumo global (11.3.3.4.1)', descricao: 'Imperfeição geométrica global (θa) nas combinações ELU', formula: 'θ1 = 1/(100·√H), 1/300 ≤ θ1 ≤ 1/200; θa = θ1·√((1 + 1/n)/2); regra dos 30% do vento', expressao: 'não aplicado no módulo Edifícios', resultado: 'não aplicado', unidade: '', norma: 'NBR 6118:2023, 11.3.3.4.1', aConfirmar: true, entradas: { segundaOrdem: an.opcoes.segundaOrdem }, observacao: 'O módulo Edifícios considera a imperfeição local do lance de pilar (excentricidade acidental, 11.3.3.4.2/.3) e não o desaprumo global; a verificação do desaprumo global com a regra dos 30% do vento está implementada no módulo Pórtico 2D (memória do módulo, tópico "Desaprumo global"). Decisão do usuário pendente para o Edifício.' });
+function registrarDesaprumo(reg: Registrador, b: BuildingModel, an: AnaliseEdificio) {
+  const T = 'Desaprumo global (11.3.3.4.1)', norma = 'NBR 6118:2023, 11.3.3.4.1';
+  const d = an.desaprumo;
+  if (!d) {
+    reg.passo({ etapa: 'analise', elemento: GLOBAL, topico: T, descricao: 'Imperfeição geométrica global (θa) nas combinações ELU', formula: 'θ1 = 1/(100·√H), 1/300 ≤ θ1 ≤ 1/200; θa = θ1·√((1 + 1/n)/2); regra dos 30% do vento', expressao: an.opcoes.desaprumoGlobal ? 'não aplicado (altura nula ou sem carga vertical)' : 'não aplicado (opção "Desaprumo global nas combinações ELU" desligada)', resultado: 'não aplicado', unidade: '', norma, aConfirmar: true, entradas: { desaprumoGlobal: an.opcoes.desaprumoGlobal }, observacao: 'O módulo Edifícios sempre considera a imperfeição local do lance de pilar (excentricidade acidental, 11.3.3.4.2/.3); o desaprumo global é a opção de cálculo "Desaprumo global nas combinações ELU".' });
+    return;
+  }
+  const P = (p: Chave) => reg.passo({ etapa: 'analise', elemento: GLOBAL, topico: T, norma, ...p });
+  const zBase = 0, zTopo = d.pavimentos[d.pavimentos.length - 1].z;
+  P({ descricao: 'Altura da estrutura: cota do último pavimento sobre o pavimento mais baixo (o mesmo referencial do vento)', formula: 'H = z,topo − z,base', expressao: `H = ${fm(zTopo)} − ${fm(zBase)} = ${fm(d.H)} m`, resultado: d.H, unidade: 'm', entradas: { zTopo, zBase } });
+  P({ descricao: `Número de prumadas de pilares${d.informadoN ? ' (informado nas opções)' : ' (contado: pilares e pilares-parede que chegam à base da análise)'}`, formula: 'n', expressao: `n = ${d.n}${d.informadoN ? ` (contado: ${d.nAuto})` : ''}`, resultado: d.n, unidade: '', aConfirmar: true, entradas: { n: d.n, nAuto: d.nAuto }, observacao: 'A contagem de prumadas segue o critério do Pórtico 2D (elementos verticais ligados à base); a norma fala em elementos verticais contínuos: a confirmar com o usuário.' });
+  P({ descricao: 'Ângulo básico de desaprumo, limitado entre 1/300 e 1/200', formula: 'θ1 = 1/(100·√H); 1/300 ≤ θ1 ≤ 1/200', expressao: `θ1 = 1/(100·√${fm(d.H)}) = ${fm(d.theta1Basico)} → ${fm(d.theta1)}`, resultado: d.theta1, unidade: 'rad', aConfirmar: true, entradas: { H: d.H }, observacao: 'Limite inferior 1/300 em todos os casos (a favor da segurança, como no Pórtico 2D); a norma admite 1/400 para estruturas de nós fixos (item em docs/pendencias-usuario.md).' });
+  P({ descricao: 'Ângulo de desaprumo de cálculo', formula: 'θa = θ1·√((1 + 1/n)/2)', expressao: `θa = ${fm(d.theta1)}·√((1 + 1/${d.n})/2) = ${fm(d.thetaA)} = 1/${fm(1 / d.thetaA, 4)}`, resultado: d.thetaA, unidade: 'rad', entradas: { theta1: d.theta1, n: d.n } });
+  // forças por pavimento e caso vertical (na direção 0°; as outras só mudam o eixo e o sinal)
+  for (const k of d.verticais) {
+    const T2 = `Desaprumo global – forças por pavimento (caso ${k})`;
+    for (const pv of d.pavimentos) {
+      const V = pv.V[k];
+      if (pv.z <= 0 || Math.abs(V) < 1e-12) continue;
+      const Fpav = d.thetaA * V;
+      reg.passo({ etapa: 'analise', elemento: GLOBAL, topico: T2, descricao: `${pv.pavimento} (z = ${fm(pv.z)} m): força horizontal equivalente ao desaprumo, na direção do eixo (sentido positivo para 0° e 90°; os casos 180° e 270° têm o sinal oposto)`, formula: 'F = θa·V', expressao: `F = ${fm(d.thetaA)}·${fm(V)} = ${fm(Fpav)} kN`, resultado: Fpav, unidade: 'kN', norma, aConfirmar: true, entradas: { thetaA: d.thetaA, V, z: pv.z }, observacao: 'V = carga vertical característica do caso no pavimento (a mesma do γz); a força vai ao nó mestre do diafragma, repartida entre as zonas pela área da caixa envolvente e sem torção (centro de carga tomado no nó mestre): a confirmar.' });
+      const fs = (d.casos.find((c) => c.caso === k && c.direcao === 0)?.forcas ?? []).filter((f) => f.pavimento === pv.pavimento);
+      if (fs.length > 1) for (const f of fs) reg.passo({ etapa: 'analise', elemento: GLOBAL, topico: T2, descricao: `${pv.pavimento}, zona ${f.zona + 1}: parte da força do pavimento`, formula: 'Fi = F·fração da zona', expressao: `Fi = ${fm(Fpav)}·${fm(f.fracao)} = ${fm(f.F)} kN`, resultado: f.F, unidade: 'kN', norma, aConfirmar: true, entradas: { F: Fpav, fracao: f.fracao } });
+    }
+    const ent: Record<string, number> = { thetaA: d.thetaA };
+    d.pavimentos.forEach((pv, i) => { if (pv.z > 0 && Math.abs(pv.V[k]) > 1e-12) { ent[`V${i}`] = pv.V[k]; ent[`z${i}`] = pv.z; } });
+    const termos = d.pavimentos.flatMap((pv, i) => (ent[`V${i}`] !== undefined ? [`${fm(ent[`V${i}`])}·${fm(pv.z)}`] : []));
+    reg.passo({ etapa: 'analise', elemento: GLOBAL, topico: T2, descricao: `Momento de tombamento na base do desaprumo do caso ${k} (Md,k), usado na regra dos 30 % do vento`, formula: 'Md,k = θa·Σ V·z', expressao: `Md,k = ${fm(d.thetaA)}·(${termos.join(' + ')}) = ${fm(d.md[k])} kN·m`, resultado: d.md[k], unidade: 'kN·m', norma, entradas: ent });
+  }
+  // regra dos 30 % do vento por combinação ELU
+  for (const r of combinacoesComRegras(b, an).regras) {
+    const dir = r.direcao !== undefined ? `${r.direcao}°` : '';
+    const saida = r.decisao === 'sem-desaprumo' ? 'sem desaprumo (sem carga vertical)'
+      : r.decisao === 'sem-vento' ? 'sem vento: desaprumo nas quatro direções (0°, 90°, 180° e 270°), uma por vez'
+        : r.decisao === 'so-vento' ? 'só vento (0,3·|Mw| ≥ Md)'
+          : r.decisao === 'so-desaprumo' ? `só desaprumo a ${dir} (|Mw| < 0,3·Md)` : `vento + desaprumo no mesmo sentido (${dir})`;
+    registrarRegra30(reg, { elemento: GLOBAL, combo: r.combo, hasW: r.hasW, Mw: r.Mw, Md: r.Md, saida, termos: r.termos });
+  }
 }

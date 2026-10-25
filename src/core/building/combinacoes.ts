@@ -8,14 +8,30 @@ import type { AnaliseEdificio } from './analitico';
 import { casosDaObra, type BuildingModel, type EstadoId } from './types';
 import { ESTADOS_INFO, estadoEmUso, fatoresDaSituacao } from './acoes';
 import { gamas } from './materiais';
+import { decidirRegra30, type DecisaoRegra30 } from '../desaprumo';
+import { DIRECOES_DESAPRUMO, momentoVento, nomeCasoDesaprumo } from './desaprumo';
 
 export interface CombinacaoEd { nome: string; tipo: 'ELU' | 'QP' | 'FREQ' | 'RARA'; fatores: Record<string, number> }
 
 /** γ das combinações excepcionais (NBR 6118, Tabela 11.1) [a confirmar]. */
 export const GAMA_EXCEPCIONAL = { g: 1.2, gFav: 1, q: 1 };
 
+/** Registro da regra dos 30 % do vento numa combinação ELU (memória detalhada): momentos de tombamento na base e decisão. */
+export interface RegraDesaprumo {
+  combo: string; hasW: boolean; ventoCaso?: string; direcao?: number; Mw: number; Md: number; decisao: DecisaoRegra30;
+  /** Combinações geradas (nomes). */
+  saida: string[];
+  termos: { caso: string; f: number; Md: number; Mw?: number }[];
+}
+
 export function combinacoesEdificio(b: BuildingModel, an: AnaliseEdificio): CombinacaoEd[] {
+  return combinacoesComRegras(b, an).combinacoes;
+}
+
+/** As combinações do edifício e, para cada ELU normal, a decisão do desaprumo global (regra dos 30 % do vento). */
+export function combinacoesComRegras(b: BuildingModel, an: AnaliseEdificio): { combinacoes: CombinacaoEd[]; regras: RegraDesaprumo[] } {
   const W = an.vento?.casos ?? [];
+  const des = an.desaprumo ?? null, regras: RegraDesaprumo[] = [];
   const obra = casosDaObra(b);
   const simult = new Map(obra.filter((c) => c.simultaneo && obra.some((x) => x.id === c.simultaneo)).map((c) => [c.id, c.simultaneo!]));
   const psiPadrao = (n: string) => (n === 'W' ? [0.6, 0.3, 0] : b.norma.psiQ ?? [0.5, 0.4, 0.3]);
@@ -38,14 +54,26 @@ export function combinacoesEdificio(b: BuildingModel, an: AnaliseEdificio): Comb
   const gm = gamas(b);
   // empuxo de terra (natureza H): permanente com o γ da linha de empuxo (o desfavorável das ELU normais vira γh)
   const empuxo = new Set(obra.filter((c) => c.natureza === 'H').map((c) => c.id));
-  const out: CombinacaoEd[] = nbrCombinations(casos, 1, { g: gm.g, gFav: 1, q: gm.q }).map((c) => {
-    const f: Record<string, number> = {};
+  const out: CombinacaoEd[] = [];
+  for (const c of nbrCombinations(casos, 1, { g: gm.g, gFav: 1, q: gm.q })) {
+    const f: Record<string, number> = {}, bruto: Record<string, number> = {};
     for (const [k, v] of Object.entries(c.factors)) {
       const n = porNome.get(+k)!;
+      bruto[n] = v;
       f[n] = c.kind === 'ELU' && amp.has(n) ? +(v * amp.get(n)!).toFixed(4) : c.kind === 'ELU' && empuxo.has(n) && Math.abs(v - gm.g) < 1e-9 ? gm.h : v;
     }
-    return { nome: c.name, tipo: c.kind === 'ELU' ? 'ELU' : c.kind === 'QP' ? 'QP' : 'FREQ', fatores: comSimultaneos(f) };
-  });
+    const cb: CombinacaoEd = { nome: c.name, tipo: c.kind === 'ELU' ? 'ELU' : c.kind === 'QP' ? 'QP' : 'FREQ', fatores: comSimultaneos(f) };
+    if (cb.tipo === 'ELU' && des?.casos.length) out.push(...comDesaprumo(cb, comSimultaneos(bruto), an, W, regras)); else out.push(cb);
+  }
+  // a regra dos 30 % pode gerar combinações idênticas (as excentricidades ±e do mesmo vento): fica a primeira
+  if (des?.casos.length) {
+    const vistos = new Set<string>();
+    for (let i = 0; i < out.length; i++) {
+      if (out[i].tipo !== 'ELU') continue;
+      const chave = out[i].tipo + JSON.stringify(Object.entries(out[i].fatores).filter(([, v]) => v).sort(([x], [y]) => (x < y ? -1 : 1)));
+      if (vistos.has(chave)) { for (const r of regras) r.saida = r.saida.filter((n) => n !== out[i].nome); out.splice(i--, 1); } else vistos.add(chave);
+    }
+  }
   // excepcionais: G + E + ψ2 das variáveis (uma escolha por grupo excludente)
   const G = casos.filter((c) => c.nature === 'G'), V = casos.filter((c) => c.nature !== 'G');
   for (const e of obra.filter((c) => c.natureza === 'E' && !simult.has(c.id))) for (const [gg, tag] of [[GAMA_EXCEPCIONAL.g, 'G desf.'], [GAMA_EXCEPCIONAL.gFav, 'G fav.']] as const) {
@@ -70,7 +98,39 @@ export function combinacoesEdificio(b: BuildingModel, an: AnaliseEdificio): Comb
     }
   }
   if (!V.length) out.push({ nome: 'Rara · permanentes', tipo: 'RARA', fatores: comSimultaneos(Object.fromEntries(G.map((c) => [c.name, 1]))) });
-  return comSegundaOrdem(out, an);
+  return { combinacoes: comSegundaOrdem(out, an), regras };
+}
+
+/**
+ * Desaprumo global numa combinação ELU normal (NBR 6118, 11.3.3.4.1). Mw = Σ f·M1 do vento e Md = |Σ f·Md,k| dos casos verticais
+ * (fatores sem a ampliação 0,95·γz, como no Pórtico 2D). Sem vento: o desaprumo nas quatro direções, uma por vez; com vento, a
+ * regra dos 30 % (`decidirRegra30`); o desaprumo é sempre na direção e no sentido do vento. O desaprumo não recebe a ampliação 0,95·γz.
+ */
+function comDesaprumo(cb: CombinacaoEd, bruto: Record<string, number>, an: AnaliseEdificio, W: NonNullable<AnaliseEdificio['vento']>['casos'], regras: RegraDesaprumo[]): CombinacaoEd[] {
+  const des = an.desaprumo!;
+  const termos: RegraDesaprumo['termos'] = [];
+  let Md = 0, Mw = 0, vento: (typeof W)[number] | undefined;
+  for (const k of des.verticais) { const f = bruto[k] ?? 0; if (f) { Md += f * des.md[k]; termos.push({ caso: k, f, Md: des.md[k] }); } }
+  for (const w of W) { const f = bruto[w.nome] ?? 0; if (!f) continue; const mw = momentoVento(w); Mw += f * mw; vento ??= w; termos.push({ caso: w.nome, f, Md: 0, Mw: mw }); }
+  Md = Math.abs(Md);
+  const decisao = decidirRegra30(Mw, Md, !!vento);
+  const reg: RegraDesaprumo = { combo: cb.nome, hasW: !!vento, ...(vento ? { ventoCaso: vento.nome, direcao: vento.direcao } : {}), Mw, Md, decisao, saida: [], termos };
+  regras.push(reg);
+  const comDirecao = (direcao: number, f: Record<string, number>) => {
+    const g = { ...f };
+    for (const k of des.verticais) if (bruto[k]) g[nomeCasoDesaprumo(k, direcao)] = bruto[k];
+    return g;
+  };
+  let saida: CombinacaoEd[];
+  if (decisao === 'sem-desaprumo' || decisao === 'so-vento') saida = [cb];
+  else if (decisao === 'sem-vento') saida = DIRECOES_DESAPRUMO.map((d) => ({ ...cb, nome: `${cb.nome} · desaprumo ${d}°`, fatores: comDirecao(d, cb.fatores) }));
+  else if (decisao === 'so-desaprumo') {
+    const f = { ...cb.fatores };
+    for (const w of W) delete f[w.nome];
+    saida = [{ ...cb, nome: `${cb.nome} · só desaprumo ${vento!.direcao}° (vento < 30%)`, fatores: comDirecao(vento!.direcao, f) }];
+  } else saida = [{ ...cb, nome: `${cb.nome} + desaprumo ${vento!.direcao}°`, fatores: comDirecao(vento!.direcao, cb.fatores) }];
+  reg.saida = saida.map((c) => c.nome);
+  return saida;
 }
 
 /** P-Δ (N2c): soma, com fator 1, o caso dos efeitos de 2ª ordem calculado para cada combinação ELU (pelo nome). */
@@ -89,7 +149,7 @@ const TIPO_DO_ESTADO: Record<EstadoId, CombinacaoEd['tipo'] | 'EQU' | 'FOGO'> = 
  * Combinações de um grupo de estados: as da norma (filtradas pelo tipo do grupo) ou, no modo "usuário" e havendo
  * situações cadastradas, as do usuário. Sem situações, o grupo em modo "usuário" usa as da norma.
  */
-export function combinacoesDoEstado(b: BuildingModel, an: Pick<AnaliseEdificio, 'vento'> & Partial<Pick<AnaliseEdificio, 'opcoes' | 'segundaOrdem'>>, id: EstadoId, normativas?: CombinacaoEd[]): CombinacaoEd[] {
+export function combinacoesDoEstado(b: BuildingModel, an: Pick<AnaliseEdificio, 'vento'> & Partial<Pick<AnaliseEdificio, 'opcoes' | 'segundaOrdem' | 'desaprumo'>>, id: EstadoId, normativas?: CombinacaoEd[]): CombinacaoEd[] {
   const tipo = TIPO_DO_ESTADO[id];
   if (tipo === 'EQU' || tipo === 'FOGO') return [];
   const norma = (normativas ?? combinacoesEdificio(b, an as AnaliseEdificio)).filter((c) => c.tipo === tipo);

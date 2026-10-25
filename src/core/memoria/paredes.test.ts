@@ -13,6 +13,7 @@ import { memoriaDetalhada, csvMemoria } from './edificio';
 import { htmlMemoriaCorpo } from './html';
 import { Registrador, comMemoria, type PassoMemoria } from './registrador';
 import { csvTabela, tabelasAnalise } from './dadosAnalise';
+import { ANTES_DESAPRUMO } from '../building/antesDesaprumo';
 
 const rel = (a: number, b: number) => Math.abs(a - b) / Math.max(1e-12, Math.abs(b));
 const igual = (a: number, b: number, msg = '') => expect(rel(a, b) < 1e-9 || Math.abs(a - b) < 1e-9, `${msg}: ${a} vs ${b}`).toBe(true);
@@ -44,7 +45,8 @@ function obraPP() {
 }
 
 interface Obra { b: BuildingModel; an: AnaliseEdificio; dim: Dimensionamento; ps: PassoMemoria[]; mem: ReturnType<typeof memoriaDetalhada>['memoria'] }
-function rodar(b: BuildingModel): Obra {
+function rodar(b0: BuildingModel): Obra {
+  const b: BuildingModel = { ...b0, opcoes: { ...(b0.opcoes ?? {}), ...ANTES_DESAPRUMO } }; // baseline anterior ao desaprumo global
   const an = analisarEdificio(b);
   expect(an.erro).toBeUndefined();
   const dim = dimensionarEdificio(b, an, { fundacao: false });

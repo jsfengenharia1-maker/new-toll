@@ -359,6 +359,43 @@ export const f_N2c = {
     },
   };
 
+export const f_N2h = {
+    name: 'Desaprumo global (11.3.3.4.1): opção no card de 2ª ordem, θa exibido, ligar e desligar, memorial com a premissa',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Análise' }).click();
+      const card = page.locator('[data-card-2ordem]');
+      const chk = card.getByLabel('Desaprumo global nas combinações ELU (11.3.3.4.1)');
+      assert.equal(await chk.isChecked(), true); // padrão ligado
+      await page.getByRole('button', { name: 'Calcular', exact: true }).click();
+      await page.locator('.statusbar .msg', { hasText: 'Análise concluída' }).waitFor({ timeout: 120000 });
+      const info = card.locator('[data-desaprumo]');
+      await info.waitFor({ timeout: 60000 });
+      assert.match(await info.textContent(), /θa = 1\/\d+/);
+      assert.match(await info.textContent(), /regra dos 30 % do vento/);
+      // desligar: sem o resumo depois de recalcular
+      await chk.uncheck();
+      await page.getByRole('button', { name: 'Calcular', exact: true }).click();
+      await page.locator('.statusbar .msg', { hasText: 'Análise concluída' }).waitFor({ timeout: 120000 });
+      await page.waitForFunction(() => !document.querySelector('[data-card-2ordem] [data-desaprumo]'));
+      await chk.check();
+      // memorial: a premissa do desaprumo
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 120000 });
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      await memo.waitFor();
+      assert.match(await memo.textContent(), /Desaprumo global \(NBR 6118, 11\.3\.3\.4\.1/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+    },
+  };
+
 export const f_N2e = {
     name: 'N2e: apoios, limites e avisos de modelagem (suspensão no cruzamento, arredondamento, viga-parede, opções e memorial)',
     async run({ newPage }) {

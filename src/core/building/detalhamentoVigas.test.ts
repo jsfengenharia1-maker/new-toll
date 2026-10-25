@@ -12,12 +12,14 @@ import { opcoesEmUso } from './opcoes';
 import { concrete } from '../concrete';
 import { ANTES_N2E } from './antesN2e';
 import { ANTES_N4C } from './antesN4c';
+import { ANTES_DESAPRUMO } from './antesDesaprumo';
 
 function viga3(vaos: number[], perfil: 'sistema' | 'nbr' = 'sistema', h = 0.45, vao_y = 5) {
   const s = new Sessao();
   for (const c of comandosEdificioPadrao()) s.executar(c.nome, c.params, 'sistema');
   const ok = (n: string, p: Record<string, unknown>) => { const r = s.executar(n, p); expect(r.ok, `${n}: ${r.erros.map((e) => e.mensagem).join(' ')}`).toBe(true); };
   ok('vento.definir', { ativo: false });
+  ok('opcoes.definir', { valores: ANTES_DESAPRUMO });
   if (perfil === 'nbr') ok('opcoes.definir', { perfil: 'nbr' });
   const xs = vaos.reduce((a, v) => [...a, a.at(-1)! + v], [0]);
   ok('lote', { comandos: xs.flatMap((x) => [0, vao_y].map((y) => ({ nome: 'pilar.inserir', params: { x, y, secao: { tipo: 'ret', b: 0.25, h: 0.25 } } }))) });

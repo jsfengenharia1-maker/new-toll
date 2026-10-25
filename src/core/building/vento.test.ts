@@ -4,6 +4,7 @@ import { analisarEdificio } from './analitico';
 import { combinacoesEdificio, combinar } from './combinacoes';
 import { resumoAnalise } from './resumo';
 import { comandosEdificioPadrao, Sessao } from '../commands';
+import { ANTES_DESAPRUMO } from './antesDesaprumo';
 
 function predio() {
   const s = new Sessao();
@@ -12,6 +13,7 @@ function predio() {
   const v = (p: number[][]) => ({ nome: 'viga.tracar', params: { grupo: 'g_3', pontos: p, secao: { b: 0.15, h: 0.4 } } });
   s.executar('lote', { comandos: [v([[0, 0], [6, 0]]), v([[0, 5], [6, 5]]), v([[0, 0], [0, 5]]), v([[6, 0], [6, 5]])] });
   s.executar('laje.detectarPanos', { grupo: 'g_3', tipo: { tipo: 'macica', h: 0.12 } });
+  s.executar('opcoes.definir', { valores: ANTES_DESAPRUMO });
   return s;
 }
 

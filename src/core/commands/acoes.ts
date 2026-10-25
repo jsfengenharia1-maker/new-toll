@@ -9,6 +9,7 @@ import type { Diagnostico } from '../building/verify';
 import { pontoInterno, type P } from '../geom/faces';
 import { registrar } from './registry';
 import type { JsonSchema } from './schema';
+import { DIRECOES_DESAPRUMO, nomeCasoDesaprumo } from '../building/desaprumo';
 
 const err = (codigo: string, mensagem: string, elementos: string[] = []): Diagnostico[] => [{ codigo, severidade: 'erro', elementos, mensagem }];
 const ponto: JsonSchema = { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2, description: '[x, y] em m' };
@@ -19,8 +20,8 @@ const ESTADOS = ESTADOS_INFO.map((e) => e.id);
 
 /** Nomes dos 12 casos de vento gerados (4 direções × centrado, +e, −e). */
 export const NOMES_VENTO = ([0, 90, 180, 270] as const).flatMap((d) => ['', '+e', '−e'].map((e) => `W${d}°${e}`));
-/** Ids de casos que podem aparecer num fator de combinação: casos da obra e os de vento gerados. */
-const idsDeFatores = (b: BuildingModel) => new Set([...casosDaObra(b).map((c) => c.id), ...(b.casos ?? []).map((c) => c.id), ...NOMES_VENTO]);
+/** Ids de casos que podem aparecer num fator de combinação: casos da obra, os de vento gerados e os de desaprumo global (D0°[G]…). */
+const idsDeFatores = (b: BuildingModel) => new Set([...casosDaObra(b).map((c) => c.id), ...(b.casos ?? []).map((c) => c.id), ...NOMES_VENTO, ...casosDaObra(b).filter((c) => c.natureza === 'G' || c.natureza === 'H' || c.natureza === 'Q').flatMap((c) => DIRECOES_DESAPRUMO.map((d) => nomeCasoDesaprumo(c.id, d)))]);
 
 // ---------------- compatibilidade entre casos ----------------
 

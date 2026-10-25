@@ -17,6 +17,7 @@ import { deltaXi } from '../design';
 import { excentricidadeAcidental, excentricidadeFluencia, metodoGeral, relacaoMCurvatura } from '../metodoGeral';
 import { gramposPorEstribo } from './detalhamentoPilares';
 import { combinacoesDoEstado, combinacoesEdificio, type CombinacaoEd } from './combinacoes';
+import { casosHorizontais } from './desaprumo';
 import { alertasSituacoes, equilibrioGlobal, estadoEmUso, textosAlertas, type ResultadoEQU } from './acoes';
 import { GAMA_CONCRETO, propriedadesLaje, vaos } from './lajes';
 import { ehNervurada, espessuraConcreto, FICHA_TRELICADAS, geometriaNervurada, trelicasDe, type GeometriaNervurada } from './tiposLaje';
@@ -121,7 +122,7 @@ export function porCaso(an: AnaliseEdificio, bi: number, xs: number[], semVento 
   const pm = an.portico, out: Record<string, Estacao[]> = {};
   if (!pm.res) return out;
   an.casos.forEach((c, ic) => (out[c] = esforcosAoLongo(pm.modelo, bi, pm.res!.esforcos[ic][bi], pm.casos?.[ic], xs)));
-  if (!semVento) (an.vento?.casos ?? []).forEach((cv, ic) => { if (pm.resVento) out[cv.nome] = esforcosAoLongo(pm.modelo, bi, pm.resVento.esforcos[ic][bi], pm.casosVento?.[ic], xs); });
+  if (!semVento) casosHorizontais(an).forEach((cv, ic) => { if (pm.resVento) out[cv.nome] = esforcosAoLongo(pm.modelo, bi, pm.resVento.esforcos[ic][bi], pm.casosVento?.[ic], xs); });
   // P-Δ (N2c): efeitos de 2ª ordem de cada combinação ELU como caso próprio (forças fictícias nodais)
   if (!semVento && pm.resPDelta) for (const c of an.segundaOrdem?.combinacoes ?? []) { const k = c.caso ? +c.caso.slice(3) - 1 : -1; if (k >= 0) out[c.caso!] = esforcosAoLongo(pm.modelo, bi, pm.resPDelta.esforcos[k][bi], undefined, xs); }
   return out;
@@ -155,7 +156,7 @@ function nomesDosCasos(an: AnaliseEdificio): Map<string, number> {
   const m = new Map<string, number>();
   if (!an.portico.res) return m;
   for (const c of an.casos) if (!m.has(c)) m.set(c, m.size);
-  if (an.portico.resVento) for (const cv of an.vento?.casos ?? []) if (!m.has(cv.nome)) m.set(cv.nome, m.size);
+  if (an.portico.resVento) for (const cv of casosHorizontais(an)) if (!m.has(cv.nome)) m.set(cv.nome, m.size);
   if (an.portico.resPDelta) for (const c of an.segundaOrdem?.combinacoes ?? []) if (c.caso && !m.has(c.caso)) m.set(c.caso, m.size);
   return m;
 }
@@ -364,7 +365,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
   const memoFr = new Map<string, FracoesG>();
   const fracoesViga = (g: string) => { let f = memoFr.get(g); if (!f) { f = fracoesGGrupo(b, g); memoFr.set(g, f); } return f; };
   // parte vertical de cada combinação (a redistribuição e os mínimos valem para as cargas verticais)
-  const horiz = new Set([...(an.vento?.casos ?? []).map((x) => x.nome), ...obra.filter((x) => x.natureza === 'W').map((x) => x.id)]);
+  const horiz = new Set([...casosHorizontais(an).map((x) => x.nome), ...obra.filter((x) => x.natureza === 'W').map((x) => x.id)]);
   const vert = (cb: CombinacaoEd): CombinacaoEd => ({ ...cb, fatores: Object.fromEntries(Object.entries(cb.fatores).filter(([k]) => !horiz.has(k))) });
   const eluV = elu.map(vert);
   const nomesCasos = nomesDosCasos(an), eluC = elu.map((cb) => compilarComb(cb, nomesCasos)), eluVC = eluV.map((cb) => compilarComb(cb, nomesCasos)), freqC = freq.map((cb) => compilarComb(cb, nomesCasos));

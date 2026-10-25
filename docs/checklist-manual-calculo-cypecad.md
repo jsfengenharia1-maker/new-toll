@@ -404,7 +404,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.16 | α final do pilar = α do pavimento × α do lance. | Feito | — | α final = α do pavimento × α do lance (N1b) |
 | K1.9.17 | Valores de α deixados ao projetista: as normas só os definem para pórticos planos e o comportamento espacial não corresponde a esses modos. | Fora | — | comentário do manual |
 | | **1.9.2–1.9.7 Ações, grupos, vento, sismo, incêndio, casos adicionais, estados-limite (págs. 45–47)** | | | |
-| K1.9.18 | Escolha de considerar ou não vento e/ou sismo e as normas de cada um; combinatória interna por estado-limite. | Feito | — | vento liga e desliga (NBR 6123), combinações por estado-limite automáticas; sismo fora |
+| K1.9.18 | Escolha de considerar ou não vento e/ou sismo e as normas de cada um; combinatória interna por estado-limite. | Feito | — | vento liga e desliga (NBR 6123), combinações por estado-limite automáticas; sismo fora; desaprumo global da NBR 6118 11.3.3.4.1 nas ELU (opção desaprumoGlobal, padrão ligado, regra dos 30 % do vento; building/desaprumo.ts e combinacoes.ts; a confirmar) |
 | K1.9.19 | Coeficientes parciais conforme materiais e ações presentes; casos adicionais com origem atribuída. | Feito | — | γ por natureza (G, Q, W, E) e por material editáveis (N1b); casos adicionais com natureza (N1c) |
 | K1.9.20 | Permanente adicional e sobrecarga totais por pavimento nos dados de cada grupo; peso próprio da laje na ficha da laje. | Feito | — | gRev e q por grupo; peso da laje pelo tipo |
 | K1.9.21 | Vento e sismo: dados conforme a norma escolhida (seção de normas, fora do trecho). | Feito | — | V0, S1, S3, categoria, Ca e excentricidade (`vento.definir`) |
