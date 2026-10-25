@@ -1,6 +1,7 @@
 node_modules
 dist
 dist-cli
+dist-artifact
 .claude/worktrees/
 statikos-netlify.zip
 validation/opensees/integrado.modelo.json

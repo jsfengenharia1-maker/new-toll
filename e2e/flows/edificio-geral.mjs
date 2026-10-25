@@ -229,7 +229,8 @@ export const f_dimensionamento_do_edificio = {
       await memo.getByRole('button', { name: 'Fechar' }).click();
       await page.getByRole('button', { name: 'Enviar cargas ao módulo Fundações' }).click();
       await page.locator('.statusbar .msg', { hasText: '4 pilar(es) importados do edifício' }).waitFor();
-      assert.equal(await page.locator('table.loads-ed tbody tr').count(), 4);
+      // o módulo Fundações carrega sob demanda: até lá a tela do Edifício fica oculta na árvore (com a tabela dele); espera sair
+      await page.waitForFunction(() => document.querySelectorAll('table.loads-ed tbody tr').length === 4);
       assert.equal(await page.locator('table.loads-ed tbody tr').first().locator('input').first().inputValue(), 'P1');
     },
   };

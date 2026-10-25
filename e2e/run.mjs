@@ -6,6 +6,7 @@
 //   npm run e2e -- memorial      só os fluxos cujo nome contém "memorial"
 //   npm run e2e -- --workers N  N navegadores em paralelo (padrão mín(4, CPUs/2); 1 = serial)
 //   npm run e2e -- --headed      abre o navegador visível
+//   npm run e2e -- --artifact    testa o build do artifact (dist-artifact/index.html único, sem vendor nem service worker): fluxos que dependem de public/ falham de propósito
 //
 // Navegador: PW_CHROMIUM=/caminho/do/chrome usa esse executável; sem a variável, o Chromium
 // padrão do Playwright e, se ele não estiver instalado, /opt/pw-browsers/chromium-1194 (ambiente de nuvem).
@@ -23,6 +24,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const skipBuild = args.includes('--no-build');
 const headed = args.includes('--headed');
+const artifact = args.includes('--artifact');
+const outDir = artifact ? 'dist-artifact' : 'dist';
 const iw = args.indexOf('--workers');
 const workers = iw >= 0 ? Math.max(1, parseInt(args[iw + 1], 10) || 1) : Math.max(1, Math.min(4, Math.floor(cpus().length / 2)));
 const filter = args.find((a, i) => !a.startsWith('--') && !(iw >= 0 && i === iw + 1));
@@ -63,15 +66,15 @@ async function launch(webgl = false) {
 
 async function main() {
   if (!skipBuild) {
-    const b = spawnSync('npm', ['run', 'build'], { cwd: root, stdio: 'inherit', shell: process.platform === 'win32' });
+    const b = spawnSync('npm', ['run', artifact ? 'build:artifact' : 'build'], { cwd: root, stdio: 'inherit', shell: process.platform === 'win32' });
     if (b.status !== 0) { console.error('build falhou'); process.exit(1); }
   }
-  if (!existsSync(join(root, 'dist', 'index.html'))) { console.error('dist/index.html não existe: rode sem --no-build'); process.exit(1); }
+  if (!existsSync(join(root, outDir, 'index.html'))) { console.error(`${outDir}/index.html não existe: rode sem --no-build`); process.exit(1); }
 
   const port = await pickPort();
   const baseURL = `http://127.0.0.1:${port}/`;
   const vite = join(root, 'node_modules', 'vite', 'bin', 'vite.js');
-  const server = spawn(process.execPath, [vite, 'preview', '--port', String(port), '--strictPort', '--host', '127.0.0.1'], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
+  const server = spawn(process.execPath, [vite, 'preview', '--outDir', outDir, '--port', String(port), '--strictPort', '--host', '127.0.0.1'], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
   let serverLog = '';
   server.stdout.on('data', (d) => { serverLog += d; });
   server.stderr.on('data', (d) => { serverLog += d; });

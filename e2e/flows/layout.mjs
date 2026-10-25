@@ -148,6 +148,8 @@ export const f_layout_mapa = {
         for (const [id, rotulo] of Object.entries(ABAS_ID)) {
           if (!abas.includes(rotulo)) continue;
           await faixaTabs(page).getByRole('tab', { name: rotulo, exact: true }).click();
+          // a faixa do Edifício e a das Fundações carregam sob demanda: espera o primeiro grupo antes de ler todos
+          await page.getByRole('toolbar', { name: /^Comandos:/ }).getByRole('group').first().waitFor();
           for (const g of await page.getByRole('toolbar', { name: /^Comandos:/ }).getByRole('group').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')))) existentes.add(`${id}/${g}`);
         }
       }

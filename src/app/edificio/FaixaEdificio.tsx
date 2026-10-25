@@ -270,7 +270,7 @@ function Vista() {
   );
 }
 
-export const ROTULO_CTX: Record<string, string> = { pilar: 'Pilar', viga: 'Viga', laje: 'Laje', fundacao: 'Fundação' };
+export { ROTULO_CTX } from './rotulosCtx';
 
 function Contexto() {
   const alvo = useAlvoSelecionado();

@@ -1,6 +1,6 @@
 // Cliente do worker de cálculo. O código da análise e da montagem das pranchas só existe dentro do worker
 // (não pesa duas vezes no pacote e a interface não trava).
-import CalculoWorker from './calculo.worker?worker&inline';
+import CalculoWorker from 'virtual:calculo-worker';
 import type { AnaliseEdificio } from '../../core/building/analitico';
 import type { Dimensionamento } from '../../core/building/dimensionamento';
 import type { BuildingModel } from '../../core/building/types';
