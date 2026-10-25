@@ -98,6 +98,18 @@ describe('desaprumo e 2ª ordem global', () => {
     expect(rep.elu.some((c) => c.desap === -1 || c.desap === undefined)).toBe(true);
     expect(rep.eluResults.length).toBe(rep.elu.length);
   });
+  it('γz do pórtico 2D (15.5.3): M1,tot,d e ΔMtot,d são de cálculo, da mesma combinação (à mão)', () => {
+    const m = samplePortico();
+    const rep = runDesign(m, analyze(m));
+    // vento: 2,4 kN/m em 5 m (12 kN a 2,5 m) + 1,5 kN/m em 5 m (7,5 kN a 2,5 m) = 18,75 + 30 → M1,k = 48,75 kN·m na base
+    const M1k = 2.4 * 5 * 2.5 + 1.5 * 5 * 2.5;
+    expect(M1k).toBeCloseTo(48.75, 9);
+    const vp = rep.gammaZ.rows.find((r) => r.combo === 'ELU G desf. · Vento principal')!;
+    const sp = rep.gammaZ.rows.find((r) => r.combo === 'ELU G desf. · Sobrecarga principal')!;
+    expect(vp.M1).toBeCloseTo(1.4 * M1k, 9); // vento principal: γq = 1,4
+    expect(sp.M1).toBeCloseTo(1.4 * 0.6 * M1k, 9); // vento acompanhante: γq·ψ0,w = 0,84
+    expect(vp.gz).toBeCloseTo(1 / (1 - vp.dM / vp.M1), 12);
+  });
   it('modo P-Δ: converge e amplifica como o γz nas combinações com vento', () => {
     const m = samplePortico();
     const a = analyze(m);

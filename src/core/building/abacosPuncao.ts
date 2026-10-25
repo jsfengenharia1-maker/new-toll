@@ -20,6 +20,7 @@ import {
   BITOLAS_PUNCAO, fatoresPuncao, gruposDoPilar, ladosLivres, polilinhas, sitiosPuncao, solicitacaoPuncao, verificarPuncao,
   type Apoio, type DetSolicitacao, type EntradaPuncao, type ParametrosPuncao, type Regiao, type ResultadoPuncao, type Tensao, type AbacoPuncaoInfo,
 } from './puncao';
+import { sugestaoAumentarAbaco } from './sugestoes';
 import { dimsSecao, secaoNoLance, type BuildingModel, type Laje } from './types';
 
 const NOMES_C = ['C', 'C′', 'C″'] as const;
@@ -43,6 +44,33 @@ export function taxasAbaco(nerv: ResultadoNervurada | undefined, abacoId: string
   if (det) det.as = as;
   const taxa = (campo: 'dentro' | 'fora', h: number, d: number) => Math.min(0.02, Math.sqrt([0, 1].reduce((t, k) => t * (Math.max(as[k][campo], 0.0015 * h * intereixo[k] * 1e4) / (1e4 * intereixo[k] * d)), 1)));
   return { rhoAbaco: taxa('dentro', hAbaco, dAbaco), rhoLaje: taxa('fora', hLaje, dLaje) };
+}
+
+/**
+ * Menor extensão (m, da face do pilar à borda do ábaco, nos lados com laje) para o C″ fora do ábaco (a 2·dLaje da borda, altura da laje)
+ * atender sem armadura de punção: o ábaco cresce `δ` em todos os lados com laje (`livres` ficam) e a verificação é refeita de 1 em 1 cm,
+ * até 3 m. `null` se nenhuma atende. É o mesmo cálculo do resultado `externa`; só procura o ábaco que o dispensa.
+ */
+export function extensaoAbacoSemArmaduraExterna(rect: { centro: P; c1: number; c2: number; angulo: number; u: [number, number]; v: [number, number] }, ap: Apoio, livres: string[], extMin: number, ent: Omit<EntradaPuncao, 'ap'>, par: ParametrosPuncao): number | null {
+  const nao = (l: string) => (livres.includes(l) ? 0 : 1);
+  const a = (ap.angulo * Math.PI) / 180, ux: P = [Math.cos(a), Math.sin(a)], vx: P = [-Math.sin(a), Math.cos(a)];
+  for (let cm = 0; cm <= 300; cm++) {
+    const ext = Math.max(0, extMin) + cm / 100, delta = ext - extMin;
+    const u0 = rect.u[0] - delta * nao('u-'), u1 = rect.u[1] + delta * nao('u+'), v0 = rect.v[0] - delta * nao('v-'), v1 = rect.v[1] + delta * nao('v+');
+    const mu = (u0 + u1) / 2, mv = (v0 + v1) / 2;
+    const apAb: Apoio = { centro: [ap.centro[0] + mu * ux[0] + mv * vx[0], ap.centro[1] + mu * ux[1] + mv * vx[1]], c1: u1 - u0, c2: v1 - v0, circular: false, angulo: rect.angulo };
+    const r = verificarPuncao({ ...ent, ap: apAb }, par);
+    if (r.status === 'ok' && !r.armadura) return ext;
+  }
+  return null;
+}
+
+/** Polígono (retângulo nos eixos do pilar) do ábaco ampliado para a extensão `ext` (m da face) nos lados com laje. */
+export function poligonoAbacoAmpliado(rect: { u: [number, number]; v: [number, number] }, ap: Apoio, livres: string[], extMin: number, ext: number): P[] {
+  const nao = (l: string) => (livres.includes(l) ? 0 : 1), delta = ext - extMin;
+  const a = (ap.angulo * Math.PI) / 180, ux: P = [Math.cos(a), Math.sin(a)], vx: P = [-Math.sin(a), Math.cos(a)];
+  const u0 = rect.u[0] - delta * nao('u-'), u1 = rect.u[1] + delta * nao('u+'), v0 = rect.v[0] - delta * nao('v-'), v1 = rect.v[1] + delta * nao('v+');
+  return ([[u0, v0], [u1, v0], [u1, v1], [u0, v1]] as const).map(([u, v]) => [ap.centro[0] + u * ux[0] + v * vx[0], ap.centro[1] + u * ux[1] + v * vx[1]] as P);
 }
 
 const pior = (a: ResultadoPuncao['status'], z: ResultadoPuncao['status']): ResultadoPuncao['status'] => (a === 'fail' || z === 'fail' ? 'fail' : a === 'armadura' || z === 'armadura' ? 'armadura' : 'ok');
@@ -119,8 +147,21 @@ export function puncaoAbacos(b: BuildingModel, an: AnaliseEdificio, nervs: Resul
         ve = verificarPuncao(entExt, parExt);
         msgs.push(...ve.mensagens.map((m) => m.replace(/^(Punção|Cortante da laje)/, `$1 em ${p.nome} (fora do ábaco, C″ a 2d da borda)`)));
       } else msgs.push(`Ábaco: ${p.nome} apoia a laje nervurada ${laje.nome} sem viga e sem ábaco; punção verificada nas nervuras com a altura da laje (h = ${fm(hLaje * 100, 0)} cm). Gere o ábaco (abaco.gerar) ou lance um manual.`);
-      if (vi.armadura && ef && vi.armadura.s0 + (vi.armadura.barras - 1) * vi.armadura.sr > extMin + 1e-9)
-        msgs.push(`Ábaco: a armadura de punção de ${p.nome} chega a ${fm((vi.armadura.s0 + (vi.armadura.barras - 1) * vi.armadura.sr) * 100, 0)} cm da face e o ábaco tem ${fm(extMin * 100, 0)} cm até a borda; aumente o ábaco ou a espessura da laje.`);
+      // armadura de punção além da borda do ábaco (inclusive pelos anéis acrescentados na reverificação do C″) ou C″ sem solução:
+      // sugere aumentar o ábaco, com a extensão calculada e o comando pronto (não altera o cálculo)
+      const alcanceArm = vi.armadura ? vi.armadura.s0 + (vi.armadura.barras - 1) * vi.armadura.sr : 0;
+      const semSolC3 = vi.status === 'fail' && vi.mensagens.some((m) => m.startsWith('Punção sem solução: o contorno C″'));
+      let sugestaoAbaco: AbacoPuncaoInfo['sugestaoAbaco'];
+      if (ef && rect && Number.isFinite(extMin) && ((vi.armadura && alcanceArm > extMin + 1e-9) || semSolC3)) {
+        const parExtS: ParametrosPuncao = { ...parBase, rho: tx.rhoLaje, bitolas: BITOLAS_PUNCAO.filter((x) => x <= (hLaje * 1000) / 20 + 1e-9) };
+        const eVe = extensaoAbacoSemArmaduraExterna(rect, ap, livres, extMin, { reg, d: dLaje, h: hLaje, F, M, qd, excluir: cubetas }, parExtS);
+        const nec = eVe === null ? null : Math.ceil((Math.max(eVe, alcanceArm, semSolC3 && !c2NoAbaco ? 2 * dAb : 0) - 1e-9) * 20) / 20; // múltiplo de 5 cm
+        const sg = sugestaoAumentarAbaco(ef.abaco.id, nec, nec === null ? [] : poligonoAbacoAmpliado(rect, ap, livres, extMin, nec) as [number, number][]);
+        if (nec !== null) sugestaoAbaco = { extensao: nec, poligono: poligonoAbacoAmpliado(rect, ap, livres, extMin, nec), comando: sg.comando };
+        msgs.push(semSolC3
+          ? `Ábaco: a armadura de punção de ${p.nome} não tem solução com o ábaco de ${fm(extMin * 100, 0)} cm até a borda (C″ a 2d da última linha acima de τRd1). ${sg.texto}`
+          : `Ábaco: a armadura de punção de ${p.nome} chega a ${fm(alcanceArm * 100, 0)} cm da face e o ábaco tem ${fm(extMin * 100, 0)} cm até a borda; aumente o ábaco ou a espessura da laje. ${sg.texto}`);
+      }
       for (const g2 of manual) {
         if (g2.s > 0.75 * dInt + 1e-9) msgs.push(`Punção em ${p.nome}${prefixo}: espaçamento informado de ${fm(g2.s * 100, 0)} cm maior que 0,75d = ${fm(0.75 * dInt * 100)} cm (NBR 6118, 19.5.3.5).`);
         const alcance = (g2.barras - 1) * g2.s + Math.min(0.5, op.puncaoS0) * dInt;
@@ -148,6 +189,7 @@ export function puncaoAbacos(b: BuildingModel, an: AnaliseEdificio, nervs: Resul
         ...(ef ? { id: ef.abaco.id } : {}), hAbaco: hAb, hLaje, dAbaco: dAb, dLaje, rhoAbaco: tx.rhoAbaco, rhoLaje: tx.rhoLaje, extensaoMin: Number.isFinite(extMin) ? extMin : 0, c2NoAbaco,
         ...(ef && rect ? { poligono: ef.poligono, retangulo: { centro: rect.centro, c1: rect.c1, c2: rect.c2, angulo: rect.angulo } } : {}),
         ...(ve ? { externa: { status: ve.status, tauRd1: ve.tauRd1, ...(ve.tauRd3 !== undefined ? { tauRd3: ve.tauRd3 } : {}) } } : {}),
+        ...(sugestaoAbaco ? { sugestaoAbaco } : {}),
       };
       const status = ve ? pior(vi.status, ve.status) : vi.status;
       const r: ResultadoPuncao = {

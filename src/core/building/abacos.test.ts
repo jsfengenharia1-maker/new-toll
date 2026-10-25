@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { analisarEdificio } from './analitico';
 import { dimensionarEdificio } from './dimensionamento';
 import { comandosEdificioPadrao, Sessao } from '../commands';
-import { barArea, beamFlexure } from '../concrete';
+import { barArea, beamFlexure, concrete } from '../concrete';
 import { dentroPoligono, type P } from '../geom/faces';
 import { barrasBaseAbaco, baseDoAbaco, dimensionarAbacoPilar, diagnosticosAbacos, parametrosAbaco, trechosDentro, type PilarGrupo } from './abacos';
 import { abacosNoMemorial, puncaoSemAbaco } from './abacosMemorial';
@@ -13,10 +13,11 @@ import { abacosEfetivos, arranjoDaLaje, arranjoNervuras, geometriaBidirecional, 
 import { acoDe, cobrimentoLaje, concretoDe } from './materiais';
 import { classificar } from './revisao';
 import { OPCOES_PADRAO_CALCULO, OPCOES_PADRAO_NBR } from './opcoes';
-import { sugestaoDe } from './sugestoes';
+import { sugestaoAumentarAbaco, sugestaoDe } from './sugestoes';
 import { montarPrancha } from '../sheets/prancha';
 import { montarPranchasLajes } from '../sheets/armacaoLajes';
-import { tirarDentro, verificarPuncao, type Regiao } from './puncao';
+import { tauRd1, tirarDentro, verificarPuncao, type Apoio, type ParametrosPuncao, type Regiao } from './puncao';
+import { extensaoAbacoSemArmaduraExterna, poligonoAbacoAmpliado } from './abacosPuncao';
 import type { BuildingModel } from './types';
 
 const XS = [0.25, 6.25, 12.25]; // pilares 50 × 50 cm a 6 m entre eixos, faces coladas nas bordas do pano de 12,5 × 12,5 m
@@ -345,6 +346,62 @@ describe('punção com ábaco (C′ e C″ à mão)', () => {
       expect(i.mensagens.some((m) => classificar(m).codigo === 'PUNCAO_ARMADURA')).toBe(true);
     } else expect(i.mensagens.some((m) => /sem solução|τSd/.test(m))).toBe(true);
   });
+});
+
+describe('sugestão “aumentar o ábaco” (punção com armadura além do ábaco)', () => {
+  // pilar 40 × 40, ábaco 100 × 100 (extensão 30 cm), laje d = 20 cm, ρ = 1 %, fck 30, F = 1200 kN, sem momento
+  const c30 = concrete(30, 1.4), d = 0.2, F = 1200;
+  const ap: Apoio = { centro: [0, 0], c1: 0.4, c2: 0.4, circular: false, angulo: 0 };
+  const rect = { centro: [0, 0] as P, c1: 1, c2: 1, angulo: 0, u: [-0.5, 0.5] as [number, number], v: [-0.5, 0.5] as [number, number] };
+  const grande: Regiao = { poligonos: [[[-20, -20], [20, -20], [20, 20], [-20, 20]]], furos: [] };
+  const parP: ParametrosPuncao = { c: c30, rho: 0.01, fywd: 250, tipoArm: 'estribo', s0f: 0.5, srf: 0.75, passoCortante: 0, furoDist: 8, bitolas: [5, 6.3, 8, 10] };
+  const ent = { reg: grande, d, h: 0.25, F, M: [0, 0] as [number, number], qd: 0 };
+
+  it('extensão à mão: C″ a 2d da borda do ábaco quadrado de lado c′: u = 4c′ + 2π·2d = F/(d·τRd1) → ext = (c′ − 0,40)/2', () => {
+    const t1 = tauRd1(c30, d, 0.01) * 1000; // kN/m²
+    const uReq = F / (d * t1), cLinha = (uReq - 4 * Math.PI * d) / 4, extExata = (cLinha - 0.4) / 2;
+    expect(extExata).toBeCloseTo(0.4142, 3); // u = 7,4268 m → c′ = 1,2284 m → 41,4 cm da face
+    const ext = extensaoAbacoSemArmaduraExterna(rect, ap, [], 0.3, ent, parP)!;
+    expect(ext).toBeGreaterThanOrEqual(extExata - 1e-9);
+    expect(ext - extExata).toBeLessThan(0.01 + 1e-9); // passo de 1 cm: 42 cm
+    expect(ext).toBeCloseTo(0.42, 6);
+    const lado = 0.4 + 2 * ext;
+    expect(verificarPuncao({ ...ent, ap: { ...ap, c1: lado, c2: lado } }, parP).armadura).toBeUndefined();
+  });
+
+  it('lados livres não crescem; o polígono ampliado é o retângulo nos eixos do pilar; sem solução até 3 m devolve null', () => {
+    const p = poligonoAbacoAmpliado({ u: [-0.5, 0.5], v: [-0.5, 0.5] }, ap, ['u-'], 0.3, 0.45);
+    expect(p.map((q) => q.map((x) => +x.toFixed(6)))).toEqual([[-0.5, -0.65], [0.65, -0.65], [0.65, 0.65], [-0.5, 0.65]]);
+    expect(extensaoAbacoSemArmaduraExterna(rect, ap, [], 0.3, { ...ent, F: 60000 }, parP)).toBeNull();
+  });
+
+  it('texto e comando abaco.editar prontos; sem extensão, só a recomendação de aumentar a laje', () => {
+    const sg = sugestaoAumentarAbaco('ab_1', 0.42, [[-0.62, -0.62], [0.62, -0.62], [0.62, 0.62], [-0.62, 0.62]]);
+    expect(sg.comando).toBe('abaco.editar {"id":"ab_1","poligono":[[-0.62,-0.62],[0.62,-0.62],[0.62,0.62],[-0.62,0.62]]}');
+    expect(sg.texto).toContain('42 cm');
+    expect(sugestaoAumentarAbaco('ab_1', null, []).comando).toBe('');
+  });
+
+  it('no pavimento: o aviso ABACO_ARMADURA_FORA traz o comando; aplicá-lo faz a armadura caber no ábaco e o C″ externo dispensar armadura', () => {
+    const forte = lisa({ extra: (ok) => ok('grupo.editar', { id: 'g_3', q: 20 }) });
+    const interno = () => calcular(forte.modelo).d.puncao!.find((x) => x.pavimento === 'Tipo 1' && x.tipo === 'interno')!;
+    const id0 = interno().abaco!.id!;
+    expect(forte.executar('abaco.editar', { id: id0, poligono: [[5.85, 5.85], [6.65, 5.85], [6.65, 6.65], [5.85, 6.65]] }).ok).toBe(true);
+    const r0 = interno();
+    const msg = r0.mensagens.find((m) => classificar(m).codigo === 'ABACO_ARMADURA_FORA')!;
+    expect(msg).toContain('Comando: abaco.editar');
+    const sug = r0.abaco!.sugestaoAbaco!;
+    // o ábaco sugerido é o retângulo do ábaco efetivo ampliado: a menor extensão até a borda (a partir da face de 0,25) é a calculada (múltiplo de 5 cm)
+    const xs = sug.poligono.map((q) => q[0]), ys = sug.poligono.map((q) => q[1]), meio = Math.min(Math.max(...xs) - 6.25, 6.25 - Math.min(...xs), Math.max(...ys) - 6.25, 6.25 - Math.min(...ys)); // menor extensão do polígono (o ábaco efetivo pode ser assimétrico)
+    expect(rel(meio, 0.25 + sug.extensao)).toBeLessThan(1e-9);
+    expect(sug.extensao * 20).toBeCloseTo(Math.round(sug.extensao * 20), 9);
+    const sp = sug.comando.indexOf(' ');
+    expect(forte.executar(sug.comando.slice(0, sp), JSON.parse(sug.comando.slice(sp + 1))).ok).toBe(true);
+    const r1 = interno();
+    expect(r1.mensagens.some((m) => classificar(m).codigo === 'ABACO_ARMADURA_FORA')).toBe(false);
+    expect(r1.abaco!.externa!.status).toBe('ok');
+    expect(r1.armaduraExterna).toBeUndefined();
+  }, 240000);
 });
 
 describe('pilar sem ábaco e ábaco manual', () => {

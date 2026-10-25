@@ -3,7 +3,7 @@
 // ligada é idêntica à desligada.
 import { beforeAll, describe, expect, it } from 'vitest';
 import { comandosEdificioPadrao, Sessao } from '../commands';
-import { analisarEdificio, type AnaliseEdificio } from '../building/analitico';
+import { analisarEdificio, gamaZDeCalculo, type AnaliseEdificio } from '../building/analitico';
 import { FR, S2_PARAM } from '../building/vento';
 import type { BuildingModel } from '../building/types';
 import { Registrador, comMemoria, type PassoMemoria } from './registrador';
@@ -112,7 +112,7 @@ describe('γz em detalhe', () => {
       const T = `Estabilidade global (γz) – vento a ${gz.direcao}°`;
       const ps = G().filter((p) => p.topico === T);
       const m1p = ps.filter((p) => p.formula === 'M1,pav = Σ |F|·z');
-      const m1 = ps.find((p) => p.formula === 'M1,tot,d = Σ M1,pav')!;
+      const m1 = ps.find((p) => p.formula === 'M1,tot,k = Σ M1,pav')!;
       let soma = 0;
       for (const p of m1p) {
         let m = 0;
@@ -122,11 +122,18 @@ describe('γz em detalhe', () => {
       }
       expect(rel(soma, m1.resultado as number)).toBeLessThan(1e-9);
       expect(m1.resultado).toBe(gz.det!.M1);
+      // 15.5.3: M1,tot,d e ΔMtot,d de cálculo (γq do vento principal; γq·ψ0,w do acompanhante), da mesma combinação
+      const dd = gz.det!, m1V = ps.find((p) => p.formula === 'M1,tot,d = γq·M1,tot,k')!, m1U = ps.find((p) => p.formula === 'M1,tot,d = γq·ψ0,w·M1,tot,k')!;
+      expect(rel(m1V.resultado as number, dd.gq * dd.M1)).toBeLessThan(1e-9); expect(rel(m1U.resultado as number, dd.gq * dd.psiW * dd.M1)).toBeLessThan(1e-9);
+      expect(m1V.resultado).toBe(dd.M1dV); expect(m1U.resultado).toBe(dd.M1dU);
+      // o γz refeito só com grandezas características (deslocamento do vento e M1 sem γf, verticais ponderadas) coincide: o γf do vento se cancela
+      const pV = dd.pavimentos.reduce((t, q) => t + (dd.gg * q.G + dd.gq * q.Qpsi) * q.d, 0), pU = dd.pavimentos.reduce((t, q) => t + (dd.gg * q.G + dd.gq * q.Q) * q.d, 0);
+      expect(rel(1 / (1 - pV / dd.M1), gz.ventoPrincipal)).toBeLessThan(1e-9); expect(rel(1 / (1 - pU / dd.M1), gz.usoPrincipal)).toBeLessThan(1e-9);
       const dm = ps.filter((p) => p.formula.startsWith('ΔM,pav'));
       expect(dm).toHaveLength(gz.det!.pavimentos.length);
       let sV = 0, sU = 0;
       for (const p of dm) {
-        const v = (num(p, 'gg') * num(p, 'G') + num(p, 'gq') * num(p, 'Qpsi')) * num(p, 'd'), u = (num(p, 'gg') * num(p, 'G') + num(p, 'gq') * num(p, 'Q')) * num(p, 'd');
+        const v = (num(p, 'gg') * num(p, 'G') + num(p, 'gq') * num(p, 'Qpsi')) * num(p, 'fWV') * num(p, 'd'), u = (num(p, 'gg') * num(p, 'G') + num(p, 'gq') * num(p, 'Q')) * num(p, 'fWU') * num(p, 'd');
         expect(rel(v, p.resultado as number)).toBeLessThan(1e-9); expect(rel(u, num(p, 'aUso'))).toBeLessThan(1e-9);
         sV += v; sU += u;
       }
@@ -153,6 +160,28 @@ describe('γz em detalhe', () => {
   it('desaprumo global: passo "não aplicado" no Edifício, marcado a confirmar', () => {
     const d = G().find((p) => p.topico.startsWith('Desaprumo'))!;
     expect(d.resultado).toBe('não aplicado'); expect(d.aConfirmar).toBe(true);
+  });
+});
+
+describe('γz de cálculo (NBR 6118, 15.5.3): prédio de 3 pavimentos à mão', () => {
+  // vento 10, 20 e 30 kN a 3, 6 e 9 m: M1,k = 30 + 120 + 270 = 420 kN·m. d = 2, 5 e 8 mm (Σd = 0,015 m). G = 800, Q = 200 (Σψ0·Q = 100, ψ0 = 0,5) kN
+  // por pavimento; γg = γq = 1,4; ψ0,w = 0,6.
+  const pavs = [{ d: 0.002, G: 800, Q: 200, Qpsi: 100 }, { d: 0.005, G: 800, Q: 200, Qpsi: 100 }, { d: 0.008, G: 800, Q: 200, Qpsi: 100 }];
+  it('vento principal: M1,tot,d = 1,4·420 = 588; ΔMtot,d = (1,4·800 + 1,4·100)·1,4·0,015 = 26,46; γz = 1/(1 − 0,045)', () => {
+    const r = gamaZDeCalculo(420, pavs, 1.4, 1.4, 0.6);
+    expect(r.M1dV).toBeCloseTo(588, 9);
+    expect(r.dV).toBeCloseTo(26.46, 9);
+    expect(r.ventoPrincipal).toBeCloseTo(1 / 0.955, 12);
+  });
+  it('uso principal (vento acompanhante γq·ψ0,w = 0,84): M1,tot,d = 352,8; ΔMtot,d = (1,4·800 + 1,4·200)·0,84·0,015 = 17,64; γz = 1/(1 − 0,05)', () => {
+    const r = gamaZDeCalculo(420, pavs, 1.4, 1.4, 0.6);
+    expect(r.M1dU).toBeCloseTo(352.8, 9);
+    expect(r.dU).toBeCloseTo(17.64, 9);
+    expect(r.usoPrincipal).toBeCloseTo(1 / 0.95, 12);
+  });
+  it('sem vento (M1 = 0): γz = 1; deslocamento que anula a rigidez (ΔM ≥ M1): infinito', () => {
+    expect(gamaZDeCalculo(0, pavs, 1.4, 1.4, 0.6).ventoPrincipal).toBe(1);
+    expect(gamaZDeCalculo(10, pavs, 1.4, 1.4, 0.6).ventoPrincipal).toBe(Infinity);
   });
 });
 
