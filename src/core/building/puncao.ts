@@ -604,6 +604,8 @@ export interface AbacoPuncaoInfo {
   /** C′ (a 2·dAbaco da face) cai dentro do ábaco? Senão a região interna usa a altura útil da laje. */
   c2NoAbaco: boolean;
   externa?: { status: 'ok' | 'armadura' | 'fail'; tauRd1: number; tauRd3?: number };
+  /** Sugestão de aumentar o ábaco (armadura de punção além da borda do ábaco, ou C″ sem solução): extensão (m) da face e comando pronto. */
+  sugestaoAbaco?: { extensao: number; poligono: P[]; comando: string };
 }
 export interface GrupoPuncaoInfo { id: string; linhas: number; barras: number; phi: number; s: number }
 

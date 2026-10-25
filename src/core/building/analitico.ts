@@ -442,10 +442,25 @@ export interface InclinadaNoPortico { id: string; ref: string; nome: string; pav
   diagonal?: boolean;
   /** Diagonal dividida nos cruzamentos: barras do pórtico em ordem (`bi` é a primeira) e o número de nós gerados; `Lf` é o total. */
   segs?: { bi: number; Lf: number }[]; cruzamentos?: number }
+/** ψ0 do vento nas combinações (NBR 6118 Tab. 11.2; o mesmo de `combinacoes.ts`). */
+export const PSI0_VENTO = 0.6;
+/**
+ * γz de cálculo (NBR 6118, 15.5.3): γz = 1/(1 − ΔMtot,d/M1,tot,d), os dois da mesma combinação. `M1` é o momento de tombamento do vento
+ * característico e `d` o deslocamento do vento característico (linear): o vento principal entra com γq, o acompanhante com γq·ψ0,w.
+ * Verticais: vento principal (γg·G + γq·Σψ0·Q); uso principal (γg·G + γq·Q).
+ */
+export function gamaZDeCalculo(M1: number, pavs: { d: number; G: number; Q: number; Qpsi: number }[], gg: number, gq: number, psiW: number) {
+  const fWV = gq, fWU = gq * psiW;
+  let dV = 0, dU = 0;
+  for (const p of pavs) { dV += (gg * p.G + gq * p.Qpsi) * fWV * p.d; dU += (gg * p.G + gq * p.Q) * fWU * p.d; }
+  const M1dV = fWV * M1, M1dU = fWU * M1, gz = (r: number) => (r < 1 ? 1 / (1 - r) : Infinity);
+  return { M1dV, M1dU, dV, dU, ventoPrincipal: M1 ? gz(dV / M1dV) : 1, usoPrincipal: M1 ? gz(dU / M1dU) : 1 };
+}
 /** γz por direção do vento; `det` guarda os intermediários (M1,tot e ΔMtot,d por pavimento) da conta, para a memória detalhada (MD9). */
 export interface GamaZEdificio {
   direcao: number; ventoPrincipal: number; usoPrincipal: number; max: number; ampliacao: number;
-  det?: { caso: string; M1: number; dV: number; dU: number; psi0: number; gg: number; gq: number; pavimentos: { pavimento: string; z: number; d: number; G: number; Q: number; Qpsi: number }[] };
+  /** M1 = M1,tot característico (Σ|F|·z do vento); M1dV/M1dU = M1,tot,d com o vento principal (γq) e acompanhante (γq·ψ0,w); dV/dU = ΔMtot,d das mesmas combinações (verticais ponderadas · deslocamento do vento ponderado pelo mesmo fator). */
+  det?: { caso: string; M1: number; M1dV: number; M1dU: number; dV: number; dU: number; psi0: number; psiW: number; gg: number; gq: number; pavimentos: { pavimento: string; z: number; d: number; G: number; Q: number; Qpsi: number }[] };
 }
 /** Fator de rigidez reduzida por tipo de barra: EI = fator·(Eci/Ecs)·Ecs·Ic (E e G × kEci). */
 export interface RigidezReduzida { tipo: string; fator: number; kEciMin: number; kEciMax: number; barras: number }
@@ -1912,7 +1927,9 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
     const gm = gamas(b), casosOb = casosDaObra(b);
     const gamaZ = rR.erro ? [] : centrados.map((cv, ic) => {
       const ix = cv.direcao === 0 || cv.direcao === 180 ? 0 : 1, sg = cv.direcao === 0 || cv.direcao === 90 ? 1 : -1;
-      let M1 = 0, dV = 0, dU = 0;
+      // 15.5.3: M1,tot,d e ΔMtot,d de cálculo, da mesma combinação. Vento principal: γq·W; vento acompanhante (uso principal): γq·ψ0,w·W.
+      // O deslocamento d é do vento característico (linear): o de cálculo é fW·d, com o mesmo fW do M1.
+      let M1 = 0;
       const detPav: NonNullable<GamaZEdificio['det']>['pavimentos'] = [];
       for (const f of cv.forcas) M1 += Math.abs(f.F) * f.z;
       for (const p of ps) {
@@ -1930,12 +1947,11 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
         const d = (sg * sd) / sw, c = cargasPavimento[p.id];
         let G = 0, Q = 0, Qpsi = 0;
         for (const k of casosOb) { const v = c[k.id] ?? 0; if (k.natureza === 'G' || k.natureza === 'H') G += v; else if (k.natureza === 'Q') { Q += v; Qpsi += (k.id === 'Q' ? psi0 : k.psi?.[0] ?? psi0) * v; } }
-        dV += (gm.g * G + gm.q * Qpsi) * d; dU += (gm.g * G + gm.q * Q) * d;
         detPav.push({ pavimento: p.id, z: p.cota, d, G, Q, Qpsi });
       }
-      const gz = (r: number) => (r < 1 ? 1 / (1 - r) : Infinity);
-      const vp = M1 ? gz(dV / M1) : 1, up = M1 ? gz(dU / M1) : 1, max = Math.max(vp, up);
-      return { direcao: cv.direcao, ventoPrincipal: vp, usoPrincipal: up, max, ampliacao: max > 1.1 ? 0.95 * max : 1, det: { caso: cv.nome, M1, dV, dU, psi0, gg: gm.g, gq: gm.q, pavimentos: detPav } };
+      const { M1dV, M1dU, dV, dU, ventoPrincipal: vp, usoPrincipal: up } = gamaZDeCalculo(M1, detPav, gm.g, gm.q, PSI0_VENTO);
+      const max = Math.max(vp, up);
+      return { direcao: cv.direcao, ventoPrincipal: vp, usoPrincipal: up, max, ampliacao: max > 1.1 ? 0.95 * max : 1, det: { caso: cv.nome, M1, M1dV, M1dU, dV, dU, psi0, psiW: PSI0_VENTO, gg: gm.g, gq: gm.q, pavimentos: detPav } };
     });
     // deslocamentos laterais na combinação frequente (ψ1 = 0,3 do vento): topo ≤ H/limite e entre pavimentos ≤ hi/limite
     const psi1W = 0.3, zBase = Math.min(...[...noPilar.entries()].filter(([k]) => k.endsWith('|base')).map(([, n]) => pm.nos[n][2]));

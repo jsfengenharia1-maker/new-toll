@@ -668,7 +668,7 @@ export const f_MD9 = {
       const T = 'Estabilidade global (γz) – vento a 0°';
       const dm = ed.filter((p) => p.topico === T && p.formula.startsWith('ΔM,pav'));
       assert.ok(dm.length >= 2);
-      const sV = dm.reduce((s, p) => s + (p.entradas.gg * p.entradas.G + p.entradas.gq * p.entradas.Qpsi) * p.entradas.d, 0);
+      const sV = dm.reduce((s, p) => s + (p.entradas.gg * p.entradas.G + p.entradas.gq * p.entradas.Qpsi) * p.entradas.fWV * p.entradas.d, 0); // ΔMtot,d de cálculo: o deslocamento do vento entra com o mesmo γf do M1,tot,d (15.5.3)
       const gv = ed.find((p) => p.topico === T && p.descricao === 'γz com o vento principal');
       assert.ok(rel(sV, gv.entradas.dM) < 1e-9);
       assert.ok(rel(1 / (1 - gv.entradas.dM / gv.entradas.M1), gv.resultado) < 1e-9);

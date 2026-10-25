@@ -132,7 +132,7 @@ export const SUGESTOES: Record<string, string> = {
   // ábacos das nervuradas bidirecionais (E3d)
   NERV_ESTRIBO_ABACO: 'Informativo: a banda maciça sobre o ábaco precisa de estribos; aumente a altura do ábaco (hAbaco) ou o ábaco para dispensá-los.',
   ABACO_FALTA: 'Gere o ábaco do pilar (abaco.gerar) ou desenhe um manual: sem ábaco o pilar apoia só nas nervuras e o contorno de punção atravessa as cubetas, o que quase sempre reprova.',
-  ABACO_ARMADURA_FORA: 'Aumente o ábaco (fração ou comprimento máximo nas opções), a altura útil ou a laje: as linhas de armadura de punção calculadas passam da borda do ábaco e a altura útil fora dele é menor.',
+  ABACO_ARMADURA_FORA: 'Aplique o comando de “aumentar o ábaco” trazido na mensagem (abaco.editar com a extensão calculada, com o ábaco dentro do pano) ou aumente a altura útil ou a laje: as linhas de armadura de punção calculadas passam da borda do ábaco e a altura útil fora dele é menor.',
   ABACO_VIGA: 'Defina uma viga em vez de simular a viga com um ábaco comprido e estreito; use ábaco em bordas livres e junto aos pilares (ou confirme com comoViga no ábaco).',
   ABACO_FORA: 'Corrija o polígono do ábaco para ficar dentro do pano nervurado, ou remova o ábaco: ele não tem efeito fora da laje nervurada bidirecional.',
   ABACO_ALTURA: 'Ajuste a altura do ábaco (hAbaco) para pelo menos a altura total da laje: o ábaco tem a espessura do pano e pode descer abaixo dele, nunca ficar acima.',
@@ -292,3 +292,14 @@ export const SUGESTOES: Record<string, string> = {
 
 /** Sugestão de correção do código (vazia se não houver). */
 export const sugestaoDe = (codigo: string): string => SUGESTOES[codigo] ?? '';
+
+/**
+ * Texto e comando da sugestão “aumentar o ábaco” (punção com ábaco, E3d): `extensao` é a distância (m) da face do pilar à borda que o
+ * ábaco precisa ter e `poligono` o ábaco ampliado (retângulo nos eixos do pilar). Sem `extensao` (nenhuma até o limite dispensa a armadura
+ * fora do ábaco) a sugestão é só aumentar a laje. O cálculo não é alterado: o comando vai à fila de edição e o apoio é reverificado.
+ */
+export function sugestaoAumentarAbaco(id: string, extensao: number | null, poligono: [number, number][]): { texto: string; comando: string } {
+  if (extensao === null) return { texto: 'Sugestão: nenhuma extensão do ábaco até 3 m dispensa a armadura fora dele; aumente a espessura da laje ou a seção do pilar.', comando: '' };
+  const comando = `abaco.editar ${JSON.stringify({ id, poligono: poligono.map((q) => [+q[0].toFixed(3), +q[1].toFixed(3)]) })}`;
+  return { texto: `Sugestão: aumentar o ábaco para ${(extensao * 100).toFixed(0)} cm da face do pilar até a borda (o C″ fora do ábaco atende sem armadura externa e as linhas de armadura ficam dentro dele). Comando: ${comando}`, comando };
+}
