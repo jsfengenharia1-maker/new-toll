@@ -5,6 +5,7 @@ import { baseBarra, type Modelo3, type V3 } from '../fe3d';
 import type { AnaliseEdificio } from '../building/analitico';
 import { combinacoesEdificio, type CombinacaoEd } from '../building/combinacoes';
 import { casosDaObra, type BuildingModel } from '../building/types';
+import { casosHorizontais } from '../building/desaprumo';
 
 /** Hipótese de carga: caso simples (fator 1) ou combinação (fatores por caso, como em `CombinacaoEd`). */
 export interface Hipotese { id: string; nome: string; tipo: 'caso' | 'combinacao'; fatores: Record<string, number> }
@@ -32,7 +33,7 @@ export interface DeslocamentosHipotese {
 export function deslocPorticoDoCaso(an: AnaliseEdificio, caso: string): Float64Array | null {
   const pm = an.portico, ic = an.casos.indexOf(caso);
   if (ic >= 0) return pm.res?.desloc[ic] ?? null;
-  const iw = (an.vento?.casos ?? []).findIndex((c) => c.nome === caso);
+  const iw = casosHorizontais(an).findIndex((c) => c.nome === caso);
   if (iw >= 0) return pm.resVento?.desloc[iw] ?? null;
   const m = /^PΔ (\d+)$/.exec(caso);
   if (m) return pm.resPDelta?.desloc[+m[1] - 1] ?? null;
@@ -70,7 +71,7 @@ export function cargasDistribuidasHipotese(an: AnaliseEdificio, h: Hipotese): Ma
   const fonte = (caso: string): { distribuidas: { barra: number; q: V3 }[] } | undefined => {
     const ic = an.casos.indexOf(caso);
     if (ic >= 0) return pm.casos?.[ic];
-    const iw = (an.vento?.casos ?? []).findIndex((c) => c.nome === caso);
+    const iw = casosHorizontais(an).findIndex((c) => c.nome === caso);
     if (iw >= 0) return pm.casosVento?.[iw];
     return undefined;
   };

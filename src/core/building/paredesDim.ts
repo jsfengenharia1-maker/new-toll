@@ -22,6 +22,7 @@ import { elementoParede, registrarAbertura, registrarLadoBarra, registrarLadoGlo
 import { geometriaParedes, ladosDoPP, lancesDoPP, type GradeLado, type LadoGeo } from './pilarParede';
 import type { ResultadoPilarParede } from './pilarParedeEsforcos';
 import type { AberturaParede, ArmaduraAbertura, ArmaduraPano, BuildingModel, Parede, PilarParede } from './types';
+import { casosHorizontais } from './desaprumo';
 
 const fmt = (v: number, d = 2) => v.toFixed(d).replace('.', ',');
 const pct = (v: number) => `${fmt(v * 100, 1)} %`;
@@ -338,7 +339,7 @@ export function fontesCascas(an: AnaliseEdificio): Map<string, Float64Array[]> {
   const m = new Map<string, Float64Array[]>();
   const res = an.portico.res, resV = an.portico.resVento && !an.portico.resVento.erro ? an.portico.resVento : null;
   if (res?.cascas) an.casos.forEach((c, ic) => { if (res.cascas![ic]) m.set(c, res.cascas![ic]); });
-  const nomesV = an.vento?.casos.map((c) => c.nome) ?? [];
+  const nomesV = casosHorizontais(an).map((c) => c.nome);
   if (resV?.cascas) nomesV.forEach((n, iv) => { if (resV.cascas![iv]) m.set(n, resV.cascas![iv]); });
   return m;
 }

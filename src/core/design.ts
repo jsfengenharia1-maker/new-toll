@@ -12,6 +12,7 @@ import {
 } from './concrete';
 import { designSteel, type SteelCombo, type SteelDesign } from './steel';
 import { memoriaAtiva } from './memoria/registrador';
+import { anguloDesaprumo, decidirRegra30 } from './desaprumo';
 import { registrarDesaprumo2D, registrarGamaZ2D, registrarPDelta2D, registrarRegra30, type DetRegra30 } from './memoria/estabilidade2D';
 import { defaultDesign, type ComboKind, type DesignSettings, type Model } from './types';
 import type { CtxPortico } from './memoria/porticoBase';
@@ -175,8 +176,8 @@ export function imperfectionOf(model: Model, settings: DesignSettings): Imperfec
     return !!a && !!b && roleOf(model, angleOf(b.x - a.x, b.y - a.y), m.role) === 'column' && (sup.has(m.ni) || sup.has(m.nj));
   }).length;
   const n = Math.max(1, Math.round(settings.imperfectionColumns ?? nAuto) || 1);
-  const theta1 = Math.min(1 / 200, Math.max(1 / 300, 1 / (100 * Math.sqrt(H))));
-  return { H, n, nAuto, theta1, thetaA: theta1 * Math.sqrt((1 + 1 / n) / 2) };
+  const ang = anguloDesaprumo(H, n);
+  return { H, n, nAuto, theta1: ang.theta1, thetaA: ang.thetaA };
 }
 
 /** Resultados unitários do desaprumo por caso (+x): forças θa·V nos nós, V = carga vertical equivalente do caso. */
@@ -233,8 +234,9 @@ function withImperfection(model: Model, elu: NamedCombo[], imp: Imperfection, eq
     }
     Md = Math.abs(Md);
     const nota = (saida: string) => { if (reg) registrarRegra30(reg, { combo: cb.name, hasW, Mw, Md, saida, termos }); };
-    if (Md < 1e-9) { nota('sem desaprumo (sem carga vertical)'); out.push(cb); continue; }
-    if (!hasW || Math.abs(Mw) < 1e-9) {
+    const dec = decidirRegra30(Mw, Md, hasW);
+    if (dec === 'sem-desaprumo') { nota('sem desaprumo (sem carga vertical)'); out.push(cb); continue; }
+    if (dec === 'sem-vento') {
       nota('sem vento: desaprumo nos dois sentidos (+x e −x)');
       if (memOn) decisoes.push({ combo: cb.name, Mw, Md, temVento: hasW, regra: 'sem vento: desaprumo nos dois sentidos' });
       out.push({ ...cb, name: `${cb.name} · desaprumo +x`, desap: 1 }, { ...cb, name: `${cb.name} · desaprumo −x`, desap: -1 });
@@ -242,8 +244,8 @@ function withImperfection(model: Model, elu: NamedCombo[], imp: Imperfection, eq
     }
     const sign = Math.sign(Mw);
     if (memOn) decisoes.push({ combo: cb.name, Mw, Md, temVento: true, regra: 0.3 * Math.abs(Mw) >= Md ? 'só vento (30 % do vento ≥ desaprumo)' : Math.abs(Mw) < 0.3 * Md ? 'só desaprumo (vento < 30 % do desaprumo)' : 'vento e desaprumo no mesmo sentido' });
-    if (0.3 * Math.abs(Mw) >= Md) { nota('só vento (0,3·|Mw| ≥ Md)'); out.push(cb); }
-    else if (Math.abs(Mw) < 0.3 * Md) {
+    if (dec === 'so-vento') { nota('só vento (0,3·|Mw| ≥ Md)'); out.push(cb); }
+    else if (dec === 'so-desaprumo') {
       nota('só desaprumo (|Mw| < 0,3·Md)');
       const f = { ...cb.factors };
       for (const c of model.cases) if (c.nature === 'W') delete f[c.id];

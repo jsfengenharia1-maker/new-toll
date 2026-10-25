@@ -17,6 +17,7 @@ import type { AnaliseEdificio, GrelhaPavimento } from './analitico';
 import type { Resultado3 } from '../fe3d';
 import { forcaBasePilar, type ResultadoRadier } from './baseElastica';
 import type { CombinacaoEd } from './combinacoes';
+import { casosHorizontais } from './desaprumo';
 import { secaoBase } from './fundacao';
 import type { ResultadoLaje } from './dimensionamento';
 import type { OpcoesCalculo } from './opcoes';
@@ -824,7 +825,7 @@ export function puncaoRadier(b: BuildingModel, an: AnaliseEdificio, radiers: Res
   const out = new Map<string, ResultadoPuncao[]>(), be = an.baseElastica, pm = an.portico;
   if (!op.puncaoVerificar || !be || !pm.res) return out;
   const nomes: string[] = [...an.casos], desl = [...pm.res.desloc], esf = [...pm.res.esforcos];
-  if (pm.resVento) (an.vento?.casos ?? []).forEach((cv, ic) => { nomes.push(cv.nome); desl.push(pm.resVento!.desloc[ic]); esf.push(pm.resVento!.esforcos[ic]); });
+  if (pm.resVento) casosHorizontais(an).forEach((cv, ic) => { nomes.push(cv.nome); desl.push(pm.resVento!.desloc[ic]); esf.push(pm.resVento!.esforcos[ic]); });
   const c = concretoDe(b, 'fundacao'), fywd = Math.min(acoDe(b, 'lajePuncao').fyd, op.puncaoTipoArmadura ? 300 : 250), cob = cobrimentoFundacao(b);
   const combs = elu.filter((x) => x.tipo === 'ELU');
   for (const rr of radiers) {

@@ -10,6 +10,7 @@ import { diagramaEmpuxo, k0, kaCoulomb, kaRankine } from './empuxo';
 import { gamas } from './materiais';
 import { revisarEdificio } from './revisao';
 import { casosDaObra, casosParaCarga, relacaoEfetiva, type TipoEmpuxo } from './types';
+import { ANTES_DESAPRUMO } from './antesDesaprumo';
 
 /** Prédio 6 × 5 m (4 pilares de 25 × 25), 1 laje por pavimento, sem vento. */
 function predio(vento = false) {
@@ -20,6 +21,7 @@ function predio(vento = false) {
   ok('lote', { comandos: [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => ({ nome: 'viga.tracar', params: { grupo: 'g_3', pontos: p, secao: { b: 0.15, h: 0.4 } } })) });
   ok('laje.detectarPanos', { grupo: 'g_3', tipo: { tipo: 'macica', h: 0.12 } });
   if (!vento) ok('vento.definir', { ativo: false });
+  ok('opcoes.definir', { valores: ANTES_DESAPRUMO }); // os ELU deste arquivo são conferidos à mão sem o desaprumo global
   return { s, ok };
 }
 
@@ -33,6 +35,7 @@ function predio2x2() {
   ok('lote', { comandos: [v([[0, 0], [10, 0]]), v([[0, 4], [10, 4]]), v([[0, 8], [10, 8]]), v([[0, 0], [0, 8]]), v([[5, 0], [5, 8]]), v([[10, 0], [10, 8]])] });
   ok('laje.detectarPanos', { grupo: 'g_3', tipo: { tipo: 'macica', h: 0.12 } });
   ok('vento.definir', { ativo: false });
+  ok('opcoes.definir', { valores: ANTES_DESAPRUMO });
   return { s, ok };
 }
 

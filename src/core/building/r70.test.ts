@@ -21,11 +21,13 @@ import { lerQuadroVigas } from './quadros';
 import { ANTES_N2E } from './antesN2e';
 import { ANTES_N4C } from './antesN4c';
 import { ANTES_R8B } from './antesR8b';
+import { ANTES_DESAPRUMO } from './antesDesaprumo';
 
 function sessao() {
   const s = new Sessao();
   for (const c of comandosEdificioPadrao()) s.executar(c.nome, c.params, 'sistema');
   const ok = (n: string, p: Record<string, unknown>) => { const r = s.executar(n, p); expect(r.ok, `${n}: ${r.erros.map((e) => e.mensagem).join(' ')}`).toBe(true); return r; };
+  ok('opcoes.definir', { valores: ANTES_DESAPRUMO });
   return { s, ok };
 }
 

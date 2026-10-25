@@ -8,6 +8,7 @@ import type { CombinacaoEd } from '../building/combinacoes';
 import { concretoDe, acoDe, gamas } from '../building/materiais';
 import { dimsSecao, lancesDoPilar, secaoNoLance, type BuildingModel } from '../building/types';
 import { zip } from '../zip';
+import { casosHorizontais } from '../building/desaprumo';
 
 export interface TabelaDados { nome: string; descricao: string; cabecalho: string[]; linhas: (string | number)[][] }
 
@@ -20,7 +21,7 @@ export function casosResolvidos(an: AnaliseEdificio): CasoResolvido[] {
   const pm = an.portico, out: CasoResolvido[] = [];
   if (!pm.res) return out;
   an.casos.forEach((c, ic) => out.push({ nome: c, origem: 'obra', res: pm.res!, ic, caso: pm.casos?.[ic] }));
-  if (pm.resVento) (an.vento?.casos ?? []).forEach((c, ic) => out.push({ nome: c.nome, origem: 'vento', res: pm.resVento!, ic, caso: pm.casosVento?.[ic] }));
+  if (pm.resVento) casosHorizontais(an).forEach((c, ic) => out.push({ nome: c.nome, origem: 'vento', res: pm.resVento!, ic, caso: pm.casosVento?.[ic] }));
   if (pm.resPDelta) for (const c of an.segundaOrdem?.combinacoes ?? []) { const k = c.caso ? +c.caso.slice(3) - 1 : -1; if (k >= 0) out.push({ nome: c.caso!, origem: 'pDelta', res: pm.resPDelta, ic: k, caso: pm.casosPDelta?.[k] }); }
   return out;
 }

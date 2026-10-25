@@ -157,10 +157,68 @@ describe('γz em detalhe', () => {
     for (const p of r) expect(p.entradas.fator).toBe(p.resultado);
   });
 
-  it('desaprumo global: passo "não aplicado" no Edifício, marcado a confirmar', () => {
-    const d = G().find((p) => p.topico.startsWith('Desaprumo'))!;
-    expect(d.resultado).toBe('não aplicado'); expect(d.aConfirmar).toBe(true);
+  it('desaprumo global: H, n, θ1 (1/300 a 1/200) e θa refeitos das entradas e iguais aos da análise', () => {
+    const ps = tp('Desaprumo global (11.3.3.4.1)');
+    expect(ps).toHaveLength(4);
+    const [pH, pn, p1, pa] = ps, d = an.desaprumo!;
+    expect(rel(num(pH, 'zTopo') - num(pH, 'zBase'), pH.resultado as number)).toBeLessThan(1e-9);
+    expect(pH.resultado).toBe(d.H); expect(pH.resultado).toBe(an.vento!.altura);
+    expect(pn.resultado).toBe(d.n); expect(num(pn, 'nAuto')).toBe(d.nAuto);
+    const theta1 = Math.min(1 / 200, Math.max(1 / 300, 1 / (100 * Math.sqrt(num(p1, 'H')))));
+    expect(rel(theta1, p1.resultado as number)).toBeLessThan(1e-9);
+    expect(rel(num(pa, 'theta1') * Math.sqrt((1 + 1 / num(pa, 'n')) / 2), pa.resultado as number)).toBeLessThan(1e-9);
+    expect(pa.resultado).toBe(d.thetaA);
+    expect(p1.aConfirmar && pn.aConfirmar).toBe(true);
   });
+
+  it('desaprumo global: F = θa·V por pavimento, Md,k = θa·ΣV·z e fração das zonas das entradas', () => {
+    const d = an.desaprumo!;
+    for (const k of d.verticais) {
+      const ps = tp(`Desaprumo global – forças por pavimento (caso ${k})`);
+      const forcas = ps.filter((p) => p.formula === 'F = θa·V'), md = ps.filter((p) => p.formula === 'Md,k = θa·Σ V·z');
+      expect(forcas.length).toBeGreaterThan(0);
+      for (const p of forcas) {
+        expect(rel(num(p, 'thetaA') * num(p, 'V'), p.resultado as number)).toBeLessThan(1e-9);
+        expect(num(p, 'thetaA')).toBe(d.thetaA);
+        const pv = d.pavimentos.find((x) => x.z === num(p, 'z') && Math.abs(x.V[k] - num(p, 'V')) < 1e-9)!;
+        expect(pv).toBeDefined();
+        expect(num(p, 'V')).toBe(an.cargasPavimento[pv.pavimento][k]);
+      }
+      expect(md).toHaveLength(1);
+      const soma = Object.keys(md[0].entradas).filter((q) => /^V\d+$/.test(q)).reduce((t, q) => t + num(md[0], q) * num(md[0], `z${q.slice(1)}`), 0);
+      expect(rel(num(md[0], 'thetaA') * soma, md[0].resultado as number)).toBeLessThan(1e-9);
+      expect(md[0].resultado).toBe(d.md[k]);
+    }
+  });
+
+  it('desaprumo global: regra dos 30 % do vento por combinação ELU — Mw, Md e a decisão refeitos', () => {
+    const ps = tp('Desaprumo global – regra dos 30 % do vento');
+    let semVento = 0, soVento = 0, soDesap = 0, ambos = 0;
+    expect(ps.length).toBeGreaterThan(0);
+    for (const p of ps) {
+      let Mw = 0, Md = 0, k = 0;
+      while (`f${k}` in p.entradas) { Md += num(p, `f${k}`) * num(p, `Md${k}`); if (`Mw${k}` in p.entradas) Mw += num(p, `f${k}`) * num(p, `Mw${k}`); k++; }
+      expect(Math.abs(Mw - num(p, 'Mw')) <= 1e-9 * Math.max(1, Math.abs(Mw))).toBe(true);
+      expect(rel(Math.abs(Md), num(p, 'Md'))).toBeLessThan(1e-9);
+      const sd = p.resultado as string, Mwa = Math.abs(num(p, 'Mw')), Mda = num(p, 'Md');
+      if (Mda < 1e-9) continue;
+      if (Mwa < 1e-9) { expect(sd).toMatch(/^sem vento/); semVento++; }
+      else if (0.3 * Mwa >= Mda) { expect(sd).toMatch(/^só vento/); soVento++; }
+      else if (Mwa < 0.3 * Mda) { expect(sd).toMatch(/^só desaprumo/); soDesap++; }
+      else { expect(sd).toMatch(/^vento \+ desaprumo/); ambos++; }
+    }
+    expect(semVento).toBeGreaterThan(0);
+    expect(semVento + soVento + soDesap + ambos).toBe(ps.length);
+  });
+
+  it('desaprumo global desligado: passo "não aplicado", a confirmar', () => {
+    const bOff = predio({ desaprumoGlobal: 0 }), anOff = analisarEdificio(bOff);
+    const m = memoriaDetalhada(bOff, { an: anOff }).memoria;
+    const d = m.passos.filter((p) => p.elemento === 'Edifício' && p.topico.startsWith('Desaprumo'));
+    expect(d).toHaveLength(1);
+    expect(d[0].resultado).toBe('não aplicado'); expect(d[0].aConfirmar).toBe(true);
+    expect(anOff.desaprumo).toBeUndefined();
+  }, 120000);
 });
 
 describe('γz de cálculo (NBR 6118, 15.5.3): prédio de 3 pavimentos à mão', () => {

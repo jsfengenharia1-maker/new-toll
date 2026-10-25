@@ -15,6 +15,7 @@ import type { AnaliseEdificio, BarraGrelha, GrelhaPavimento } from './analitico'
 import { eixoDaBaseParede } from './corridaParede';
 import { direcaoPrincipal, torcaoRet } from './analitico';
 import type { CombinacaoEd } from './combinacoes';
+import { casosHorizontais } from './desaprumo';
 import { alfa0t, lbBasico } from './detalhamento';
 import { registrarRadier, momentosRadier, type ItemFissRadier } from '../memoria/radier';
 import { registrarLajeBarras } from '../memoria/lajeMacica';
@@ -509,7 +510,7 @@ export function deslocPorCaso(an: AnaliseEdificio): Map<string, Float64Array> {
   const m = new Map<string, Float64Array>(), pm = an.portico;
   if (!pm.res) return m;
   an.casos.forEach((c, ic) => m.set(c, pm.res!.desloc[ic]));
-  if (pm.resVento) (an.vento?.casos ?? []).forEach((cv, ic) => m.set(cv.nome, pm.resVento!.desloc[ic]));
+  if (pm.resVento) casosHorizontais(an).forEach((cv, ic) => m.set(cv.nome, pm.resVento!.desloc[ic]));
   return m;
 }
 
@@ -591,7 +592,7 @@ export function dimensionarBaseElastica(b: BuildingModel, an: AnaliseEdificio, c
   const raras = combs.raras.filter((c) => c.tipo === 'RARA'), elu = combs.elu.filter((c) => c.tipo === 'ELU'), freq = combs.freq.filter((c) => c.tipo === 'FREQ');
   // todos os casos (verticais e de vento) num resultado só, para combinar esforços com fatores por índice
   const nomes: string[] = [...an.casos], esforcos = [...pm.res.esforcos];
-  if (pm.resVento) (an.vento?.casos ?? []).forEach((cv, ic) => { nomes.push(cv.nome); esforcos.push(pm.resVento!.esforcos[ic]); });
+  if (pm.resVento) casosHorizontais(an).forEach((cv, ic) => { nomes.push(cv.nome); esforcos.push(pm.resVento!.esforcos[ic]); });
   const fat = (c: CombinacaoEd) => nomes.map((n) => c.fatores[n] ?? 0);
   const res = { ...pm.res, esforcos } as Resultado3;
   const tags: BarraGrelha[] = pm.modelo.barras.map(() => ({ tipo: 'viga', ref: '' }));
@@ -670,7 +671,7 @@ export function dimensionarVigaElastica(b: BuildingModel, an: AnaliseEdificio, v
   if (!be || !pm.res) return null;
   const raras = combs.raras.filter((c) => c.tipo === 'RARA'), elu = combs.elu.filter((c) => c.tipo === 'ELU');
   const nomes: string[] = [...an.casos], esforcos = [...pm.res.esforcos];
-  if (pm.resVento) (an.vento?.casos ?? []).forEach((cv, ic) => { nomes.push(cv.nome); esforcos.push(pm.resVento!.esforcos[ic]); });
+  if (pm.resVento) casosHorizontais(an).forEach((cv, ic) => { nomes.push(cv.nome); esforcos.push(pm.resVento!.esforcos[ic]); });
   const fat = (c: CombinacaoEd) => nomes.map((n) => c.fatores[n] ?? 0);
   const c = concretoDe(b, 'fundacao'), aco = acoDe(b, 'fundacao'), cob = cobrimentoFundacao(b), op = an.opcoes, gs = gamas(b).s;
   const nos = be.nos.filter((n) => n.ref === v.id), barras = be.barras.filter((x) => x.ref === v.id);

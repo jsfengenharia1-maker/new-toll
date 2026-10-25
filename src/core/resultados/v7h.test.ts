@@ -17,6 +17,7 @@ import { hipotesesDeEsforco } from './esforcosCaso';
 import { baseDoPilarParede, secoesDoPilarParedePorHipotese, torsorDoPilarParede } from './pilarParedeHipotese';
 import { linha, modeloL } from './fixturePPL';
 import ref from '../../../validation/opensees/torcao_pp.json';
+import { ANTES_DESAPRUMO } from '../building/antesDesaprumo';
 
 const ok = (s: Sessao, n: string, p: Record<string, unknown>) => { const r = s.executar(n, p); expect(r.ok, `${n}: ${r.erros.map((e) => e.mensagem).join(' ')}`).toBe(true); };
 const CH = ['N', 'Vx', 'Vy', 'Mx', 'My', 'Mz'] as const;
@@ -89,7 +90,7 @@ describe('V7h: seção do pilar-parede em L contra equilíbrio e OpenSees', () =
 function edificioParede(vertices: number[][], opcoes?: Record<string, number>) {
   const s = new Sessao();
   for (const c of comandosEdificioPadrao()) s.executar(c.nome, c.params, 'sistema');
-  if (opcoes) ok(s, 'opcoes.definir', { valores: opcoes });
+  ok(s, 'opcoes.definir', { valores: { ...ANTES_DESAPRUMO, ...opcoes } });
   const g = s.modelo.pavimentos.find((p) => p.nome === 'Tipo 1')!.grupo;
   ok(s, 'pilarParede.tipo', { nome: 'Isolado', vertices, esq: 0.1, dir: 0.1 });
   ok(s, 'pilarParede.inserir', { tipo: s.modelo.tiposPilarParede![0].id, x: 0, y: 0 });

@@ -11,6 +11,7 @@ import { memoriaDetalhada } from '../memoria/edificio';
 import { dimensionarEdificio } from './dimensionamento';
 import { composicaoEtapas, ETAPAS_PADRAO } from './flechas';
 import { acrescimoEm, acrescimoEst, cortanteRedist, perfisRedistribuicao, type VaoRedist } from './redistribuicao';
+import { ANTES_DESAPRUMO } from './antesDesaprumo';
 
 /** Dois vãos iguais de 5 m (parte flexível) com faces a 0,1 m das pontas; um só caso (k = 0), momentos de cálculo dados. */
 function doisVaos(MfA: number, VfA: number): VaoRedist[] {
@@ -89,7 +90,7 @@ function grade(valores: Record<string, number>, extra?: (s: Sessao) => void, sec
   ok('lote', { comandos: [[0, 0], [5, 0], [10, 0], [0, 5], [5, 5], [10, 5]].map(([x, y]) => ({ nome: 'pilar.inserir', params: { x, y, secao: { tipo: 'ret', b: 0.25, h: 0.25 } } })) });
   ok('lote', { comandos: [[[0, 0], [10, 0]], [[0, 5], [10, 5]], [[0, 0], [0, 5]], [[5, 0], [5, 5]], [[10, 0], [10, 5]]].map((p) => ({ nome: 'viga.tracar', params: { grupo: 'g_7', pontos: p, secao } })) });
   ok('laje.detectarPanos', { grupo: 'g_7', tipo: { tipo: 'macica', h: 0.12 } });
-  ok('opcoes.definir', { valores });
+  ok('opcoes.definir', { valores: { ...ANTES_DESAPRUMO, ...valores } });
   extra?.(s);
   const an = analisarEdificio(s.modelo);
   expect(an.erro).toBeUndefined();

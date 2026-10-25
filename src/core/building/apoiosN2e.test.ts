@@ -11,12 +11,14 @@ import { dimensionarEdificio } from './dimensionamento';
 import { acoDe } from './materiais';
 import { OPCOES_INFO, padraoDe } from './opcoes';
 import { revisarEdificio } from './revisao';
+import { ANTES_DESAPRUMO } from './antesDesaprumo';
 
 function sessao() {
   const s = new Sessao();
   for (const c of comandosEdificioPadrao()) s.executar(c.nome, c.params, 'sistema');
   const ok = (n: string, p: Record<string, unknown>) => { const r = s.executar(n, p); expect(r.ok, `${n}: ${r.erros.map((e) => e.mensagem).join(' ')}`).toBe(true); return r; };
   ok('vento.definir', { ativo: false });
+  ok('opcoes.definir', { valores: ANTES_DESAPRUMO });
   return { s, ok };
 }
 const calc = (s: Sessao) => { const an = analisarEdificio(s.modelo); expect(an.erro).toBeUndefined(); return { an, d: dimensionarEdificio(s.modelo, an) }; };

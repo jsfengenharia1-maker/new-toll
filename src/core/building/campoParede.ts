@@ -7,6 +7,7 @@ import { forcasDe, type Forcas } from './paredesArmadura';
 import { ladosDoPP } from './pilarParede';
 import { ppDaObra } from './paredesBase';
 import type { BuildingModel } from './types';
+import { casosHorizontais } from './desaprumo';
 
 export type ComponenteTensao = 'sigmaX' | 'sigmaY' | 'tauXY' | 'My' | 'Mx' | 'Qmax';
 export type ComponenteDeslocamento = 'normal' | 'vertical' | 'alongo';
@@ -47,7 +48,7 @@ function triangulos(b: BuildingModel, an: AnaliseEdificio, ladoId: string) {
 export function campoTensaoLado(b: BuildingModel, an: AnaliseEdificio, ladoId: string, comb: CombinacaoEd, comp: ComponenteTensao, face: 1 | -1 = -1): CampoLado | null {
   const tr = triangulos(b, an, ladoId), res = an.portico.res, resV = an.portico.resVento && !an.portico.resVento.erro ? an.portico.resVento : null;
   if (!tr || !res?.cascas) return null;
-  const nomesV = an.vento?.casos.map((c) => c.nome) ?? [];
+  const nomesV = casosHorizontais(an).map((c) => c.nome);
   const fontes: [Float64Array[], number][] = [];
   for (const [n, f] of Object.entries(comb.fatores)) {
     const ic = an.casos.indexOf(n as never), iv = nomesV.indexOf(n);
@@ -67,7 +68,7 @@ export function campoTensaoLado(b: BuildingModel, an: AnaliseEdificio, ladoId: s
 export function campoDeslocamentoLado(b: BuildingModel, an: AnaliseEdificio, ladoId: string, caso: string, comp: ComponenteDeslocamento): CampoLado | null {
   const tr = triangulos(b, an, ladoId), res = an.portico.res, resV = an.portico.resVento && !an.portico.resVento.erro ? an.portico.resVento : null;
   if (!tr) return null;
-  const nomesV = an.vento?.casos.map((c) => c.nome) ?? [];
+  const nomesV = casosHorizontais(an).map((c) => c.nome);
   const ic = an.casos.indexOf(caso as never), iv = nomesV.indexOf(caso);
   const d = ic >= 0 ? res?.desloc[ic] : iv >= 0 ? resV?.desloc[iv] : undefined;
   if (!d) return null;
