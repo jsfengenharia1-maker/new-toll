@@ -163,4 +163,6 @@ export const flows = [
   m_MD.f_MD5c,
   m_MD.f_MD5d,
   m_MD.f_MD5e,
+  m_MD.f_MD7,
+  m_MD.f_MD7b,
 ];

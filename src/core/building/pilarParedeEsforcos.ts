@@ -4,6 +4,8 @@
 import type { AnaliseEdificio } from './analitico';
 import { combinacoesDoEstado } from './combinacoes';
 import { ladosDoPP, lancesDoPP, tipoDoPilarParede } from './pilarParede';
+import { memoriaAtiva } from '../memoria/registrador';
+import { elementoParede, registrarCargasBase, registrarResultantesBarra, registrarResultantesCasca } from '../memoria/paredes';
 import { ppDaParede } from './paredesBase';
 import { cotaFundacao, pavimentosOrdenados, type BuildingModel } from './types';
 
@@ -61,8 +63,12 @@ export function esforcosPilaresParede(b: BuildingModel, an: AnaliseEdificio, por
   const nomesV = an.vento?.casos.map((c) => c.nome) ?? [];
   const casosAn = an.casos;
   const elu = combinacoesDoEstado(b, an, 'concreto').filter((c) => c.tipo === 'ELU');
-  const out: ResultadoPilarParede[] = [];
+  const out: ResultadoPilarParede[] = [], mem = memoriaAtiva();
+  const fontes = [...casosAn.map((c, ic) => ({ nome: c, cascas: an.portico.res!.cascas?.[ic] })), ...(resV ? nomesV.map((n, iv) => ({ nome: n, cascas: resV.cascas?.[iv] })) : [])];
   for (const pp of alvos) {
+    const parede = quais === 'paredes' ? b.paredes?.find((w) => w.id === pp.id) : undefined;
+    const kind = !parede ? 'pilarParede' : parede.tipo === 'concreto' ? 'parede' : parede.tipo;
+    const elDe = (lance: string) => { const el = elementoParede(kind, pp.nome, lance); return mem?.aceita(el) ? el : null; };
     const tipo = tipoDoPilarParede(b, pp), lances = lancesDoPP(b, pp);
     if (!tipo || !lances.length) continue;
     const lados = ladosDoPP(b, pp), lista: EsforcosLado[] = [];
@@ -71,8 +77,10 @@ export function esforcosPilaresParede(b: BuildingModel, an: AnaliseEdificio, por
     for (const g of lados) {
       for (const [k, lance] of lances.entries()) {
         const casos: Record<string, Resultante> = {};
+        let pontas: Record<string, { N: number; Vy: number; Vz: number; My: number; Mz: number }[]> | undefined, elsCasca: { k: number; area: number; s: number }[] | undefined, Hc = 0;
         if (g.casca && pars) {
           const H = lance.cota - zBase(k), els = pars.info.filter((e) => e.ladoId === g.id && e.lance === lance.id);
+          elsCasca = els; Hc = H;
           const soma = (res: NonNullable<typeof an.portico.res>, ic: number) => {
             const r = vazio();
             for (const e of els) {
@@ -90,6 +98,7 @@ export function esforcosPilaresParede(b: BuildingModel, an: AnaliseEdificio, por
           if (bi < 0) continue;
           const L = an.portico.modelo.nos[an.portico.modelo.barras[bi].j][2] - an.portico.modelo.nos[an.portico.modelo.barras[bi].i][2];
           const pc = porCasoBarra(bi, [0, Math.max(L, 1e-6)]);
+          pontas = pc;
           for (const [nome, est] of Object.entries(pc)) {
             const forte = (k2: 'N' | 'Vy' | 'Vz' | 'My' | 'Mz') => (Math.abs(est[0][k2]) >= Math.abs(est[1][k2]) ? est[0][k2] : est[1][k2]);
             casos[nome] = { N: est[0].N, Vp: forte('Vy'), Mp: forte('Mz'), Vo: forte('Vz'), Mo: forte('My') };
@@ -107,7 +116,11 @@ export function esforcosPilaresParede(b: BuildingModel, an: AnaliseEdificio, por
           }
           ext[q] = { max: Number.isFinite(mx) ? mx : 0, min: Number.isFinite(mn) ? mn : 0, cMax: cx, cMin: cn };
         }
-        const e = g.esp(lance.id);
+        const e = g.esp(lance.id), elM = elDe(lance.nome);
+        if (mem && elM) {
+          if (g.casca && elsCasca) registrarResultantesCasca(mem, { elemento: elM, lado: g.nome, lance: lance.nome, L: g.L, e0: g.ext(lance.id)[0], e1: g.ext(lance.id)[1], t: e.t, H: Hc, els: elsCasca.map((q) => ({ k: q.k, area: q.area, s: q.s })), fontes, casos, ext, elu });
+          else if (pontas) registrarResultantesBarra(mem, { elemento: elM, lado: g.nome, L: g.L, pontas, casos, ext, elu });
+        }
         lista.push({ pp: pp.id, nomePP: pp.nome, lado: g.i, nome: g.nome, modelo: g.casca ? 'casca' : 'barra', pavimento: lance.id, nomePav: lance.nome, L: g.L, t: e.t, casos, elu: ext });
       }
     }
@@ -121,6 +134,7 @@ export function esforcosPilaresParede(b: BuildingModel, an: AnaliseEdificio, por
       if (N > Nmax) { Nmax = N; cx = cb.nome; }
       if (N < Nmin) { Nmin = N; cn = cb.nome; }
     }
+    { const elB = elementoParede(kind, pp.nome, 'Base'); if (mem?.aceita(elB)) registrarCargasBase(mem, { elemento: elB, base, baseElu: { Nmax: Number.isFinite(Nmax) ? Nmax : 0, Nmin: Number.isFinite(Nmin) ? Nmin : 0, cNmax: cx, cNmin: cn }, elu }); }
     const nCascas = lados.filter((g) => g.casca).length;
     out.push({
       id: pp.id, nome: pp.nome, tipo: pp.tipo, nomeTipo: tipo.nome,

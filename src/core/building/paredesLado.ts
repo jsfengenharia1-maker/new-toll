@@ -85,7 +85,7 @@ export interface ResultadoLadoBarra {
 }
 
 /** Momento de 2ª ordem do pilar-padrão de curvatura aproximada (kN·m) para a normal de compressão Nd (kN) e a dimensão h na direção da flexão. */
-function m2dPadrao(Nd: number, h: number, le: number, c: Concrete, A: number): number {
+export function m2dPadrao(Nd: number, h: number, le: number, c: Concrete, A: number): number {
   const lambda = (le * Math.sqrt(12)) / h;
   if (lambda <= 35) return 0;
   const nu = Nd / 1000 / (A * c.fcd);

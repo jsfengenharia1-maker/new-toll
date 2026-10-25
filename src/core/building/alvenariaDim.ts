@@ -25,6 +25,9 @@ import type { EsforcoLado } from './paredesLado';
 import { geometriaParedes, ladosDoPP, lancesDoPP, type GradeLado } from './pilarParede';
 import type { ResultadoPilarParede } from './pilarParedeEsforcos';
 import type { AberturaParede, ArmaduraVerga, BuildingModel, TipoBloco } from './types';
+import { memoriaAtiva } from '../memoria/registrador';
+import { elementoParede } from '../memoria/paredes';
+import { registrarAcoAlv, registrarLadoAlv, registrarPanoAlv, registrarResistenciasAlv, registrarVergaAlv, registrarVigaMuro } from '../memoria/alvenaria';
 
 const fmt = (v: number, d = 2) => v.toFixed(d).replace('.', ',');
 const pct = (v: number) => `${fmt(v * 100, 1)} %`;
@@ -113,7 +116,7 @@ export interface ResultadoAlvenaria {
 
 // ---------------------------------------------------------------- pano
 
-interface EntradaPanoAlv {
+export interface EntradaPanoAlv {
   nome: string; t: number; H: number;
   elementos: ElementoPano[]; combos: string[];
   res: ResistenciaAlv; op: OpcoesCalculo;
@@ -122,7 +125,7 @@ interface EntradaPanoAlv {
   bloqueio?: { vertical?: { phi: number; s: number }; horizontal?: { phi: number; s: number } };
   passoV: number; passoH: number;
 }
-type SaidaPanoAlv = Omit<ResultadoPanoAlv, 'lado' | 'nomeLado' | 'pavimento' | 'nomePav' | 'pano' | 'panos' | 's0' | 's1' | 'z0' | 'z1'>;
+export type SaidaPanoAlv = Omit<ResultadoPanoAlv, 'lado' | 'nomeLado' | 'pavimento' | 'nomePav' | 'pano' | 'panos' | 's0' | 's1' | 'z0' | 'z1'>;
 
 /** Verifica (e, na parede armada, arma) um pano: utilizações por elemento, fator de cumprimento, pontos fora e armadura. */
 export function verificarPanoAlvenaria(e: EntradaPanoAlv): SaidaPanoAlv {
@@ -273,7 +276,10 @@ export function vigasSobreMuros(b: BuildingModel, op: OpcoesCalculo): ResultadoV
     const opcional = papel !== 'topoSubsolo', dispensada = opcional && op.alvenariaVigaArmar === 0, msgs: string[] = [];
     if (v.secao.b < op.alvenariaVigaBMin / 100 - 1e-9 || v.secao.h < op.alvenariaVigaHMin / 100 - 1e-9) msgs.push(`Viga ${v.nome} (${fmt(v.secao.b * 100, 0)} × ${fmt(v.secao.h * 100, 0)} cm) abaixo das dimensões mínimas ${fmt(op.alvenariaVigaBMin, 0)} × ${fmt(op.alvenariaVigaHMin, 0)} cm da viga sobre muro de alvenaria.`);
     if (dispensada) msgs.push(`Viga ${v.nome} sobre ${w.nome}: armadura opcional dispensada (opção "armar sempre" desligada); a viga trabalha como cinta do muro.`);
-    out.push({ viga: v.id, nome: v.nome, parede: w.id, nomeParede: w.nome, papel, opcional, dispensada, b: v.secao.b, h: v.secao.h, status: msgs.some((m) => m.includes('abaixo das dimensões')) ? 'fail' : 'ok', mensagens: msgs });
+    const rm: ResultadoVigaMuro = { viga: v.id, nome: v.nome, parede: w.id, nomeParede: w.nome, papel, opcional, dispensada, b: v.secao.b, h: v.secao.h, status: msgs.some((m) => m.includes('abaixo das dimensões')) ? 'fail' : 'ok', mensagens: msgs };
+    const mem = memoriaAtiva();
+    if (mem) registrarVigaMuro(mem, rm, op);
+    out.push(rm);
   }
   return out;
 }
@@ -291,7 +297,7 @@ export function dimensionarAlvenaria(b: BuildingModel, an: AnaliseEdificio, elu:
   const geo = an.paredes && an.portico.res ? geometriaParedes(b, op) : null;
   const fontes = an.paredes && an.portico.res ? fontesCascas(an) : new Map<string, Float64Array[]>(), combos = elu.map((c) => c.nome);
   const comp = elu.map((cb) => Object.entries(cb.fatores).filter(([n, f]) => f && fontes.has(n)).map(([n, f]) => [fontes.get(n)!, f] as const));
-  const aV = acoDe(b, 'alvenariaVert'), aH = acoDe(b, 'alvenariaHor');
+  const aV = acoDe(b, 'alvenariaVert'), aH = acoDe(b, 'alvenariaHor'), mem = memoriaAtiva();
   for (const w of paredes) {
     const t = tipoAlvenariaDe(b, w), bl = blocoDe(b, t);
     if (!t || (t.modelo === 'blocos' && !bl)) continue; // o lançamento acusa (ALV_MATERIAL)
@@ -299,6 +305,8 @@ export function dimensionarAlvenaria(b: BuildingModel, an: AnaliseEdificio, elu:
     const r: ResultadoAlvenariaParede = { id: w.id, nome: w.nome, tipo: w.tipo as 'alvenaria' | 'blocos', material: t.id, nomeMaterial: t.nome, armada: res.armada, resistencia: res, panos: [], lados: [], vergas: [], status: 'ok', mensagens: [] };
     const q = quant.find((x) => x.id === w.id);
     if (q) r.quantitativo = q;
+    const elDe = (nomeLance: string) => { const el = elementoParede(w.tipo as 'alvenaria' | 'blocos', w.nome, nomeLance); return mem?.aceita(el) ? el : null; };
+    if (mem) for (const lance of lances) { const elM = elDe(lance.nome); if (elM) registrarResistenciasAlv(mem, { elemento: elM, t, bl, res, op }); }
     if (geo && zs && lances.length) {
       const lados = ladosDoPP(b, pp, op.pilarParedeLimite), furos = furosDaParede(b, w).porTrecho, res0 = resultantes?.find((x) => x.id === w.id);
       const semAviso = !!w.empuxos?.length;
@@ -306,6 +314,7 @@ export function dimensionarAlvenaria(b: BuildingModel, an: AnaliseEdificio, elu:
         const tt = g.esp(lance.id).t, H = zs[k + 1] - zs[k], es = esforcosDoLado(res0, g.i, lance.id, elu);
         if (!g.casca) {
           const Lc = g.ext(lance.id)[1] - g.ext(lance.id)[0], v = verificarLadoAlvenaria(Lc, tt, H, es, res, op);
+          { const elM = elDe(lance.nome); if (mem && elM) registrarLadoAlv(mem, { elemento: elM, lado: g.nome, lance: lance.nome, L: Lc, t: tt, H, es, res, op, r: v }); }
           r.lados.push({ lado: g.i, nome: g.nome, pavimento: lance.id, nomePav: lance.nome, modelo: 'barra', L: Lc, t: tt, lambda: v.lambda, util: v.util, combo: v.combo, status: v.ok ? 'ok' : 'fail', mensagens: v.ok ? [] : [`Lado curto (pilar de alvenaria): utilização ${fmt(v.util)}${v.combo ? ` em ${v.combo}` : ''}${v.lambda > op.alvenariaLambdaMax ? `, esbeltez ${fmt(v.lambda, 1)}` : ''}.`] });
           continue;
         }
@@ -321,7 +330,9 @@ export function dimensionarAlvenaria(b: BuildingModel, an: AnaliseEdificio, elu:
           const dentro0 = elementos.filter((x) => x.s >= a && x.s < z);
           if (!dentro0.length) return;
           const dentro = [...dentro0, ...extrapolarBordas(dentro0, colunasGrade, H)];
-          const s = verificarPanoAlvenaria({ nome: `${g.nome} ${lance.nome}`, t: tt, H, elementos: dentro, combos, res, op, fydV: aV.fyd, fydH: aH.fyd, bloqueio: t.armadura, passoV: mod, passoH: alt });
+          const entP = { nome: `${g.nome} ${lance.nome}`, t: tt, H, elementos: dentro, combos, res, op, fydV: aV.fyd, fydH: aH.fyd, bloqueio: t.armadura, passoV: mod, passoH: alt };
+          const s = verificarPanoAlvenaria(entP);
+          { const elM = elDe(lance.nome); if (mem && elM) registrarPanoAlv(mem, { elemento: elM, lado: g.nome, lance: lance.nome, ip, panos: intervalos.length, s0: a, s1: z, e: entP, r: s }); }
           r.panos.push({ ...s, lado: g.i, nomeLado: g.nome, pavimento: lance.id, nomePav: lance.nome, pano: ip, panos: intervalos.length, s0: a, s1: z, z0: 0, z1: H });
         });
         r.lados.push({ lado: g.i, nome: g.nome, pavimento: lance.id, nomePav: lance.nome, modelo: 'casca', L: g.ext(lance.id)[1] - g.ext(lance.id)[0], t: tt, lambda: esbeltezAlvenaria(H, tt, op, res.armada).lambda, util: Math.max(0, ...r.panos.filter((p) => p.lado === g.i && p.pavimento === lance.id).map((p) => Math.max(p.util.comp, p.util.trac, p.util.cis))), combo: '', status: r.panos.filter((p) => p.lado === g.i && p.pavimento === lance.id).some((p) => p.status === 'fail') ? 'fail' : 'ok', mensagens: [] });
@@ -331,16 +342,19 @@ export function dimensionarAlvenaria(b: BuildingModel, an: AnaliseEdificio, elu:
           if (!ab) continue;
           const tr = trechoDaAbertura(w, ab);
           const col = (lo: number, hi: number) => faixa(elementos, f, lo, hi, true, comp.length, 0, gr);
-          r.vergas.push(dimensionarVerga({
+          const entV: EntradaVerga = {
             a: ab, nomePav: lance.nome, lado: g.i, lance: lance.id, t: tt, bl, res, fyd: aV.fyd, op, hVerga: Math.max(H - (f.z1 - z0), 0.05), hPeitoril: Math.max(f.z0 - z0, 0.05),
             verga: col(f.z1 - z0, H), peitoril: col(0, f.z0 - z0), modular: tr ? aberturaModular(ab, tr.s0, bl) : true, semAviso,
             ...(ab.verga ? { bloqueada: ab.verga } : {}), ...(b.vergasPadrao?.[ab.tipo] ? { padrao: b.vergasPadrao[ab.tipo] } : {}),
-          }));
+          };
+          const resV = dimensionarVerga(entV);
+          r.vergas.push(resV);
+          { const elM = elDe(lance.nome); if (mem && elM) registrarVergaAlv(mem, { elemento: elM, lado: g.nome, lance: lance.nome, e: entV, r: resV }); }
         }
       }
     }
     // utilização do lado = a pior dos panos e das utilizações; mensagens do lado curto sobem para a parede
-    if (bl && (r.panos.some((p) => p.armadura) || r.vergas.length)) { const m = moduloDoBloco(bl); r.aco = acoAlvenariaParede(r, m.mod, m.alt, aV.aco, op); }
+    if (bl && (r.panos.some((p) => p.armadura) || r.vergas.length)) { const m = moduloDoBloco(bl); r.aco = acoAlvenariaParede(r, m.mod, m.alt, aV.aco, op); if (mem) for (const lance of lances) { const elM = elDe(lance.nome); if (elM) registrarAcoAlv(mem, elM, r, r.aco, m.mod, m.alt, op, lance.id); } }
     r.status = [...r.panos, ...r.lados, ...r.vergas].some((x) => x.status === 'fail') ? 'fail' : 'ok';
     saida.push(r);
   }

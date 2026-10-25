@@ -462,3 +462,117 @@ export const f_MD5e = {
       await dlg.waitFor({ state: 'detached' });
     },
   };
+
+// MD7: paredes de concreto, pilares-parede e alvenaria estrutural
+async function prepararParedes(page, blocos) {
+  await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+  const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+  const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
+  const esperar = (fn, arg) => page.waitForFunction(fn, arg, { timeout: 20000 });
+  await cmd('obra.definir {"profundidadeFundacao": 1}');
+  await esperar(() => !!JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.pavimentos, null);
+  let b0 = await modelo();
+  for (const nome of ['Cobertura', 'Tipo 3', 'Tipo 2']) {
+    const p = b0.pavimentos.find((x) => x.nome === nome), antes = b0.pavimentos.length;
+    await cmd('pavimento.remover {"id": "' + p.id + '"}');
+    await esperar((n) => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.pavimentos?.length === n, antes - 1);
+    b0 = await modelo();
+  }
+  const terreo = b0.pavimentos.find((p) => p.nome === 'Térreo'), tipo1 = b0.pavimentos.find((p) => p.nome === 'Tipo 1');
+  let mat = '';
+  if (blocos) {
+    await cmd('bloco.tipo {"nome": "B20", "comprimento": 0.4, "largura": 0.2, "altura": 0.2, "fbk": 8}');
+    await esperar(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.blocos?.length ?? 0) > 0, null);
+    const bloco = (await modelo()).blocos[0].id;
+    await cmd('alvenaria.tipo {"nome": "Blocos B20 armados", "modelo": "blocos", "bloco": "' + bloco + '", "gama": 14, "armada": true}');
+    await esperar(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.tiposAlvenaria?.length ?? 0) > 0, null);
+    mat = (await modelo()).tiposAlvenaria[0].id;
+  } else {
+    await cmd('empuxo.tipo {"nome": "Aterro", "metodo": "repouso", "estratos": [{"espessura": 20, "gama": 18, "phi": 30}], "cotaAterro": 3}');
+    await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.empuxos?.length > 0, null);
+    const idEmp = (await modelo()).empuxos[0].id;
+    await cmd('caso.criar {"nome": "Empuxo", "natureza": "H", "empuxo": "' + idEmp + '"}');
+    await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.casos?.some((c) => c.nome === 'Empuxo'), null);
+  }
+  await cmd('laje.criar {"grupo": "' + tipo1.grupo + '", "contorno": [[0, 0], [12, 0], [12, 6], [0, 6]], "tipo": {"tipo": "macica", "h": 0.12}}');
+  const extra = blocos ? ', "tipo": "blocos", "material": "' + mat + '"' : '';
+  await cmd('parede.criar {"pontos": [[0, 0], [12, 0]], "espessura": 0.2' + extra + ', "morre": "' + tipo1.id + '"}');
+  await cmd('parede.criar {"pontos": [[0, 6], [12, 6]], "espessura": 0.2' + extra + ', "morre": "' + tipo1.id + '"}');
+  await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.paredes?.length === 2, null);
+  const ws = (await modelo()).paredes;
+  if (!blocos) {
+    const caso = (await modelo()).casos.find((c) => c.nome === 'Empuxo').id;
+    await cmd('parede.empuxo {"parede": "' + ws[0].id + '", "empuxos": [{"caso": "' + caso + '", "lado": "dir"}]}');
+    await cmd('parede.empuxo {"parede": "' + ws[1].id + '", "empuxos": [{"caso": "' + caso + '", "lado": "esq"}]}');
+  }
+  await cmd('parede.abertura {"parede": "' + ws[0].id + '", "s": 5, "largura": 1, "altura": 2.1, "pavimento": "' + terreo.id + '"}');
+  await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+  await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+  await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 180000 });
+  await page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 180000 });
+  await page.getByRole('button', { name: 'Memória de cálculo detalhada', exact: true }).click();
+  const dlg = page.getByRole('dialog', { name: 'Memória de cálculo detalhada' });
+  const doc = dlg.locator('[data-memoria-detalhada]');
+  await doc.waitFor({ timeout: 120000 });
+  return { dlg, doc };
+}
+
+export const f_MD7 = {
+    name: 'MD7: memória de cálculo detalhada das paredes de concreto (resultantes por lado, cadeia do pano, mínimos, malha, cortante, abertura, verificação global) e esforços das cascas nos dados da análise',
+    async run({ newPage }) {
+      const page = await newPage();
+      const { dlg, doc } = await prepararParedes(page, false);
+      const t = await doc.innerText();
+      for (const s of ['Parede M1', 'Esforços resultantes do lado M1.1', 'Elemento governante (armadura vertical', 'Cortante fora do plano por metro', 'Verificação global do lado M1.1', 'Abertura porta']) assert.ok(t.includes(s), `falta "${s}"`);
+      const mem = await baixarJson(page, dlg);
+      const el = 'Parede M1 · Térreo';
+      const ps = mem.passos.filter((p) => p.elemento === el);
+      assert.ok(ps.length > 60, `passos da parede: ${ps.length}`);
+      assert.ok(ps.every((p) => p.id && p.etapa && p.formula && p.expressao && p.entradas && typeof p.entradas === 'object'));
+      // resultantes do lado refeitas das contribuições dos elementos da casca
+      const g = ps.find((p) => p.descricao.startsWith('Altura do painel')), H = g.entradas.H, sc = g.entradas.sc;
+      const caso = ps.find((p) => p.entradas.caso === 'G' && /^Esforços resultantes/.test(p.topico));
+      let N = 0, Mp = 0;
+      for (const [A, s, ny] of JSON.parse(caso.entradas.elementos)) { N += ny * (A / H); Mp += ny * (s - sc) * (A / H); }
+      assert.ok(Math.abs(N - caso.entradas.N) < 1e-9 * Math.max(1, Math.abs(N)) && Math.abs(Mp - caso.entradas.Mp) < 1e-9 * Math.max(1, Math.abs(Mp)));
+      // armadura vertical necessária = fty·10/fyd da cadeia
+      const arm = ps.find((p) => p.descricao.startsWith('Armadura necessária por face do elemento (armadura vertical'));
+      assert.ok(Math.abs((arm.entradas.ftyMax * 10) / arm.entradas.fyd - arm.entradas.rv) < 1e-9 * Math.max(1, arm.entradas.rv));
+      assert.ok(mem.passos.some((p) => p.elemento === 'Parede M1 · Base' && p.topico === 'Cargas na base (reações da fundação)'));
+      // filtro por elemento
+      await dlg.getByLabel(/^Elemento/).selectOption({ label: el });
+      await page.waitForFunction(() => !document.querySelector('[data-memoria-detalhada]').innerText.includes('Parede M2 · Térreo'));
+      // dados da análise: ZIP com as tabelas das cascas
+      const [dl] = await Promise.all([page.waitForEvent('download'), dlg.getByRole('button', { name: /^Dados da análise e OpenSees/ }).click()]);
+      const zip = readFileSync(await dl.path()).toString('latin1');
+      for (const n of ['analise/cascas.csv', 'analise/cascas_parede.csv', 'analise/esforcos_cascas.csv', 'analise/esforcos_cascas_combinacoes.csv']) assert.ok(zip.includes(n), `o ZIP traz ${n}`);
+      assert.ok(zip.includes('caso;casca;nx;ny;nxy;mx;my;mxy;qx;qy'));
+      await dlg.getByRole('button', { name: 'Fechar', exact: true }).click();
+      await dlg.waitFor({ state: 'detached' });
+    },
+  };
+
+export const f_MD7b = {
+    name: 'MD7: memória de cálculo detalhada da alvenaria estrutural (resistências do bloco ao cálculo, esbeltez, utilização por elemento, cumprimento, armadura, verga e aço)',
+    async run({ newPage }) {
+      const page = await newPage();
+      const { dlg, doc } = await prepararParedes(page, true);
+      const t = await doc.innerText();
+      for (const s of ['Alvenaria de blocos M1', 'Resistências da alvenaria', 'Esbeltez do pano', 'Fator de cumprimento', 'Armadura vertical necessária', 'Aço da alvenaria armada']) assert.ok(t.includes(s), `falta "${s}"`);
+      const mem = await baixarJson(page, dlg);
+      const els = [...new Set(mem.passos.map((p) => p.elemento).filter((e) => /^Alvenaria de blocos M1 · /.test(e)))];
+      assert.ok(els.length >= 1);
+      const ps = mem.passos.filter((p) => p.elemento === els[0]);
+      assert.ok(ps.length > 25, `passos da alvenaria: ${ps.length}`);
+      assert.ok(ps.every((p) => p.id && p.etapa && p.formula && p.expressao && p.entradas && typeof p.entradas === 'object'));
+      // fd = fk/γm e fk = ξ·η·fbk
+      const pr = ps.find((p) => p.descricao.startsWith('Resistência característica do prisma')), fk = ps.find((p) => p.descricao.startsWith('Resistência característica da parede')), fd = ps.find((p) => p.descricao.startsWith('Resistência de cálculo à compressão'));
+      assert.ok(Math.abs(pr.entradas.fpk - pr.entradas.eta * pr.entradas.fbk) < 1e-9 && Math.abs(fk.entradas.fk - fk.entradas.xi * pr.entradas.fpk) < 1e-9 && Math.abs(fd.entradas.fd - fd.entradas.fk / fd.entradas.gamaM) < 1e-9);
+      // peso do aço: n·ℓ·A·ρ
+      const aco = ps.filter((p) => p.topico === 'Aço da alvenaria armada' && p.entradas.tipo);
+      assert.ok(aco.length > 0);
+      for (const p of aco) assert.ok(Math.abs(p.entradas.quant * p.entradas.comprimento * p.entradas.area * p.entradas.rho - p.entradas.peso) < 1e-9 * Math.max(1, p.entradas.peso));
+      await dlg.getByRole('button', { name: 'Fechar', exact: true }).click();
+      await dlg.waitFor({ state: 'detached' });
+    },
+  };

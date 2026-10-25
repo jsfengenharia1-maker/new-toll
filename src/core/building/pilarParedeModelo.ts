@@ -40,6 +40,8 @@ export interface ParedesNoPortico {
    * Só para montar a parcela axial (`axiaisDasFaixas`); não vai para o resultado.
    */
   faixasAxiais?: FaixaAxial[];
+  /** Resumo das faixas axiais que vai para o resultado (memória detalhada, MD7): pilar-parede, EA/Δz da faixa (kN/m) e número de cascas. */
+  axial?: { pp: string; EAporDz: number; cascas: number }[];
 }
 
 /** Faixa horizontal de cascas de um pilar-parede (ver `ParedesNoPortico.faixasAxiais`). */

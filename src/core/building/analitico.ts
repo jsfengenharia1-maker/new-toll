@@ -400,7 +400,7 @@ function modeloCheio(pmV: Modelo3, casosV: Caso3[], detalhes: { pav: string; gb:
 }
 
 /** Paredes no resultado sem as faixas axiais (só servem à montagem das cargas verticais, E6d). */
-const semFaixas = ({ faixasAxiais: _f, ...r }: ParedesNoPortico): ParedesNoPortico => r;
+const semFaixas = ({ faixasAxiais: f, ...r }: ParedesNoPortico): ParedesNoPortico => (f?.length ? { ...r, axial: f.map((x) => ({ pp: x.pp, EAporDz: x.EAporDz, cascas: x.cascas.length })) } : r);
 
 /** Cópia do modelo sem as funções de recuperação dos superelementos (o resultado vai do worker para a interface). */
 const semFuncoes = (m: Modelo3): Modelo3 => (m.superelementos ? { ...m, superelementos: m.superelementos.map(({ dofs, K }) => ({ dofs, K })) } : m);
