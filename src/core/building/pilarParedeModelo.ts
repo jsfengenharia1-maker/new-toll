@@ -15,6 +15,8 @@ export interface InfoCasca {
   pp: string; lado: number; ladoId: string;
   /** Pavimento do topo do lance do painel, espessura total (m), área (m²), abscissa e cota do centroide. */
   lance: string; t: number; area: number; s: number; z: number;
+  /** Peso próprio do elemento (kN), aplicado em 1/3 em cada nó do meio dos lados no caso permanente (V7h: cargas próprias nos nós de uma seção). */
+  peso: number;
 }
 
 /** O que o pórtico guarda dos pilares-parede. */
@@ -28,6 +30,9 @@ export interface ParedesNoPortico {
   centro: Record<string, P>;
   /** Barras fictícias do topo e de ligação criadas. */
   nBarras: number;
+  /** Índice do caso permanente (peso próprio) e cargas nodais de empuxo de cada casca (V7h): são as cargas próprias dos elementos nos nós de uma seção. */
+  iG: number;
+  cargasProprias: { k: number; caso: number; no: number; f: [number, number] }[];
   /** Paredes (E1c): nós dos níveis em que a parede não toca laje (fora do diafragma, K1.2.5 e K1.3.36). */
   foraDiafragma: { no: number; parede: string; pavimento: string }[];
   /** Paredes (E1c): resultante das pressões de empuxo aplicadas, por parede e caso (kN, eixos globais). */
@@ -109,7 +114,7 @@ export function incluirParedes(e: EntradaParedes): ParedesNoPortico {
     return i;
   };
   pm.cascas ??= [];
-  const out: ParedesNoPortico = { info: [], nosFatia: [], base: {}, centro: {}, nBarras: 0, foraDiafragma: [], empuxo: [], avisos: [] };
+  const out: ParedesNoPortico = { iG: e.iG, cargasProprias: [], info: [], nosFatia: [], base: {}, centro: {}, nBarras: 0, foraDiafragma: [], empuxo: [], avisos: [] };
   const semeadas = new Set<number>(Object.values(e.baseViga ?? {}).flat());
   // centro de cada pilar-parede: centroide das áreas dos lados no primeiro lance
   for (const pp of ppDaObra(b)) {
@@ -158,9 +163,10 @@ export function incluirParedes(e: EntradaParedes): ParedesNoPortico {
           for (const [q, fr] of [[a, 1 / 6], [m, 2 / 3], [b2, 1 / 6]] as const) mp.set(ids[t[q]], (mp.get(ids[t[q]]) ?? 0) + w * fr);
         }
       }
-      out.info.push({ k: pm.cascas.length - 1, pp: pp.id, lado: g.i, ladoId: g.id, lance: lance.id, t: esp, area, s: sc, z: zc });
+      out.info.push({ k: pm.cascas.length - 1, pp: pp.id, lado: g.i, ladoId: g.id, lance: lance.id, t: esp, area, s: sc, z: zc, peso: 0 });
       // peso próprio: carga consistente de pressão uniforme (vértices 0, meios dos lados 1/3 cada)
       const W = (mat?.gama ?? e.gama) * esp * area;
+      out.info[out.info.length - 1].peso = W;
       for (const m of [t[3], t[4], t[5]]) pesoNo.set(ids[m], (pesoNo.get(ids[m]) ?? 0) + W / 3);
       e.peso(lance.id, W);
       // empuxo (E1c): pressão normal ao plano da parede, forças consistentes do T6, no caso do empuxo
@@ -169,7 +175,7 @@ export function incluirParedes(e: EntradaParedes): ParedesNoPortico {
         if (ic < 0) continue;
         const fz = forcasPressaoT6(c3 as [number, number][], pr.p);
         let F = 0;
-        t.forEach((m, q) => { const v = fz[q] * pr.sinal; if (!v) return; F += v; casosV[ic].nodais.push({ no: ids[m], f: [g.n[0] * v, g.n[1] * v, 0, 0, 0, 0] }); });
+        t.forEach((m, q) => { const v = fz[q] * pr.sinal; if (!v) return; F += v; casosV[ic].nodais.push({ no: ids[m], f: [g.n[0] * v, g.n[1] * v, 0, 0, 0, 0] }); out.cargasProprias.push({ k: pm.cascas!.length - 1, caso: ic, no: ids[m], f: [g.n[0] * v, g.n[1] * v] }); });
         const r = out.empuxo.find((x) => x.parede === pp.id && x.caso === pr.empuxo.caso);
         if (r) { r.F[0] += g.n[0] * F; r.F[1] += g.n[1] * F; } else out.empuxo.push({ parede: pp.id, caso: pr.empuxo.caso, F: [g.n[0] * F, g.n[1] * F] });
       }
@@ -193,7 +199,7 @@ export function incluirParedes(e: EntradaParedes): ParedesNoPortico {
         ml.push({ no: n, gdl: 2, k: kz });
         if (!wk.rotula) ml.push({ no: n, gdl: 3, k: kr * g.u[0] ** 2 + 1e-9 * kr }, { no: n, gdl: 4, k: kr * g.u[1] ** 2 + 1e-9 * kr });
       } else pm.apoios.set(n, apoio);
-      out.base[pp.id].push(n);
+      if (!out.base[pp.id].includes(n)) out.base[pp.id].push(n); // o nó do vértice entre dois lados é um só (V7h: contava a reação duas vezes)
     });
     const meio = (z: number) => { let best = -1, d = Infinity; malha.pontos.forEach(([s, zz], i) => { if (usado[i] && Math.abs(zz - z) < 1e-9 && S.includes(s) && Math.abs(s - g.L / 2) < d) { d = Math.abs(s - g.L / 2); best = i; } }); return ids[best]; };
     noPilar.set(`${g.id}|base`, meio(Z[0]));
@@ -225,7 +231,7 @@ export function incluirParedes(e: EntradaParedes): ParedesNoPortico {
     const pp = ppDaObra(b).find((x) => x.id === p.origem.pp)!, g = ladosDoPP(b, pp).find((l) => l.i === p.origem.lado)!;
     const lances = lancesDoPP(b, pp), zs = geo.niveisZ[pp.id];
     const base = noPilar.get(`${p.id}|base`);
-    if (base !== undefined) out.base[pp.id].push(base);
+    if (base !== undefined && !out.base[pp.id].includes(base)) out.base[pp.id].push(base);
     for (const v of [g.a, g.z]) {
       const viz = geo.vertices.get(chaveXY(v));
       if (!viz || viz.lados.length < 2) continue;

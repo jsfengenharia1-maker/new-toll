@@ -5,6 +5,9 @@ src/core/resultados/v7g.test.ts: reações da base (Rx, Ry, soma dos momentos no
 origem e a decomposição por lado), de onde o teste tira o torçor em torno do centroide. Fora do npm test.
 Casos: (1) 100 kN/m em x só no lado 1 (y = 0); (2) 100 kN/m em y só no lado 2 (x = 3 m); (3) 100 kN/m em x no lado 1 e
 -60 kN/m em y no lado 2. Convenção: reações (força da base sobre a estrutura), torçor anti-horário + visto de cima.
+V7h: também o corte horizontal a meia altura (z = H/2 acima da base, pavimento intermediário): forças que os nós do corte
+fazem nos elementos de cima (resposta 'forces' do ShellMITC4: K·u, sem cargas de pressão), somadas nos nós do corte, no
+total e por lado (Rx, Ry, Rz e os momentos em torno da origem na cota do corte), de onde o teste tira a seção interna.
 Uso: python3 -m pip install openseespy && python3 validation/opensees/torcao_pp.py
 """
 import json, math, os
@@ -19,6 +22,9 @@ h = float(os.environ.get("H_MALHA", 0.125))
 n1, n2, nz = round(L1 / h), round(L2 / h), round(H / h)
 LADOS = ((n1, (0.0, 0.0), (L1, 0.0)), (n2, (L1, 0.0), (L1, L2)))
 CASOS = {1: (100.0, 0.0), 2: (0.0, 100.0), 3: (100.0, -60.0)}   # (qx no lado 1, qy no lado 2) em kN/m
+
+
+ELE = []
 
 
 def montar(caso):
@@ -38,10 +44,13 @@ def montar(caso):
         return no(p0[0] + s * (p1[0] - p0[0]), p0[1] + s * (p1[1] - p0[1]), jj * H / nz)
 
     e = 1
-    for (n, p0, p1) in LADOS:
+    ELE.clear()
+    for li, (n, p0, p1) in enumerate(LADOS):
         for i in range(n):
             for j in range(nz):
-                ops.element("ShellMITC4", e, P(n, p0, p1, i, j), P(n, p0, p1, i + 1, j), P(n, p0, p1, i + 1, j + 1), P(n, p0, p1, i, j + 1), 1)
+                ns = (P(n, p0, p1, i, j), P(n, p0, p1, i + 1, j), P(n, p0, p1, i + 1, j + 1), P(n, p0, p1, i, j + 1))
+                ops.element("ShellMITC4", e, *ns, 1)
+                ELE.append((e, li, j, ns))
                 e += 1
     base = [tag for k, tag in nos.items() if k[2] == 0]
     for tag in base:
@@ -79,7 +88,30 @@ for caso in CASOS:
     # decomposição: reação horizontal dos nós do lado 1 (y = 0) e do lado 2 (x = L1, sem o canto)
     l1 = [b for b in base if abs(Y(b)) < 1e-6]
     l2 = [b for b in base if abs(X(b) - L1) < 1e-6 and Y(b) > 1e-6]
+    # corte a meia altura: elementos com j >= nz/2 (acima do corte); forças nos nós de z = H/2
+    jc = nz // 2
+    acum = {}   # nó -> (lado, [6 forças])
+    for (e, li, j, ns) in ELE:
+        if j < jc:
+            continue
+        f = ops.eleResponse(e, "forces")
+        for a, nd in enumerate(ns):
+            if abs(ops.nodeCoord(nd, 3) - jc * H / nz) < 1e-6:
+                v = acum.setdefault(nd, (li, [0.0] * 6))[1]
+                for g in range(6):
+                    v[g] += f[6 * a + g]
+    corte = {"Rx": 0.0, "Ry": 0.0, "Rz": 0.0, "Mx0": 0.0, "My0": 0.0, "Mz0": 0.0}
+    for lado in (0, 1):
+        for k in ("Rx", "Ry", "Rz"):
+            corte[k + "_lado%d" % (lado + 1)] = 0.0
+    for nd, (li, v) in acum.items():
+        x, y = X(nd), Y(nd)
+        corte["Rx"] += v[0]; corte["Ry"] += v[1]; corte["Rz"] += v[2]
+        corte["Mx0"] += v[3] + y * v[2]; corte["My0"] += v[4] - x * v[2]; corte["Mz0"] += v[5] + x * v[1] - y * v[0]
+        corte["Rx_lado%d" % (li + 1)] += v[0]; corte["Ry_lado%d" % (li + 1)] += v[1]; corte["Rz_lado%d" % (li + 1)] += v[2]
+    # o nó do canto pertence aos dois lados: contado uma só vez nos totais por lado como acima (cada lado soma os elementos dele)
     res[str(caso)] = {
+        "corte": corte,
         "q": list(CASOS[caso]), "Rx": Rx, "Ry": Ry, "soma_Mz_nodal": soma_mz, "Mz_origem": Mz0,
         "Rx_lado1": sum(R(b, 1) for b in l1), "Ry_lado1": sum(R(b, 2) for b in l1),
         "Rx_lado2": sum(R(b, 1) for b in l2), "Ry_lado2": sum(R(b, 2) for b in l2),

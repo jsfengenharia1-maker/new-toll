@@ -60,6 +60,15 @@ export function MemorialPilaresParede({ b, dim, h2 }: { b: BuildingModel; dim: D
             <thead><tr><th className="l">Lado</th><th className="l">Pavimento</th><th>t (cm)</th><th className="l">Modelo</th><th>N mín./máx. (kN)</th><th>V plano mín./máx. (kN)</th><th>M plano mín./máx. (kN·m)</th><th>V fora mín./máx. (kN)</th><th>M fora mín./máx. (kN·m)</th></tr></thead>
             <tbody>{r.lados.map((l) => <tr key={`${l.nome}${l.pavimento}`}><td className="l">{l.nome}</td><td className="l">{l.nomePav}</td><td>{fmt(l.t * 100, 0)}</td><td className="l">{l.modelo}</td>{(['N', 'Vp', 'Mp', 'Vo', 'Mo'] as const).map((k) => <td key={k}>{fmt(l.elu[k].min, 1)} / {fmt(l.elu[k].max, 1)}</td>)}</tr>)}</tbody>
           </table>
+          {r.secoes.length > 0 && (
+            <>
+              <table>
+                <thead><tr><th className="l">Pavimento</th><th className="l">Seção</th><th>Cota (m)</th><th>N permanente (kN)</th><th>N variável (kN)</th></tr></thead>
+                <tbody>{r.secoes.map((x) => <tr key={`${x.lance}${x.posicao}`}><td className="l">{x.nomePav}</td><td className="l">{x.posicao === 'base' ? 'base do lance' : 'topo do lance'}</td><td>{fmt(x.cota)}</td><td>{fmt(x.casos.G?.N ?? 0, 1)}</td><td>{fmt(x.casos.Q?.N ?? 0, 1)}</td></tr>)}</tbody>
+              </table>
+              <p>Forças internas por seção horizontal (N, Vx, Vy, Mx, My e o torçor Mz, por caso, combinação ou envoltória, na janela de esforços): soma das forças nodais dos elementos do lance (cascas, faixas axiais e barras dos lados curtos) nos nós do corte, por equilíbrio do corpo livre, sem médias de painel; parte inferior sobre a superior, compressão positiva, em torno do centroide dos lados na cota da seção (polo do torçor editável). As cargas próprias do lance aplicadas nos nós do corte (peso e empuxo) ficam com o lance; as vigas e lajes do pavimento ficam fora (a seção da base do lance está logo acima do pavimento e a do topo logo abaixo). Na base do primeiro lance a seção coincide com a carga da base.</p>
+            </>
+          )}
           <p>Esforços resultantes dos lados em casca: médias sobre a altura do painel dos esforços de membrana e de placa (N &gt; 0 é tração); extremos nas combinações ELU. Lados em barra: extremos do lance. A armadura, as tensões e as verificações estão na seção de armadura das paredes e pilares-parede.</p>
         </div>
       ))}

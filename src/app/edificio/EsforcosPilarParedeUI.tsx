@@ -4,17 +4,19 @@
 import { useMemo } from 'react';
 import type { ResultadoPilarParede } from '../../core/building/pilarParedeEsforcos';
 import type { HipoteseEsforco } from '../../core/resultados/esforcosCaso';
-import { baseDoPilarParede, esforcosPilarParedePorHipotese, GRANDEZAS_PP, torsorDoPilarParede } from '../../core/resultados/pilarParedeHipotese';
+import { baseDoPilarParede, esforcosPilarParedePorHipotese, GRANDEZAS_PP, secoesDoPilarParedePorHipotese, torsorDoPilarParede } from '../../core/resultados/pilarParedeHipotese';
 import { Button, NumField, Select } from '../ui';
 import type { JanelaEsforco } from './esforcosStore';
 
 const f2 = (v: number) => v.toFixed(2).replace('.', ',');
+const COMP_SEC = ['N', 'Vx', 'Vy', 'Mx', 'My', 'Mz'] as const;
 const LARG = 640, ALT = 260, PAD = 28;
 
 export function EsforcosPilarParede({ n, j, pp, hip, mudar }: { n: number; j: JanelaEsforco; pp: ResultadoPilarParede | undefined; hip: HipoteseEsforco; mudar: (p: Partial<JanelaEsforco>) => void }) {
   const linhas = useMemo(() => (pp ? esforcosPilarParedePorHipotese(pp, hip) : []), [pp, hip]);
   const base = useMemo(() => (pp ? baseDoPilarParede(pp, hip) : null), [pp, hip]);
   const tors = useMemo(() => (pp ? torsorDoPilarParede(pp, hip, j.poloPP) : null), [pp, hip, j.poloPP]);
+  const secoes = useMemo(() => (pp ? secoesDoPilarParedePorHipotese(pp, hip, j.poloPP) : []), [pp, hip, j.poloPP]);
   if (!pp || !linhas.length) return <p className="hint">Nenhum pilar-parede calculado (calcule a estrutura na aba Dimensionamento).</p>;
   const env = hip.tipo === 'envoltoria', g = GRANDEZAS_PP.find((x) => x.v === j.grandezaPP) ?? GRANDEZAS_PP[0];
   const lados = [...new Map(linhas.map((l) => [l.lado, l.nome])).entries()];
@@ -55,6 +57,27 @@ export function EsforcosPilarParede({ n, j, pp, hip, mudar }: { n: number; j: Ja
           Carga na base ({hip.nome}), compressão +: {(['N', 'Vx', 'Vy'] as const).map((k) => `${k} ${env ? `${f2(base.max[k])} / ${f2(base.min[k])}` : f2(base.max[k])} kN`).join('; ')}; {(['Mx', 'My'] as const).map((k) => `${k} ${env ? `${f2(base.max[k])} / ${f2(base.min[k])}` : f2(base.max[k])} kN·m`).join('; ')}{env ? ' (máx. / mín. de cada componente)' : ''}.
           N de cada lado: tração +; lado em casca = média do painel no lance; lado em barra = extremo do lance.
         </p>
+      )}
+      {secoes.length > 0 && (
+        <div data-esf-pp-secoes={JSON.stringify({ hipotese: hip.id, envoltoria: env, ref: (j.poloPP ?? pp.centro).map((v) => +v.toFixed(4)), secoes: secoes.map((x) => ({ lance: x.lance, posicao: x.posicao, cota: +x.cota.toFixed(4), ...Object.fromEntries(COMP_SEC.flatMap((k) => [[k, +x.max[k].toFixed(4)], [`${k}min`, +x.min[k].toFixed(4)]])) })) })}>
+          <p className="hint small">
+            Forças internas por seção horizontal ({hip.nome}): soma das forças nodais dos elementos do lance nos nós do corte (equilíbrio do corpo livre acima da seção, sem médias de painel),
+            parte inferior sobre a superior, compressão +, em torno do {j.poloPP ? 'polo informado (Mz)' : 'centroide'} dos lados.
+          </p>
+          <div className="tablewrap">
+            <table className="data quadro" aria-label={`Seções do pilar-parede por pavimento (janela ${n})`}>
+              <thead><tr><th>Pavimento</th><th>Seção</th><th>Cota (m)</th>{COMP_SEC.map((k) => <th key={k}>{k} ({k === 'N' || k[0] === 'V' ? 'kN' : 'kN·m'}){env ? ' máx. / mín.' : ''}</th>)}</tr></thead>
+              <tbody>
+                {secoes.map((x) => (
+                  <tr key={`${x.lance}-${x.posicao}`}>
+                    <td className="tl">{x.nomePav}</td><td className="tl">{x.posicao === 'base' ? 'Base do lance' : 'Topo do lance'}</td><td className="num">{f2(x.cota)}</td>
+                    {COMP_SEC.map((k) => <td key={k} className="num">{env ? `${f2(x.max[k])} / ${f2(x.min[k])}` : f2(x.max[k])}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
       {tors && base && (
         <div data-esf-pp-torsor={JSON.stringify({ max: +tors.max.toFixed(4), min: +tors.min.toFixed(4), ref: tors.ref.map((v) => +v.toFixed(4)), centro: tors.centro.map((v) => +v.toFixed(4)), vx: +base.max.Vx.toFixed(4), vy: +base.max.Vy.toFixed(4), envoltoria: env })}>

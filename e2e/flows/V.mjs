@@ -1227,3 +1227,57 @@ export const f_V7g = {
       assert.ok(Math.abs((await lerT()).max - t0.max) < 1e-3);
     },
   };
+
+export const f_V7h = {
+    name: 'V7h: esforços internos do pilar-parede por pavimento (base e topo de cada lance, com o torçor) na janela de esforços',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
+      await cmd('pilarParede.tipo {"nome": "L 3x2", "vertices": [[0, 0], [3, 0], [3, 2]], "esq": 0.1, "dir": 0.1}');
+      await page.waitForFunction(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.tiposPilarParede?.length === 1);
+      await cmd('pilarParede.inserir {"tipo": "' + (await modelo()).tiposPilarParede[0].id + '", "x": 0, "y": 0}');
+      await cmd('laje.criar {"grupo": "g_3", "contorno": [[0, 0], [3, 0], [3, 2], [0, 2]], "tipo": {"tipo": "macica", "h": 0.12}}');
+      const abas = page.locator('.edif-tabs');
+      await abas.getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 120000 });
+      await abas.getByRole('tab', { name: 'Esforços', exact: true }).click();
+      const janela = page.locator('[data-esf-janela="1"]');
+      await janela.waitFor();
+      await janela.getByLabel(/^Tipo de elemento \(janela 1\)/).selectOption('pilarParede');
+      await janela.locator('[data-esf-pp-secoes]').waitFor();
+      const ler = async () => JSON.parse(await janela.locator('[data-esf-pp-secoes]').getAttribute('data-esf-pp-secoes'));
+      // envoltória ELU: base e topo de cada lance, máximo e mínimo
+      const env = await ler();
+      assert.equal(env.envoltoria, true);
+      assert.ok(env.secoes.length >= 4 && env.secoes.length % 2 === 0, JSON.stringify(env.secoes.length));
+      assert.deepEqual(env.secoes.slice(0, 2).map((x) => x.posicao), ['base', 'topo']);
+      assert.ok(env.secoes.every((x, i) => x.N >= x.Nmin - 1e-9 && x.Mz >= x.Mzmin - 1e-9 && (i === 0 || x.cota >= env.secoes[i - 1].cota - 1e-9)), JSON.stringify(env.secoes[0]));
+      assert.ok(env.secoes[0].N > env.secoes[env.secoes.length - 1].N, 'a compressão cai da base ao topo');
+      await janela.getByText('Base do lance').first().waitFor();
+      await janela.getByRole('table', { name: /^Seções do pilar-parede por pavimento \(janela 1\)/ }).waitFor();
+      // caso de vento: o cortante é constante dentro do lance (sem carga horizontal entre pavimentos) e a mudança de polo transporta o torçor de cada seção
+      const opcoes = await janela.getByLabel(/^Hipótese \(janela 1\)/).evaluate((el) => [...el.options].map((o) => o.value));
+      const vento = opcoes.find((v) => v.startsWith('caso:W'));
+      assert.ok(vento, JSON.stringify(opcoes));
+      await janela.getByLabel(/^Hipótese \(janela 1\)/).selectOption(vento);
+      await page.waitForFunction(() => JSON.parse(document.querySelector('[data-esf-pp-secoes]').getAttribute('data-esf-pp-secoes')).envoltoria === false);
+      const c0 = await ler();
+      assert.ok(c0.secoes.some((x) => Math.abs(x.Vx) + Math.abs(x.Vy) > 1), JSON.stringify(c0.secoes[0]));
+      for (let i = 0; i < c0.secoes.length; i += 2) assert.ok(Math.abs(c0.secoes[i].Vx - c0.secoes[i + 1].Vx) < 2e-3 && Math.abs(c0.secoes[i].Vy - c0.secoes[i + 1].Vy) < 2e-3, JSON.stringify(c0.secoes.slice(i, i + 2)));
+      const px = c0.ref[0] + 2;
+      await janela.getByLabel(/^Polo do torçor x \(janela 1\)/).fill(String(px).replace('.', ','));
+      await janela.getByLabel(/^Polo do torçor x \(janela 1\)/).press('Enter');
+      await page.waitForFunction((x) => Math.abs(JSON.parse(document.querySelector('[data-esf-pp-secoes]').getAttribute('data-esf-pp-secoes')).ref[0] - x) < 1e-3, px);
+      const c1 = await ler();
+      c0.secoes.forEach((x, i) => {
+        const esperado = x.Mz + (c0.ref[0] - c1.ref[0]) * x.Vy - (c0.ref[1] - c1.ref[1]) * x.Vx;
+        assert.ok(Math.abs(c1.secoes[i].Mz - esperado) < 3e-3 + 1e-4 * Math.abs(esperado), JSON.stringify([x, c1.secoes[i], esperado]));
+      });
+      await janela.getByRole('button', { name: /^Centroide \(janela 1\)/ }).click();
+      await page.waitForFunction((x) => Math.abs(JSON.parse(document.querySelector('[data-esf-pp-secoes]').getAttribute('data-esf-pp-secoes')).ref[0] - x) < 1e-3, c0.ref[0]);
+      assert.ok(Math.abs((await ler()).secoes[0].Mz - c0.secoes[0].Mz) < 1e-3);
+    },
+  };
