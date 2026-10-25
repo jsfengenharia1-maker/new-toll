@@ -2,7 +2,7 @@
 // ligada: materiais, esforços determinantes (Σ γ·Sk por caso na estação), flexão por face, cortante (modelo I), fissuração e flecha.
 // Reaproveita `flexao` e `passosFissuracao` da memória do edifício (as mesmas funções de cálculo).
 import { P } from '../math';
-import { ES, barArea, bransonRatio, grossProps, type BarChoice, type BeamSection, type Concrete } from '../concrete';
+import { ES, barArea, beamFlexure, bransonRatio, grossProps, type BarChoice, type BeamSection, type Concrete } from '../concrete';
 import { sampleXs } from '../estacoes';
 import type { BeamDesign, Deflection, MemberDesign } from '../design';
 import type { DesignSettings } from '../types';
@@ -43,7 +43,7 @@ export function registrarVigaPortico(mem: Registrador, c: CtxPortico, x: CtxViga
 
   // ---- materiais e geometria
   const tm = 'Materiais e geometria';
-  P_('dimensionamento', tm, { descricao: `Barra ${out.id}: comprimento, seção e papel no dimensionamento`, formula: 'L = √(Δx² + Δy²)', expressao: `L = ${fm(L)} m; seção ${bs.kind === 'tee' ? `T bf ${fm(bs.bf ?? 0)} · hf ${fm(bs.hf ?? 0)} · bw ${fm(bw)} · h ${fm(bs.h)}` : `${fm(bw)} × ${fm(bs.h)}`} m${x.cantilever ? ' (balanço)' : ''}`, resultado: L, unidade: 'm', entradas: { L, bw, h: bs.h, ...(bs.kind === 'tee' ? { bf: bs.bf ?? 0, hf: bs.hf ?? 0 } : {}), balanco: x.cantilever ? 1 : 0 } });
+  P_('dimensionamento', tm, { descricao: `Barra ${out.id} (${out.sectionName}, ${out.materialName}): comprimento e seção`, formula: 'L = √(Δx² + Δy²)', expressao: `L = ${fm(L)} m; seção ${bs.kind === 'tee' ? `T bf ${fm(bs.bf ?? 0)} · hf ${fm(bs.hf ?? 0)} · bw ${fm(bw)} · h ${fm(bs.h)}` : `${fm(bw)} × ${fm(bs.h)}`} m${x.cantilever ? ' (balanço)' : ''}`, resultado: L, unidade: 'm', entradas: { L, bw, h: bs.h, ...(bs.kind === 'tee' ? { bf: bs.bf ?? 0, hf: bs.hf ?? 0 } : {}), balanco: x.cantilever ? 1 : 0 } });
   P_('dimensionamento', tm, { descricao: 'Área e inércia bruta da seção', formula: 'Ac; Ic', expressao: `Ac = ${fm(g.A)} m²; Ic = ${fm(g.I)} m⁴; yc (a partir da base) = ${fm(g.ycb)} m`, resultado: g.A, unidade: 'm²', entradas: { Ac: g.A, Ic: g.I, ycb: g.ycb } });
   P_('dimensionamento', tm, { descricao: 'Resistência de cálculo do concreto', formula: 'fcd = fck / γc', expressao: `fcd = ${fm(cc.fck)} / ${fm(gc)} = ${fm(cc.fcd)}`, resultado: cc.fcd, unidade: 'MPa', norma: `${NBR}, 12.3.3`, entradas: { fck: cc.fck, gc } });
   P_('dimensionamento', tm, { descricao: 'Tensão do bloco retangular', formula: 'σcd = αc·ηc·fcd', expressao: `σcd = ${fm(cc.sigmaCd / cc.fcd)}·${fm(cc.fcd)} = ${fm(cc.sigmaCd)}`, resultado: cc.sigmaCd, unidade: 'MPa', norma: `${NBR}, 17.2.2`, aConfirmar: cc.fck > 40, entradas: { fcd: cc.fcd, fator: cc.sigmaCd / cc.fcd } });
@@ -73,14 +73,28 @@ export function registrarVigaPortico(mem: Registrador, c: CtxPortico, x: CtxViga
   }
   const tracionada = bd.shear.combo.endsWith('(seção tracionada, Vc = 0)');
   const gv = tracionada ? et : en;
-  if (gv) passosComposicao(mem, el, te, `Cortante máximo${tracionada ? ' (seção tracionada: linha neutra fora da seção, Vc = 0)' : ''}`, composicao(c, gv.e, k, 'V', gv.x, true), Math.abs(P.evaluate(gv.e.r.members[k].V, gv.x)), 'kN', '|V|');
+  if (gv) passosComposicao(mem, el, te, `Cortante máximo${tracionada ? ' (seção tracionada: linha neutra fora da seção, Vc = 0)' : ''}`, composicao(c, gv.e, k, 'V', gv.x, true), P.evaluate(gv.e.r.members[k].V, gv.x), 'kN', 'V');
   P_('esforcos', te, { descricao: 'Compressão máxima na barra (para o limite ν = Nd/(Ac·fcd) de 0,10 da flexo-compressão)', formula: 'ν = N,máx/(Ac·fcd)', expressao: `N,máx = ${fm(Ncomp)} kN; ν = ${fm(Ncomp)}/1000/(${fm(g.A)}·${fm(cc.fcd)}) = ${fm(bd.axialNu)}`, resultado: bd.axialNu, unidade: '', norma: `${NBR}, 17.2.5`, entradas: { Ncomp, Ac: g.A, fcd: cc.fcd } });
 
-  // ---- flexão
+  // ---- flexão (a armadura mínima usa a altura útil da primeira estimativa, sem barras escolhidas, como no dimensionamento)
   const ctxF = { c: cc, sec: bs, taxaMin: 0, b: bw, h: bs.h };
-  const d2 = cover + 0.0063 + 0.008;
-  flexao(mem, el, 'Flexão – armadura inferior', ctxF, pos?.v ?? 0, bd.pos.d, d2, fyd, true, bd.pos.AsAdopt, true);
-  if (neg) flexao(mem, el, 'Flexão – armadura superior', ctxF, Math.abs(neg.v), bd.neg.d, d2, fyd, false, bd.neg.AsAdopt, false);
+  const d2 = cover + 0.0063 + 0.008, dPrimeira = bs.h - cover - 0.0063 - 0.008;
+  const asMin = (topico: string, Md: number, fc: boolean, f: typeof bd.pos) => {
+    if (!(Md !== 0 || fc)) return;
+    const gp = grossProps(bs), yt = fc ? gp.ycb : bs.h - gp.ycb, W0 = gp.I / yt, Mmin = 0.8 * W0 * cc.fctkSup;
+    const rm = beamFlexure(bs, fc, Mmin * 1000, dPrimeira, 0.04, cc, fyd);
+    P_('dimensionamento', topico, { descricao: 'Altura útil da primeira estimativa (barra φ16, estribo φ6,3) usada na armadura mínima', formula: 'd1 = h − c − φt − φℓ/2', expressao: `d1 = ${fm(bs.h)} − ${fm(cover)} − 0,0063 − 0,008 = ${fm(dPrimeira)}`, resultado: dPrimeira, unidade: 'm', norma: `${NBR}, 17.3.5.2.1`, entradas: { h: bs.h, cobrimento: cover } });
+    P_('dimensionamento', topico, { descricao: 'Momento mínimo', formula: 'Md,mín = 0,8·W0·fctk,sup, W0 = Ic/yt, fctk,sup = 1,3·fct,m', expressao: `Md,mín = 0,8·(${fm(gp.I)}/${fm(yt)})·${fm(cc.fctkSup)} = ${fm(Mmin * 1000)} kN·m`, resultado: Mmin, unidade: 'MN·m', norma: `${NBR}, 17.3.5.2.1`, entradas: { Ic: gp.I, yt, fctkSup: cc.fctkSup } });
+    P_('dimensionamento', topico, { descricao: 'Armadura mínima', formula: 'As,mín = máx[As(Md,mín); 0,15 %·Ac]', expressao: `As,mín = máx(${cm2(rm.As)}; 0,0015·${fm(gp.A)} = ${cm2(0.0015 * gp.A)}) = ${cm2(f.AsMin)}`, resultado: f.AsMin, unidade: 'm²', norma: `${NBR}, 17.3.5.2.1 (Tabela 17.3)`, entradas: { AsMd: rm.As, Ac: gp.A, d1: dPrimeira, Mmin } });
+  };
+  const face = (topico: string, Md: number, fc: boolean, f: typeof bd.pos, inferior: boolean) => {
+    flexao(mem, el, topico, ctxF, Md, f.d, d2, fyd, fc, f.AsAdopt, inferior, { semMinimo: true });
+    if (Math.abs(Md) <= 1e-9) return;
+    asMin(topico, Md, fc, f);
+    P_('dimensionamento', topico, { descricao: 'Armadura de cálculo', formula: 'As,calc = máx(As; As,mín)', expressao: `As,calc = máx(${cm2(f.As)}; ${cm2(f.AsMin)}) = ${cm2(f.AsAdopt)}`, resultado: f.AsAdopt, unidade: 'm²', norma: `${NBR}, 17.3.5.2`, entradas: { As: f.As, AsMin: f.AsMin } });
+  };
+  face('Flexão – armadura inferior', pos?.v ?? 0, true, bd.pos, true);
+  if (neg) face('Flexão – armadura superior', Math.abs(neg.v), false, bd.neg, false);
   P_('dimensionamento', 'Flexão – armadura máxima', { descricao: 'Armadura longitudinal total (adotada + compressão) contra o máximo de 4 % de Ac', formula: 'As,total/Ac ≤ 4 %', expressao: `As,total = ${cm2(bd.AsTotalRatio * g.A)}; As,total/Ac = ${fm(bd.AsTotalRatio * 100)} %`, resultado: bd.AsTotalRatio, unidade: '', norma: `${NBR}, 17.3.5.2.4`, entradas: { Ac: g.A, AsTotal: bd.AsTotalRatio * g.A } });
   const barras = (rot: string, As: number, bb: BarChoice | null) => {
     if (!bb) { if (As > 0) P_('detalhamento', rot, { descricao: 'Armadura não cabe na largura (até 3 camadas)', formula: 'As,ef ≥ As', expressao: `As = ${cm2(As)}`, resultado: 'não cabe', unidade: '', norma: `${NBR}, 18.3.2`, entradas: { As, bw, cobrimento: cover } }); return; }
