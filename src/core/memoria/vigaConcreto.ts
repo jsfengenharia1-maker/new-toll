@@ -19,6 +19,8 @@ export interface ComposicaoEsforco {
   apoio?: boolean;
 }
 
+export interface EstacaoTorcao { vao: number; s: number; combinacao: string; V: number; T: number; aV: number; aT: number; asw: number }
+export interface TorcaoMemoria { c1: number; he: number; Ae: number; ue: number; TRd2: number; estacoes: EstacaoTorcao[]; governante: number; totalEstacoes: number }
 export interface CtxMemoriaViga {
   elemento: string;
   b: number; h: number;
@@ -31,6 +33,8 @@ export interface CtxMemoriaViga {
   det: { Mmax: string; Mmin: string; V: string; T: string };
   comp: { Mpos?: ComposicaoEsforco; Mneg?: ComposicaoEsforco; V?: ComposicaoEsforco };
   env: { asw: number; T: number; biela: number; Asl: number };
+  /** Torção (MD9): seção vazada equivalente e Asw/s por estação (máximo entre as combinações), com a estação determinante. */
+  torcao?: TorcaoMemoria;
   AsNec: [number, number]; AsInf: number; AsSup: number; bi: BarChoice | null; bs: BarChoice | null; bloq: boolean;
   VRd2: number; Vc0: number; aswMin: number; aswS: number; smax: number; est: { phi: number; s: number; legs: number } | null; al: number;
   MkPos: number; MkNeg: number; wk: [number, number]; wkLim: number; caa: 1 | 2 | 3 | 4;
@@ -106,6 +110,7 @@ export function registrarViga(mem: Registrador, x: CtxMemoriaViga) {
   P('dimensionamento', tc, { descricao: 'Parcela do concreto (flexão simples)', formula: 'Vc = Vc0 = 0,6·fctd·bw·d', expressao: `Vc = 0,6·${fm(c.fctd)}·${fm(bw)}·${fm(d)}·1000 = ${fm(x.Vc0)}`, resultado: x.Vc0, unidade: 'kN', norma: `${NBR}, 17.4.2.2 b`, entradas: { fctd: c.fctd, bw, d } });
   const aswV = Math.max(0, x.V - x.Vc0) / 1000 / (0.9 * d * x.fywd);
   P('dimensionamento', tc, { descricao: x.env.T > 0 ? 'Armadura transversal (cortante + 2·A90/s da torção, máximo por estação)' : 'Armadura transversal do cortante', formula: x.env.T > 0 ? 'Asw/s = (VSd − Vc)/(0,9·d·fywd) + 2·Td/(2·Ae·fywd)' : 'Asw/s = (VSd − Vc)/(0,9·d·fywd)', expressao: x.env.T > 0 ? `Asw/s = ${fm(x.env.asw * 1e4)} cm²/m` : `Asw/s = (${fm(x.V)} − ${fm(x.Vc0)})/1000/(0,9·${fm(d)}·${fm(x.fywd)}) = ${fm(aswV * 1e4)} cm²/m`, resultado: x.env.T > 0 ? x.env.asw : aswV, unidade: 'm²/m', norma: `${NBR}, 17.4.2.2${x.env.T > 0 ? ' e 17.5.1.6' : ''}`, entradas: { VSd: x.V, Vc: x.Vc0, d, fywd: x.fywd } });
+  if (x.torcao && x.env.T > 0) passosTorcao(P, x, x.torcao);
   P('dimensionamento', tc, { descricao: 'Armadura transversal mínima', formula: 'Asw,mín/s = 0,2·(fct,m/fywk)·bw', expressao: `Asw,mín/s = 0,2·(${fm(c.fctm)}/${fm(x.fywk)})·${fm(bw)} = ${fm(x.aswMin * 1e4)} cm²/m`, resultado: x.aswMin, unidade: 'm²/m', norma: `${NBR}, 17.4.1.1.1`, entradas: { fctm: c.fctm, fywk: x.fywk, bw } });
   P('dimensionamento', tc, { descricao: 'Armadura transversal de cálculo', formula: 'Asw/s = máx(Asw/s; Asw,mín/s)', expressao: `Asw/s = máx(${fm(x.env.asw * 1e4)}; ${fm(x.aswMin * 1e4)}) = ${fm(x.aswS * 1e4)} cm²/m`, resultado: x.aswS, unidade: 'm²/m', norma: `${NBR}, 17.4.1.1.1`, entradas: { asw: x.env.asw, aswMin: x.aswMin } });
   P('dimensionamento', tc, { descricao: 'Espaçamento máximo dos estribos', formula: 'VSd ≤ 0,67·VRd2 → smáx = mín(0,6·d; 30 cm); senão smáx = mín(0,3·d; 20 cm)', expressao: `VSd/VRd2 = ${fm(x.V / x.VRd2)} → smáx = ${fm(x.smax)}`, resultado: x.smax, unidade: 'm', norma: `${NBR}, 18.3.3.2`, entradas: { VSd: x.V, VRd2: x.VRd2, d } });
@@ -206,4 +211,18 @@ export function passosEtapasFlecha(mem: Registrador, el: string, tf: string, f: 
     const soma = k.porEtapa.reduce((t, e) => t + e.carga * e.dXi, 0);
     P('dimensionamento', tf, { descricao: 'Flecha diferida (cada parcela de longa duração desde a sua idade)', formula: 'fd = Σ Pi·Δξi/(1 + 50·ρ′)', expressao: `fd = ${fm(soma * 1000)}/(1 + 50·${fm(f.rho)}) = ${fm(k.diferida * 1000)} mm`, resultado: k.diferida, unidade: 'm', norma: `${NBR}, 17.3.2.1.2`, entradas: { soma, den, rho: f.rho } });
     P('dimensionamento', tf, { descricao: 'Flecha total por etapas de carga', formula: 'f∞ = fi + fd ≤ limite', expressao: `f∞ = ${fm(k.instantanea * 1000)} + ${fm(k.diferida * 1000)} = ${fm(f.total * 1000)} mm ${f.total <= f.limite ? '≤' : '>'} ${f.limiteTxt} = ${fm(f.limite * 1000)} mm`, resultado: f.total, unidade: 'm', norma: `${NBR}, 13.3 (Tabela 13.3) e 17.3.2.1.2`, entradas: { fi: k.instantanea, fd: k.diferida, limite: f.limite } });
+}
+
+
+/** Torção da viga: seção vazada equivalente (he, Ae, ue, TRd2) e a decomposição do Asw/s por estação em cortante e torção. */
+function passosTorcao(P: (etapa: 'esforcos' | 'dimensionamento' | 'detalhamento', topico: string, p: Omit<Parameters<Registrador['passo']>[0], 'elemento' | 'etapa' | 'topico'>) => number | string, x: CtxMemoriaViga, t: TorcaoMemoria) {
+  const T = 'Torção – Asw/s por estação', c = x.c;
+  P('dimensionamento', T, { descricao: 'Seção vazada equivalente: espessura fictícia he = A/u (≥ 2·c1, 17.5.1.4), área Ae e perímetro ue da linha média', formula: 'he = A/u (he ≥ 2·c1 se 2·c1 ≤ mín(b;h)/2); Ae = (b − he)·(h − he); ue = 2·(b − he + h − he)', expressao: `he = ${fm(t.he)} m; Ae = ${fm(t.Ae)} m²; ue = ${fm(t.ue)} m`, resultado: t.Ae, unidade: 'm²', norma: `${NBR}, 17.5.1.4`, entradas: { b: x.b, h: x.h, c1: t.c1, he: t.he, Ae: t.Ae, ue: t.ue } });
+  P('dimensionamento', T, { descricao: 'Resistência da biela na torção', formula: 'TRd2 = 0,5·αv2·fcd·Ae·he·sen 2θ (θ = 45°)', expressao: `TRd2 = 0,5·${fm(c.av2)}·${fm(c.fcd)}·${fm(t.Ae)}·${fm(t.he)}·1000 = ${fm(t.TRd2)} kN·m`, resultado: t.TRd2, unidade: 'kN·m', norma: `${NBR}, 17.5.1.5`, entradas: { av2: c.av2, fcd: c.fcd, Ae: t.Ae, he: t.he } });
+  const marca = (i: number) => (i === t.governante ? ' — ESTAÇÃO DETERMINANTE' : '');
+  t.estacoes.forEach((e, i) => {
+    P('dimensionamento', T, { descricao: `Vão ${e.vao + 1}, estação s = ${fm(e.s)} m, combinação ${e.combinacao}: Asw/s = parcela do cortante + 2·A90/s da torção${marca(i)}`, formula: 'Asw/s = máx(0; VSd − Vc)/(0,9·d·fywd) + 2·[Td/(2·Ae·fywd)]', expressao: `Asw/s = máx(0; ${fm(e.V)} − ${fm(x.Vc0)})/1000/(0,9·${fm(x.d)}·${fm(x.fywd)}) + 2·${fm(e.T)}/1000/(2·${fm(t.Ae)}·${fm(x.fywd)}) = ${fm(e.aV * 1e4)} + ${fm(e.aT * 1e4)} = ${fm(e.asw * 1e4)} cm²/m`, resultado: e.asw, unidade: 'm²/m', norma: `${NBR}, 17.4.2.2 e 17.5.1.6`, entradas: { VSd: e.V, Vc: x.Vc0, d: x.d, fywd: x.fywd, Td: e.T, Ae: t.Ae, aV: e.aV, aT: e.aT } });
+  });
+  const g = t.estacoes[t.governante];
+  if (g) P('dimensionamento', T, { descricao: `Asw/s determinante: máximo entre as ${t.totalEstacoes} estações do eixo (${t.estacoes.length} registradas: as de maior Asw/s com torção) (cortante ${fm(g.aV * 1e4)} + torção ${fm(g.aT * 1e4)} cm²/m)`, formula: 'Asw/s = máx por estação', expressao: `Asw/s = ${fm(g.asw * 1e4)} cm²/m (vão ${g.vao + 1}, s = ${fm(g.s)} m, ${g.combinacao})`, resultado: g.asw, unidade: 'm²/m', norma: `${NBR}, 17.5.1.6`, entradas: { asw: g.asw, aswEnv: x.env.asw } });
 }

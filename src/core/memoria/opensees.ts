@@ -10,7 +10,31 @@ import type { BuildingModel } from '../building/types';
 import { casosResolvidos } from './dadosAnalise';
 
 /** Modelo a exportar: barras e casos. */
-export interface ModeloExportavel { modelo: Modelo3; casos: { nome: string; caso?: Caso3 }[]; avisos: string[]; cheio: boolean }
+export interface ModeloExportavel {
+  modelo: Modelo3; casos: { nome: string; caso?: Caso3; /** Fator na área das barras de `axial` neste caso (vento: 1/EA dos pilares das opções; gravidade: 1). */ escA?: number }[]; avisos: string[]; cheio: boolean;
+  /** Barras (do modelo exportado) com a área multiplicada pelo EA dos pilares das opções nas cargas verticais (premissa 25); o vento usa a área real. */
+  axial?: number[];
+}
+
+/** Modelo do caso: o exportado, com a área das barras `axial` escalada pelo `escA` do caso (o que o script faz no OpenSees). */
+export function modeloDoCaso(me: ModeloExportavel, nome: string): Modelo3 {
+  const c = me.casos.find((x) => x.nome === nome), f = c?.escA ?? 1;
+  if (f === 1 || !me.axial?.length) return me.modelo;
+  const ax = new Set(me.axial);
+  return { ...me.modelo, barras: me.modelo.barras.map((b, k) => (ax.has(k) ? { ...b, A: b.A * f } : b)) };
+}
+
+/** Barras de pilar do pórtico (índices no modelo exportado) e o fator do vento: na análise, as cargas verticais usam A × axialPilares e o vento a área real. */
+function barrasAxiais(an: AnaliseEdificio, cheio: boolean): { axial: number[]; fVento: number } {
+  const pm = an.portico, fVento = 1 / (an.opcoes.axialPilares || 1), axial: number[] = [];
+  if (fVento === 1) return { axial, fVento };
+  let k = 0;
+  pm.modelo.barras.forEach((b, i) => {
+    const idx = cheio ? (b.soPlano ? -1 : k++) : i;
+    if (pm.barras[i]?.tipo === 'pilar' && idx >= 0) axial.push(idx);
+  });
+  return { axial, fVento };
+}
 
 /**
  * Modelo de barras do pórtico para o OpenSees. Com o modelo integrado (grelhas das lajes condensadas em superelementos),
@@ -21,9 +45,16 @@ export function modeloExportavel(b: BuildingModel, an: AnaliseEdificio): ModeloE
   const pm = an.portico;
   if (pm.modelo.superelementos?.length) {
     const ch = an.cheio ?? analisarEdificio(b, an.opcoes, { cheio: true }).cheio;
-    if (ch) return { modelo: ch.modelo, casos: an.casos.map((nome, ic) => ({ nome, caso: ch.casos[ic] })), avisos: ['Modelo integrado: exportado o modelo cheio equivalente (lajes como barras), só com os casos da obra; os casos de vento atuam no pórtico condensado.'], cheio: true };
+    if (ch) {
+      // vento (MD9): cargas nodais nos nós mestres dos diafragmas (índices do pórtico, preservados no modelo cheio); o diafragma rígido e as
+      // vigas/lajes vão como barras; a área dos pilares é a real (o modelo cheio vem do modelo das cargas verticais, com EA × axialPilares).
+      const { axial, fVento } = barrasAxiais(an, true);
+      const vento = (an.vento?.casos ?? []).map((c, ic) => ({ nome: c.nome, caso: pm.casosVento?.[ic], escA: fVento })).filter((c) => !!c.caso);
+      return { modelo: ch.modelo, casos: [...an.casos.map((nome, ic) => ({ nome, caso: ch.casos[ic] })), ...vento], avisos: ['Modelo integrado: exportado o modelo cheio equivalente (lajes como barras), com os casos da obra e os de vento (forças nos diafragmas, área real dos pilares).'], cheio: true, axial };
+    }
   }
-  return { modelo: pm.modelo, casos: casosResolvidos(an).filter((c) => c.origem !== 'pDelta').map((c) => ({ nome: c.nome, caso: c.caso })), avisos: [], cheio: false };
+  const { axial, fVento } = barrasAxiais(an, false);
+  return { modelo: pm.modelo, casos: casosResolvidos(an).filter((c) => c.origem !== 'pDelta').map((c) => ({ nome: c.nome, caso: c.caso, ...(c.origem === 'vento' ? { escA: fVento } : {}) })), avisos: [], cheio: false, axial };
 }
 
 export interface ScriptOpenSees { script: string; avisos: string[]; completo: boolean; casos: string[] }
@@ -58,7 +89,7 @@ export function scriptOpenSees(me: ModeloExportavel, o: { casos?: string[]; said
       return `(${x.barra}, ${n(F[1])}, ${n(F[2])}, ${n(x.a / b.L)}, ${n(F[0])})`;
     });
     if (c?.superelementos?.length || c?.pressoes?.length) avisos.push('Cargas de superelementos ou pressões em cascas não exportadas.');
-    return `{"nodais": [${nod.join(', ')}], "uniformes": [${dist.join(', ')}], "pontuais": [${pont.join(', ')}]}`;
+    return `{"nodais": [${nod.join(', ')}], "uniformes": [${dist.join(', ')}], "pontuais": [${pont.join(', ')}]`;
   };
   const saida = o.saida ?? 'resultados_opensees.json';
   const L: string[] = [];
@@ -75,8 +106,10 @@ export function scriptOpenSees(me: ModeloExportavel, o: { casos?: string[]; said
   L.push('# barra: (i, j, E, G, A, Iy, Iz, J, Ay, Az, vecxz, offI, offJ, releasey, releasez)');
   L.push(`BARRAS = [${barras.map((b) => `(${b.i}, ${b.j}, ${n(b.E)}, ${n(b.G)}, ${n(b.A)}, ${n(b.Iy)}, ${n(b.Iz)}, ${n(b.J)}, ${n(b.Ay)}, ${n(b.Az)}, ${lista(b.ez)}, ${lista(b.oi)}, ${lista(b.oj)}, ${b.ry}, ${b.rz})`).join(',\n          ')}]`);
   L.push('# por caso: nodais (nó, [Fx, Fy, Fz, Mx, My, Mz]); uniformes (barra, wy, wz, wx locais); pontuais (barra, Py, Pz, x/L, Px locais)');
-  L.push(`CASOS = {${escolhidos.map((c) => `${JSON.stringify(c.nome)}: ${cargaCaso(c.caso)}`).join(',\n         ')}}`);
-  L.push('', `def montar():
+  L.push('# AXIAL: barras de pilar cuja área nas cargas verticais é multiplicada pelo EA dos pilares das opções; "escA" é o fator da área no caso (vento: 1/EA)');
+  L.push(`AXIAL = ${lista(me.axial ?? [])}`);
+  L.push(`CASOS = {${escolhidos.map((c) => `${JSON.stringify(c.nome)}: ${cargaCaso(c.caso)}, "escA": ${n(c.escA ?? 1)}}`).join(',\n         ')}}`);
+  L.push('', `def montar(escA=1.0):
     ops.wipe(); ops.model("basic", "-ndm", 3, "-ndf", 6)
     for i, p in enumerate(NOS): ops.node(i, *p)
     for no, f in APOIOS: ops.fix(no, *f)
@@ -88,7 +121,9 @@ export function scriptOpenSees(me: ModeloExportavel, o: { casos?: string[]; said
         t = base + k; ops.node(t, *NOS[no]); ops.fix(t, 1, 1, 1, 1, 1, 1)
         ops.uniaxialMaterial("Elastic", k + 1, kk)
         ops.element("zeroLength", 100000 + k, t, no, "-mat", k + 1, "-dir", gdl + 1)
+    ax = set(AXIAL)
     for k, (i, j, E, G, A, Iy, Iz, J, Ay, Az, vz, oi, oj, ry, rz) in enumerate(BARRAS):
+        if k in ax: A = A * escA
         ops.geomTransf("Linear", k + 1, *vz, "-jntOffset", *oi, *oj)
         if (Ay or Az) and not ry and not rz:
             ops.element("ElasticTimoshenkoBeam", k + 1, i, j, E, G, A, J, Iy, Iz, Ay if Ay else 1e12, Az if Az else 1e12, k + 1)
@@ -97,8 +132,8 @@ export function scriptOpenSees(me: ModeloExportavel, o: { casos?: string[]; said
             ops.element("elasticBeamColumn", k + 1, i, j, A, E, G, J, Iy, Iz, k + 1, *extra)
 
 def resolver(nome):
-    montar()
     c = CASOS[nome]
+    montar(c["escA"])
     ops.timeSeries("Linear", 1); ops.pattern("Plain", 1, 1)
     for no, f in c["nodais"]: ops.load(no, *f)
     for b, wy, wz, wx in c["uniformes"]: ops.eleLoad("-ele", b + 1, "-type", "-beamUniform", wy, wz, wx)

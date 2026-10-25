@@ -91,7 +91,7 @@ export const f_MD2 = {
       await dlg.getByLabel(/^Elemento/).selectOption({ label: 'Laje L2' });
       await page.waitForFunction((n) => document.querySelectorAll('[data-memoria-detalhada] tr[data-passo]').length < n, total);
       const tf = await dlg.locator('[data-memoria-detalhada]').innerText();
-      assert.ok(tf.includes('Laje L2') && !tf.includes('Laje L1 ') && !tf.includes('Viga V1') && tf.includes('Wood-Armer'));
+      assert.ok(tf.includes('Laje L2') && !tf.includes('Laje L1 ') && (await dlg.locator('[id$="-viga-v1"]').count()) === 0 && tf.includes('Wood-Armer'));
       const baixar = async (rot) => {
         const [dl] = await Promise.all([page.waitForEvent('download'), dlg.getByRole('button', { name: rot, exact: true }).click()]);
         return { nome: dl.suggestedFilename(), dados: readFileSync(await dl.path()) };
@@ -620,6 +620,73 @@ export const f_MD7b = {
       const aco = ps.filter((p) => p.topico === 'Aço da alvenaria armada' && p.entradas.tipo);
       assert.ok(aco.length > 0);
       for (const p of aco) assert.ok(Math.abs(p.entradas.quant * p.entradas.comprimento * p.entradas.area * p.entradas.rho - p.entradas.peso) < 1e-9 * Math.max(1, p.entradas.peso));
+      await dlg.getByRole('button', { name: 'Fechar', exact: true }).click();
+      await dlg.waitFor({ state: 'detached' });
+    },
+  };
+
+export const f_MD9 = {
+    name: 'MD9: memória da análise em detalhe (vento por pavimento: V0, S1, S2, Vk, q, área e força; γz com M1 e ΔM por pavimento; carga das lajes nas vigas; torção por estação)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar', exact: true }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await page.getByRole('button', { name: 'Memória de cálculo detalhada', exact: true }).click();
+      const dlg = page.getByRole('dialog', { name: 'Memória de cálculo detalhada' });
+      const doc = dlg.locator('[data-memoria-detalhada]');
+      await doc.waitFor({ timeout: 90000 });
+      const t = await doc.innerText();
+      for (const s of ['Vento – parâmetros', 'Vento – S2, Vk e pressão dinâmica por pavimento', 'Vento – forças por pavimento (W0°)', 'Estabilidade global (γz) – vento a 0°', 'Estabilidade global (γz) – rigidez reduzida', 'Desaprumo global (11.3.3.4.1)', 'Carga da laje nas vigas']) assert.ok(t.includes(s), s);
+      assert.match(t, /S2 = b·Fr·\(z\/10\)\^p/);
+      assert.match(t, /q = 0,613·Vk²/);
+      assert.match(t, /γz = 1\/\(1 − ΔMtot,d\/M1,tot,d\)/);
+      const mem = await baixarJson(page, dlg);
+      const ed = mem.passos.filter((p) => p.elemento === 'Edifício');
+      assert.ok(ed.every((p) => p.id && p.etapa && p.formula && p.expressao && p.entradas && typeof p.entradas === 'object'));
+      const rel = (a, b) => Math.abs(a - b) / Math.max(1e-12, Math.abs(b));
+      // vento: S2 = b·Fr·(z/10)^p, Vk = V0·S1·S2·S3, q = 0,613·Vk²/1000, F = Ca·fv·fsentido·q·Ae
+      const tS2 = 'Vento – S2, Vk e pressão dinâmica por pavimento';
+      const s2 = ed.filter((p) => p.topico === tS2 && p.formula.startsWith('S2'));
+      const vk = ed.filter((p) => p.topico === tS2 && p.formula.startsWith('Vk'));
+      const qq = ed.filter((p) => p.topico === tS2 && p.formula.startsWith('q'));
+      assert.ok(s2.length >= 2 && vk.length === s2.length && qq.length === s2.length, `pavimentos: ${s2.length}`);
+      s2.forEach((p, i) => {
+        assert.ok(rel(p.entradas.b * p.entradas.Fr * Math.pow(p.entradas.z / 10, p.entradas.p), p.resultado) < 1e-9);
+        assert.ok(rel(vk[i].entradas.V0 * vk[i].entradas.S1 * vk[i].entradas.S2 * vk[i].entradas.S3, vk[i].resultado) < 1e-9);
+        assert.ok(rel(0.613 * qq[i].entradas.Vk ** 2 / 1000, qq[i].resultado) < 1e-9);
+      });
+      const fo = ed.filter((p) => p.topico === 'Vento – forças por pavimento (W0°)' && p.formula.startsWith('F = Ca'));
+      assert.ok(fo.length >= 2);
+      for (const p of fo) assert.ok(rel(p.entradas.Ca * p.entradas.fv * p.entradas.fsentido * p.entradas.q * p.entradas.Ae, p.resultado) < 1e-9);
+      // γz = 1/(1 − ΔM/M1) com ΔM somado por pavimento
+      const T = 'Estabilidade global (γz) – vento a 0°';
+      const dm = ed.filter((p) => p.topico === T && p.formula.startsWith('ΔM,pav'));
+      assert.ok(dm.length >= 2);
+      const sV = dm.reduce((s, p) => s + (p.entradas.gg * p.entradas.G + p.entradas.gq * p.entradas.Qpsi) * p.entradas.d, 0);
+      const gv = ed.find((p) => p.topico === T && p.descricao === 'γz com o vento principal');
+      assert.ok(rel(sV, gv.entradas.dM) < 1e-9);
+      assert.ok(rel(1 / (1 - gv.entradas.dM / gv.entradas.M1), gv.resultado) < 1e-9);
+      // carga da laje nas vigas: reação = Σ Fz dos nós; equilíbrio do pano
+      const lj = mem.passos.filter((p) => p.elemento.startsWith('Laje ') && p.topico === 'Carga da laje nas vigas');
+      const re = lj.filter((p) => p.formula.startsWith('R = Σ'));
+      assert.ok(re.length >= 4, `reações: ${re.length}`);
+      for (const p of re) { let s = 0; for (let k = 0; k < p.entradas.nNos; k++) s += p.entradas[`Fz${k}`]; assert.ok(rel(s, p.resultado) < 1e-9); }
+      const eq = lj.find((p) => p.formula.startsWith('Σ R'));
+      assert.ok(Math.abs(eq.entradas.residuo) < 1e-6 * Math.max(1, eq.entradas.carga));
+      // torção (quando a viga a verifica): cada estação = parcela do cortante + 2·A90/s
+      const to = mem.passos.filter((p) => p.topico === 'Torção – Asw/s por estação' && p.formula.startsWith('Asw/s = máx(0'));
+      for (const p of to) assert.ok(rel(p.entradas.aV + p.entradas.aT, p.resultado) < 1e-9);
+      // filtro por elemento: só os passos globais e os da laje
+      await dlg.getByLabel(/^Elemento/).selectOption({ label: lj[0].elemento });
+      await page.waitForFunction(() => !document.querySelector('[data-memoria-detalhada]').innerText.includes('Pilar P1'));
+      const tf = await dlg.locator('[data-memoria-detalhada]').innerText();
+      assert.ok(tf.includes('Carga da laje nas vigas') && tf.includes('Vento – parâmetros'));
       await dlg.getByRole('button', { name: 'Fechar', exact: true }).click();
       await dlg.waitFor({ state: 'detached' });
     },

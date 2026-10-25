@@ -51,6 +51,7 @@ import type { ResultadoVigaFundacao } from './vigasFundacao';
 import { TAXAS } from './premissas';
 import { puncaoAbacos } from './abacosPuncao';
 import { cortanteLaje, puncaoEdificio, puncaoRadier, sitiosPuncao, type CortanteLaje, type DetCortanteBruto, type ResultadoPuncao } from './puncao';
+import { registrarReacoesLaje } from '../memoria/reacoesLajes';
 import { registrarLajeBarras, registrarLajeBase, registrarLajeCortante, registrarLajeFissuracao, registrarLajeFlecha, registrarLajeFlexao, registrarMomentosLaje, type DetBarra, type DetFiss, type DetNoWA, type ExtremoLaje, type ItemFissuracao, type MomentosLaje } from '../memoria/lajeMacica';
 import { detalharRadier, dimensionarBaseElastica, resumoAcoRadiers, type ResultadoRadier, type ResultadoVigaElastica } from './baseElastica';
 import { calcularCorridas, type ResultadoCorrida } from './sapataCorrida';
@@ -67,7 +68,7 @@ import { verificarFogo, type ResultadoFogo } from './fogo';
 import { memoriaAtiva } from '../memoria/registrador';
 import type { DetBransonNerv, DetFase1 } from '../memoria/flechaBranson';
 import { registrarFlechaAlinhamento } from '../memoria/vigotasFlecha';
-import { registrarViga, type ComposicaoEsforco } from '../memoria/vigaConcreto';
+import { registrarViga, type ComposicaoEsforco, type EstacaoTorcao, type TorcaoMemoria } from '../memoria/vigaConcreto';
 import { registrarPilar } from '../memoria/pilarConcreto';
 import { detalharInclinada, dimensionarInclinadas, resumoAcoInclinadas, type DetalheInclinada, type ResultadoInclinada } from './inclinadasDim';
 export { TAXAS };
@@ -775,12 +776,33 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
         }
         return undefined;
       };
+      // MD9: Asw/s (cortante + torção) por estação, as mesmas expressões da envoltória (máximo entre as combinações)
+      const estacoesTorcao = (): TorcaoMemoria => {
+        const todas: EstacaoTorcao[] = [];
+        for (const [iv, vo] of vaos.entries()) for (let i = 0; i < vo.Mv[0].length; i++) {
+          if (!vo.corte[i]) continue;
+          let melhor: EstacaoTorcao | null = null;
+          for (let k = 0; k < elu.length; k++) {
+            const vv = Math.abs(cortanteRedist(perfisFinal[iv][k], vo.V[k][i])), tt = Math.abs(vo.T[k][i]);
+            const aV = Math.max(0, vv - Vc0) / 1000 / (0.9 * d * fywd), aT = tt ? 2 * (tt / 1000 / (2 * tor!.Ae * fywd)) : 0, asw = aV + aT;
+            if (!melhor || asw > melhor.asw) melhor = { vao: iv, s: vo.s[i], combinacao: elu[k].nome, V: vv, T: tt, aV, aT, asw };
+          }
+          if (melhor) todas.push(melhor);
+        }
+        let gov = 0;
+        todas.forEach((e, i) => { if (e.asw > todas[gov].asw) gov = i; });
+        // registra as estações com torção (as 40 de maior Asw/s) e a determinante, na ordem do eixo
+        const idx = todas.map((_, i) => i).filter((i) => todas[i].T > 0 || i === gov).sort((a, c) => todas[c].asw - todas[a].asw).slice(0, 40);
+        if (!idx.includes(gov)) idx.push(gov);
+        idx.sort((a, c) => a - c);
+        return { c1: cob.lat + 0.005 + 0.008, he: tor!.he, Ae: tor!.Ae, ue: tor!.ue, TRd2: tor!.TRd2, estacoes: idx.map((i) => todas[i]), governante: idx.indexOf(gov), totalEstacoes: todas.length };
+      };
       registrarOpcoesProprias(mem, `Viga ${v.nome}`, 'viga', v.opcoes);
       registrarViga(mem, {
         elemento: `Viga ${v.nome}`, b: v.secao.b, h: v.secao.h, c, fyk: aPos.fyk, fydPos: aPos.fyd, fydNeg: aNeg.fyd, fywk: aEst.fyk, fywd, gs, cob, dI, dS, d2I, d2S, d,
         sec, fcPos, fcNeg, taxaMin: op.vigaTaxaMin, Mpos, Mneg, V, delta, redistFaces: !!op.redistribuicaoFaces, redistribuicao: op.redistribuicao, deltaMin, deltaX, det: envolt.determinantes,
         comp: { Mpos: compor(Mpos, 'M'), ...(Mneg < 0 ? { Mneg: compor(Mneg, 'M') } : {}), V: compor(V, 'V') },
-        env: { asw: env.asw, T: env.T, biela: env.biela, Asl: env.Asl }, AsNec: AsFlex, AsInf, AsSup, bi, bs, bloq,
+        env: { asw: env.asw, T: env.T, biela: env.biela, Asl: env.Asl }, ...(tor && env.T > 0 ? { torcao: estacoesTorcao() } : {}), AsNec: AsFlex, AsInf, AsSup, bi, bs, bloq,
         VRd2, Vc0, aswMin, aswS, smax, est, al, MkPos, MkNeg, wk: [wkI, wkS], wkLim, caa,
         flecha: cT ? { metodo: op.flechaEtapas ? 'etapas' : 'fator', L: cT.L, balanco: cT.balanco, dG: cadF[cands.indexOf(cT)].d[0], dQ: cadF[cands.indexOf(cT)].d[1], dQqp: cadF[cands.indexOf(cT)].d[2], af, rho: rhoL, afR, total: flecha, limite, limiteTxt: textoLimite(limsV.total, balT), flechaQ, limiteQ, limiteQTxt: textoLimite(limsV.variavel, balQ), AsMont, homogeneizada: !!op.inerciaHomogeneizada, inst: cT.inst, comp: cT.comp, qInst } : null,
       });
@@ -1701,6 +1723,7 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
           // memória detalhada (MD2): cargas, materiais, momentos da grelha e flexão
           const gr = b.grupos.find((x) => x.id === pav.grupo);
           registrarLajeBase(mem, elL, { nome: l.nome, pavimento: pav.nome, h, vaos: vaos(l), inclinada: !!l.plano, gRev: gr?.gRev ?? 0, q: gr?.q ?? 0, gammaC: GAMA_CONCRETO, gg: gm.g, gq: gm.q, c, fydInf: fInf, fydSup: fSup, acoInf: acoDe(b, 'lajeInf').aco, acoSup: acoDe(b, 'lajeSup').aco, cobInf: cob.inf, cobSup: cob.sup, dI, dS, caa, wkLim });
+          registrarReacoesLaje(mem, elL, g, l.id, an.casos, (id) => b.vigas.find((x) => x.id === id)?.nome ?? id); // MD9: carga da laje nas vigas
           registrarMomentosLaje(mem, elL, momELU);
           registrarOpcoesProprias(mem, elL, 'laje', l.opcoes);
           registrarLajeFlexao(mem, elL, { c, sec, h, dI, dS, fydInf: fInf, fydSup: fSup, taxaUsuario: opL.lajeTaxaMin, amin: amin, grelha: grelhaELU, mPos, mNeg, minimos, As0: { pos: [...As.pos] as [number, number], neg: [...As.neg] as [number, number] } });

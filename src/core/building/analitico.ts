@@ -442,6 +442,13 @@ export interface InclinadaNoPortico { id: string; ref: string; nome: string; pav
   diagonal?: boolean;
   /** Diagonal dividida nos cruzamentos: barras do pórtico em ordem (`bi` é a primeira) e o número de nós gerados; `Lf` é o total. */
   segs?: { bi: number; Lf: number }[]; cruzamentos?: number }
+/** γz por direção do vento; `det` guarda os intermediários (M1,tot e ΔMtot,d por pavimento) da conta, para a memória detalhada (MD9). */
+export interface GamaZEdificio {
+  direcao: number; ventoPrincipal: number; usoPrincipal: number; max: number; ampliacao: number;
+  det?: { caso: string; M1: number; dV: number; dU: number; psi0: number; gg: number; gq: number; pavimentos: { pavimento: string; z: number; d: number; G: number; Q: number; Qpsi: number }[] };
+}
+/** Fator de rigidez reduzida por tipo de barra: EI = fator·(Eci/Ecs)·Ecs·Ic (E e G × kEci). */
+export interface RigidezReduzida { tipo: string; fator: number; kEciMin: number; kEciMax: number; barras: number }
 export interface AnaliseEdificio {
   erro?: string;
   avisos: string[];
@@ -457,7 +464,7 @@ export interface AnaliseEdificio {
     resPDelta?: Resultado3; casosPDelta?: Caso3[];
   };
   /** 2ª ordem global por P-Δ (N2c, opção segundaOrdem = 1): por combinação ELU, iterações, convergência e amplificação dos deslocamentos horizontais. */
-  segundaOrdem?: { metodo: 'pDelta'; combinacoes: { nome: string; caso?: string; iteracoes: number; convergiu: boolean; amplificacao: number; erro?: string }[]; amplificacaoMax: number; iteracoesMax: number; ms: number };
+  segundaOrdem?: { metodo: 'pDelta'; combinacoes: { nome: string; caso?: string; iteracoes: number; convergiu: boolean; amplificacao: number; erro?: string; /** Memória MD9: correção, |u| e deslocamento horizontal por iteração, e o de 1ª ordem. */ historico?: { iteracao: number; du: number; um: number; uh: number }[]; uh1?: number }[]; amplificacaoMax: number; iteracoesMax: number; ms: number };
   /** Vigas inclinadas (E2c) e diagonais de contraventamento (E2d) que entraram no pórtico. */
   inclinadas?: InclinadaNoPortico[];
   /** Panos e vigas em planos inclinados (E3f) por pavimento: barras do pórtico (3D, fora do diafragma salvo `planoDiafragma`). */
@@ -473,7 +480,7 @@ export interface AnaliseEdificio {
   /** Esforços na base de cada pilar por caso (G, Q, W…; kN, kN·m; N > 0 compressão). */
   fundacao: { pilar: string; caso: string; N: number; Vx: number; Vy: number; Mx: number; My: number; /** Só no pilar-parede (V7g): momento torçor da reação em torno do eixo vertical pelo centroide, anti-horário + (kN·m). */ Mz?: number }[];
   /** Vento (NBR 6123) e estabilidade global (γz por direção, com rigidez reduzida). */
-  vento: { classe: Classe; altura: number; ca?: CoefVento; viz?: CoefVento; casos: CasoVento[]; gamaZ: { direcao: number; ventoPrincipal: number; usoPrincipal: number; max: number; ampliacao: number }[]; deslocamentos?: DeslocamentosVento[] } | null;
+  vento: { classe: Classe; altura: number; ca?: CoefVento; viz?: CoefVento; casos: CasoVento[]; gamaZ: GamaZEdificio[]; deslocamentos?: DeslocamentosVento[]; /** Rigidez reduzida usada no γz e no P-Δ, por tipo de barra (15.7.3; memória MD9). */ rigidez?: RigidezReduzida[] } | null;
   /** Carga vertical característica por pavimento (kN), usada no γz. */
   cargasPavimento: Record<string, Record<CasoAnalise, number>>;
   /** Carga vertical total por caso (kN). */
@@ -1861,7 +1868,8 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
 
   // rigidez reduzida da NBR 6118, 15.7.3 (γz e P-Δ): vigas 0,4·Eci·Ic, pilares 0,8·Eci·Ic
   const kEci = (t: BarraPortico) => { const c = concretoDe(b, t.tipo === 'parede' || t.tipo === 'inclinada' || t.tipo === 'diagonal' ? 'viga' : t.tipo, t.tipo === 'pilar' ? t.pavimento : undefined); return c.Eci / c.Ecs; };
-  const reduzida = (br: Barra3, i: number) => { if (ptags[i].tipo === 'parede') return br; const k = kEci(ptags[i]), f = (ptags[i].tipo === 'pilar' ? 0.8 : ptags[i].tipo === 'laje' ? 0.3 : 0.4) * k; return { ...br, E: br.E * k, G: br.G * k, Iz: br.Iz * f / k, Iy: br.Iy * f / k }; };
+  const fatorRig = (tipo: BarraPortico['tipo']) => (tipo === 'pilar' ? 0.8 : tipo === 'laje' ? 0.3 : 0.4);
+  const reduzida = (br: Barra3, i: number) => { if (ptags[i].tipo === 'parede') return br; const k = kEci(ptags[i]), f = fatorRig(ptags[i].tipo) * k; return { ...br, E: br.E * k, G: br.G * k, Iz: br.Iz * f / k, Iy: br.Iy * f / k }; };
   // cascas dos pilares-parede com 0,8·Eci·Ic como os pilares (E1b; a confirmar)
   const cascasR = pm.cascas ? { cascas: reduzirCascas(pm.cascas, (0.8 * concretoDe(b, 'pilar').Eci) / concretoDe(b, 'pilar').Ecs) } : {};
   // ---- vento: forças nos mestres, pórtico com a área real dos pilares ----
@@ -1905,6 +1913,7 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
     const gamaZ = rR.erro ? [] : centrados.map((cv, ic) => {
       const ix = cv.direcao === 0 || cv.direcao === 180 ? 0 : 1, sg = cv.direcao === 0 || cv.direcao === 90 ? 1 : -1;
       let M1 = 0, dV = 0, dU = 0;
+      const detPav: NonNullable<GamaZEdificio['det']>['pavimentos'] = [];
       for (const f of cv.forcas) M1 += Math.abs(f.F) * f.z;
       for (const p of ps) {
         // deslocamento do pavimento: média dos nós dos pilares ponderada pelas reações verticais da grelha
@@ -1922,10 +1931,11 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
         let G = 0, Q = 0, Qpsi = 0;
         for (const k of casosOb) { const v = c[k.id] ?? 0; if (k.natureza === 'G' || k.natureza === 'H') G += v; else if (k.natureza === 'Q') { Q += v; Qpsi += (k.id === 'Q' ? psi0 : k.psi?.[0] ?? psi0) * v; } }
         dV += (gm.g * G + gm.q * Qpsi) * d; dU += (gm.g * G + gm.q * Q) * d;
+        detPav.push({ pavimento: p.id, z: p.cota, d, G, Q, Qpsi });
       }
       const gz = (r: number) => (r < 1 ? 1 / (1 - r) : Infinity);
       const vp = M1 ? gz(dV / M1) : 1, up = M1 ? gz(dU / M1) : 1, max = Math.max(vp, up);
-      return { direcao: cv.direcao, ventoPrincipal: vp, usoPrincipal: up, max, ampliacao: max > 1.1 ? 0.95 * max : 1 };
+      return { direcao: cv.direcao, ventoPrincipal: vp, usoPrincipal: up, max, ampliacao: max > 1.1 ? 0.95 * max : 1, det: { caso: cv.nome, M1, dV, dU, psi0, gg: gm.g, gq: gm.q, pavimentos: detPav } };
     });
     // deslocamentos laterais na combinação frequente (ψ1 = 0,3 do vento): topo ≤ H/limite e entre pavimentos ≤ hi/limite
     const psi1W = 0.3, zBase = Math.min(...[...noPilar.entries()].filter(([k]) => k.endsWith('|base')).map(([, n]) => pm.nos[n][2]));
@@ -1956,7 +1966,18 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
     for (const g of gamaZ) if (g.max > op.limiteGamaZ) avisos.push(op.segundaOrdem === 1
       ? `γz informado = ${g.max.toFixed(3).replace('.', ',')} na direção ${g.direcao}°, acima do limite ${String(op.limiteGamaZ).replace('.', ',')}: efeitos globais de 2ª ordem pelo P-Δ (opção ativa).`
       : `γz = ${g.max.toFixed(3).replace('.', ',')} na direção ${g.direcao}°: acima do limite ${String(op.limiteGamaZ).replace('.', ',')} das opções (exige análise de 2ª ordem mais rigorosa: ative o P-Δ nas opções de cálculo).`);
-    vento = { classe: ven.classe, altura: ven.altura, casos: ven.casos, gamaZ, deslocamentos, ca: ven.ca, viz: ven.viz };
+    const rigTipos = new Map<string, RigidezReduzida>(), kCache = new Map<string, number>();
+    pm.barras.forEach((_, i) => {
+      const t = ptags[i].tipo;
+      if (t === 'parede') return;
+      const ch = t === 'pilar' ? `${t}|${ptags[i].pavimento}` : t;
+      let k = kCache.get(ch);
+      if (k === undefined) { k = kEci(ptags[i]); kCache.set(ch, k); }
+      const r = rigTipos.get(t);
+      if (r) { r.kEciMin = Math.min(r.kEciMin, k); r.kEciMax = Math.max(r.kEciMax, k); r.barras++; } else rigTipos.set(t, { tipo: t, fator: fatorRig(t), kEciMin: k, kEciMax: k, barras: 1 });
+    });
+    if (seInfo.length) for (const [t, fator] of [['viga', 0.4], ['laje', 0.3]] as const) { const c = concretoDe(b, t), k = c.Eci / c.Ecs; rigTipos.set(`${t} (grelha integrada)`, { tipo: `${t} (grelha integrada)`, fator, kEciMin: k, kEciMax: k, barras: seInfo.reduce((n, x) => n + x.ig.barras.filter((_, bi) => !!integPav.get(x.pav)!.gb.trechoDe[bi] === (t === 'viga')).length, 0) }); }
+    vento = { classe: ven.classe, altura: ven.altura, casos: ven.casos, gamaZ, deslocamentos, ca: ven.ca, viz: ven.viz, rigidez: [...rigTipos.values()] };
   }
   // ---- 2ª ordem global por P-Δ (N2c, opção segundaOrdem = 1) ----
   // Cada combinação ELU: deslocamentos de 1ª ordem no pórtico com rigidez reduzida (as mesmas do γz; lajes 0,3·Eci·Ic
@@ -1996,7 +2017,7 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
       rs.forEach((r, k) => {
         const caso = r.erro ? undefined : `PΔ ${casosPD.length + 1}`;
         if (caso) casosPD.push({ nodais: r.forcas, distribuidas: [] });
-        lista.push({ nome: validas[k].nome, ...(caso ? { caso } : {}), iteracoes: r.iteracoes, convergiu: r.convergiu, amplificacao: r.amplificacao, ...(r.erro ? { erro: r.erro } : {}) });
+        lista.push({ nome: validas[k].nome, ...(caso ? { caso } : {}), iteracoes: r.iteracoes, convergiu: r.convergiu, amplificacao: r.amplificacao, historico: r.historico, uh1: r.uh1, ...(r.erro ? { erro: r.erro } : {}) });
         if (r.erro) avisos.push(`P-Δ na combinação ${validas[k].nome}: ${r.erro}`);
       });
       if (casosPD.length) {

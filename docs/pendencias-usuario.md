@@ -294,3 +294,10 @@ Nenhum texto da NBR 9062 nem do item 22.5 da NBR 6118 estava disponível: os mé
 | Programa de referência / NBR 6118: comprimento do lance do pilar que chega ao pano inclinado | Esbeltez e 2ª ordem local do pilar com o topo no plano | `analitico.ts` (`zPilar`), `dimensionamento.ts` (pilares) | Nó do pórtico no plano; dimensionamento com a altura do pavimento |
 | Programa de referência: tolerância do paralelismo das nervuras com a máxima declividade | Aviso PLANO_NERVURAS | `planos.ts` (`TOL_NERVURAS`) | 1° |
 | Programa de referência: altura acrescida da viga na interseção de dois planos e representação da armadura dobrada e do croqui | Prancha de formas e de armação | `planos.ts` (`secaoNoPlano`, `dobraDaBarra`, `croquiPavimento`) | Meia largura × inclinação; traço perpendicular na dobra |
+
+## NBR 6118:2023, 15.5.3 (γz) — MD9
+
+| Norma, edição, item | O que falta | Onde é usado | Valor provisório |
+|---|---|---|---|
+| NBR 6118:2023, 15.5.3: definição de M1,tot,d e ΔMtot,d (valores de cálculo, com γf, ou característicos) | A análise usa M1 com o vento característico e ΔM com as cargas verticais ponderadas por γg e γq (conferido na memória detalhada MD9); a norma pede os dois de cálculo | `analitico.ts` (γz do vento), memória `analiseGlobal.ts` | Como na análise atual (registrado como a confirmar na memória) |
+| NBR 6118:2023, 11.3.3.4.1: desaprumo global do edifício com a regra dos 30 % do vento | Implementado só no Pórtico 2D; o módulo Edifícios não o aplica | `design.ts` (2D); Edifícios: sem equivalente | Não aplicado no Edifício (passo "não aplicado" na memória) |
