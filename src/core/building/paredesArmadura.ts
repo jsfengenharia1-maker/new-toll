@@ -278,3 +278,37 @@ export function verificaConcretoSimples(f: Forcas, t: number, m: MatParede): { r
   const razao = Math.max(sT / (m.fctd / 1.2), sC / (m.sigmaCd / 1.2));
   return { razao, sigmaT: sT, sigmaC: sC };
 }
+
+// ---------------------------------------------------------------- entrada de elementos (avaliação por elemento da casca)
+
+/** Elemento da casca com as forças em cada combinação (mesma ordem de `combos`). */
+export interface ElementoPano { s: number; z: number; area: number; forcas: Forcas[] }
+
+export interface AvaliacaoPano {
+  pts: PontoPano[];
+  /** Por elemento: combinação (índice) que governa a armadura vertical, horizontal, o concreto e o cortante. */
+  governa: { vert: number; hor: number; util: number; V: number };
+  /** Maior simples (razão de concreto simples) e esforços do ponto mais exigente. */
+  simples: number;
+  req: Requisito[];
+}
+
+/** Necessidades de cada elemento: envoltória das combinações. */
+export function avaliarElementos(els: ElementoPano[], t: number, le: number, mat: MatParede, matH: MatParede, simples = false): AvaliacaoPano[] {
+  return els.map((e) => {
+    let rv = 0, rh = 0, util = 0, V = 0, ncomp = 0, lambda = 0, m1 = 0, m2 = 0, fiss = false, sim = 0;
+    const g = { vert: 0, hor: 0, util: 0, V: 0 };
+    e.forcas.forEach((f, ic) => {
+      const r = requisitosElemento(f, t, le, mat), rH = matH.fyd === mat.fyd ? r : requisitosElemento(f, t, le, matH);
+      if (r.rv > rv) { rv = r.rv; g.vert = ic; }
+      if (rH.rh > rh) { rh = rH.rh; g.hor = ic; }
+      if (r.util > util) { util = r.util; g.util = ic; }
+      if (r.V > V) { V = r.V; g.V = ic; }
+      ncomp = Math.max(ncomp, r.ncomp); lambda = r.lambda; m1 = Math.max(m1, r.m1min); m2 = Math.max(m2, r.m2d); fiss = fiss || r.fissurado;
+      if (simples) sim = Math.max(sim, verificaConcretoSimples(f, t, mat).razao);
+    });
+    const req: Requisito = { rv, rh, util, V, ncomp, lambda, m1min: m1, m2d: m2, fissurado: fiss };
+    return { pts: [{ s: e.s, z: e.z, area: e.area, rv, rh, util, V, ncomp }], governa: g, simples: sim, req: [req] };
+  });
+}
+

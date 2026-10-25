@@ -61,7 +61,7 @@ export function MemoriaDetalhadaUI({ onClose }: { onClose: () => void }) {
         <Button variant="primary" disabled={!mem} onClick={() => { printHtmlDoc(doc()); st.set({ message: 'Impressão da memória: escolha “Salvar como PDF”.' }); }}>Imprimir / PDF</Button>
         <Button disabled={!mem} onClick={baixarHtml}>Exportar HTML</Button>
         <Button disabled={!mem} onClick={baixarJson}>Exportar JSON</Button>
-        <Button disabled={!mem} onClick={baixarDados} title="CSV/JSON de nós, barras, seções, materiais, apoios, cargas, combinações, deslocamentos, reações e esforços; memória em CSV; script OpenSees do pórtico">Dados da análise e OpenSees (ZIP)</Button>
+        <Button disabled={!mem} onClick={baixarDados} title="CSV/JSON de nós, barras, seções, materiais, apoios, cargas, combinações, deslocamentos, reações, esforços e cascas (esforços por caso e por combinação); memória em CSV; script OpenSees do pórtico">Dados da análise e OpenSees (ZIP)</Button>
         <Button onClick={onClose}>Fechar</Button>
       </div>
       <div />

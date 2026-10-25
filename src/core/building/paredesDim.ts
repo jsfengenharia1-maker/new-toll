@@ -12,11 +12,13 @@ import type { CombinacaoEd } from './combinacoes';
 import { acoDe, cobrimentoPilar, concretoDe, gamas } from './materiais';
 import type { OpcoesCalculo } from './opcoes';
 import {
-  atende, escolherMalhasPano, forcasDe, minimosPano, reforcosLocais, requisitosElemento, verificaConcretoSimples, asMalha, cortanteTransversal,
-  type Forcas, type Malha, type MatParede, type ParamsPano, type PontoPano, type ReforcoLocal, type Requisito,
+  atende, avaliarElementos, escolherMalhasPano, forcasDe, minimosPano, reforcosLocais, verificaConcretoSimples, asMalha, cortanteTransversal,
+  type ElementoPano, type Forcas, type Malha, type MatParede, type ParamsPano, type PontoPano, type ReforcoLocal,
 } from './paredesArmadura';
 import { barrasDoLado, dimensionarLadoBarra, secaoDoLado, verificarLado, type EsforcoLado, type ResultadoLadoBarra } from './paredesLado';
 import { furosDaParede, niveisDaParede, ppDaParede, type FuroTrecho } from './paredesBase';
+import { memoriaAtiva } from '../memoria/registrador';
+import { elementoParede, registrarAbertura, registrarLadoBarra, registrarLadoGlobal, registrarPano } from '../memoria/paredes';
 import { geometriaParedes, ladosDoPP, lancesDoPP, type GradeLado, type LadoGeo } from './pilarParede';
 import type { ResultadoPilarParede } from './pilarParedeEsforcos';
 import type { AberturaParede, ArmaduraAbertura, ArmaduraPano, BuildingModel, Parede, PilarParede } from './types';
@@ -88,36 +90,8 @@ export interface ResultadoParedeDim {
 
 // ---------------------------------------------------------------- entrada de elementos
 
-/** Elemento da casca com as forças em cada combinação (mesma ordem de `combos`). */
-export interface ElementoPano { s: number; z: number; area: number; forcas: Forcas[] }
-
-export interface AvaliacaoPano {
-  pts: PontoPano[];
-  /** Por elemento: combinação (índice) que governa a armadura vertical, horizontal, o concreto e o cortante. */
-  governa: { vert: number; hor: number; util: number; V: number };
-  /** Maior simples (razão de concreto simples) e esforços do ponto mais exigente. */
-  simples: number;
-  req: Requisito[];
-}
-
-/** Necessidades de cada elemento: envoltória das combinações. */
-export function avaliarElementos(els: ElementoPano[], t: number, le: number, mat: MatParede, matH: MatParede, simples = false): AvaliacaoPano[] {
-  return els.map((e) => {
-    let rv = 0, rh = 0, util = 0, V = 0, ncomp = 0, lambda = 0, m1 = 0, m2 = 0, fiss = false, sim = 0;
-    const g = { vert: 0, hor: 0, util: 0, V: 0 };
-    e.forcas.forEach((f, ic) => {
-      const r = requisitosElemento(f, t, le, mat), rH = matH.fyd === mat.fyd ? r : requisitosElemento(f, t, le, matH);
-      if (r.rv > rv) { rv = r.rv; g.vert = ic; }
-      if (rH.rh > rh) { rh = rH.rh; g.hor = ic; }
-      if (r.util > util) { util = r.util; g.util = ic; }
-      if (r.V > V) { V = r.V; g.V = ic; }
-      ncomp = Math.max(ncomp, r.ncomp); lambda = r.lambda; m1 = Math.max(m1, r.m1min); m2 = Math.max(m2, r.m2d); fiss = fiss || r.fissurado;
-      if (simples) sim = Math.max(sim, verificaConcretoSimples(f, t, mat).razao);
-    });
-    const req: Requisito = { rv, rh, util, V, ncomp, lambda, m1min: m1, m2d: m2, fissurado: fiss };
-    return { pts: [{ s: e.s, z: e.z, area: e.area, rv, rh, util, V, ncomp }], governa: g, simples: sim, req: [req] };
-  });
-}
+// (ElementoPano, AvaliacaoPano e avaliarElementos moram em paredesArmadura.ts, para a memória detalhada usar sem ciclo)
+export { avaliarElementos, type ElementoPano, type AvaliacaoPano } from './paredesArmadura';
 
 // ---------------------------------------------------------------- pano
 
@@ -398,8 +372,9 @@ export function dimensionarParedes(b: BuildingModel, an: AnaliseEdificio, elu: C
   const comp = elu.map((cb) => Object.entries(cb.fatores).filter(([n, f]) => f && fontes.has(n)).map(([n, f]) => [fontes.get(n)!, f] as const));
   const cob = cobrimentoPilar(b), d1 = cob + 0.013;
   const aV = acoDe(b, 'pilarLong'), aH = acoDe(b, 'pilarEstribo');
-  const out: ResultadoParedeDim[] = [];
+  const out: ResultadoParedeDim[] = [], mem = memoriaAtiva();
   for (const { pp, parede, lista, res } of alvos) {
+    const elDe = (nomeLance: string) => { const el = elementoParede(parede ? 'parede' : 'pilarParede', pp.nome, nomeLance); return mem?.aceita(el) ? el : null; };
     const lances = lancesDoPP(b, pp), zs = geo.niveisZ[pp.id];
     if (!lances.length || !zs) continue;
     const lados = ladosDoPP(b, pp, op.pilarParedeLimite);
@@ -412,7 +387,9 @@ export function dimensionarParedes(b: BuildingModel, an: AnaliseEdificio, elu: C
         const es = esforcosDoLado(res, g.i, lance.id, elu);
         if (!g.casca) {
           // lado curto: dimensionado como pilar
-          const bar = dimensionarLadoBarra({ L: g.ext(lance.id)[1] - g.ext(lance.id)[0], t, a: d1, le: op.paredeFlambagem * H, conc, fyd: aV.fyd, limites: { t, bitolaMax: op.paredeBitolaMax, espMin: op.paredeEspMin, espMax: op.paredeEspMax }, taxaMin: op.paredeTaxaVertMin, taxaMax: op.paredeTaxaVertMax, esforcos: es });
+          const entB = { L: g.ext(lance.id)[1] - g.ext(lance.id)[0], t, a: d1, le: op.paredeFlambagem * H, conc, fyd: aV.fyd, limites: { t, bitolaMax: op.paredeBitolaMax, espMin: op.paredeEspMin, espMax: op.paredeEspMax }, taxaMin: op.paredeTaxaVertMin, taxaMax: op.paredeTaxaVertMax, esforcos: es };
+          const bar = dimensionarLadoBarra(entB);
+          { const elM = elDe(lance.nome); if (mem && elM) registrarLadoBarra(mem, { elemento: elM, lado: g.nome, lance: lance.nome, e: entB, r: bar, taxaMin: op.paredeTaxaVertMin, taxaMax: op.paredeTaxaVertMax }); }
           r.lados.push({ lado: g.i, nome: g.nome, pavimento: lance.id, nomePav: lance.nome, modelo: 'barra', L: g.ext(lance.id)[1] - g.ext(lance.id)[0], t, util: bar.util, combo: bar.combo, barra: bar, status: bar.ok ? (Math.max(bar.lambdaP, bar.lambdaO) > 90 ? 'review' : 'ok') : 'fail', mensagens: bar.mensagens });
           continue;
         }
@@ -433,7 +410,9 @@ export function dimensionarParedes(b: BuildingModel, an: AnaliseEdificio, elu: C
           const dentro = [...dentro0, ...extrapolarBordas(dentro0, colunasGrade, H)];
           const bq = bloqueioDoPano(lista, g.i, lance.id, ip, nPanos);
           const colunas = ordena([a, ...colunasGrade.filter((s) => s > a + 1e-6 && s < z - 1e-6), z]);
-          const s = dimensionarPano({ nome: `${g.nome} ${lance.nome}`, t, le: op.paredeFlambagem * H, d1, mat, matH, conc, elementos: dentro, combos, colunas, linhas: linhasGrade, op, bloqueio: bq.bloqueio, simples: parede?.armar === false });
+          const entP = { nome: `${g.nome} ${lance.nome}`, t, le: op.paredeFlambagem * H, d1, mat, matH, conc, elementos: dentro, combos, colunas, linhas: linhasGrade, op, bloqueio: bq.bloqueio, simples: parede?.armar === false };
+          const s = dimensionarPano(entP);
+          { const elM = elDe(lance.nome); if (mem && elM) registrarPano(mem, { elemento: elM, lado: g.nome, lance: lance.nome, ip, panos: nPanos, s0: a, s1: z, H, e: entP, r: s, nExtra: dentro.length - dentro0.length, bloqueioIgnorado: !!bq.ignorado }); }
           const pano: ResultadoPano = { ...s, lado: g.i, nomeLado: g.nome, pavimento: lance.id, nomePav: lance.nome, pano: ip, panos: nPanos, s0: a, s1: z, z0: 0, z1: H };
           if (bq.ignorado) pano.mensagens.push('Armadura bloqueada desconsiderada: o número de panos do lado mudou.');
           r.panos.push(pano);
@@ -446,11 +425,14 @@ export function dimensionarParedes(b: BuildingModel, an: AnaliseEdificio, elu: C
           const hV = H - (f.z1 - z0), hP = f.z0 - z0;
           const viz = r.panos.filter((p) => p.lado === g.i && p.pavimento === lance.id && (Math.abs(p.s1 - f.s0) < 1e-3 || Math.abs(p.s0 - f.s1) < 1e-3));
           const asViz = viz.length ? Math.max(...viz.map((p) => p.asVert)) : 0;
-          r.aberturas.push(dimensionarAbertura({
+          const entA: EntradaAbertura = {
             a: ab, nomePav: lance.nome, lado: g.i, lance: lance.id, t, conc, fyd: aV.fyd, fywk: aH.fyk, gammaS: gamas(b).s, cobrimento: cob, hVerga: Math.max(hV, 0.05), hPeitoril: Math.max(hP, 0.05),
             verga: col(f.z1 - z0, H, true), peitoril: col(0, f.z0 - z0, false), asVertVizinho: asViz,
             ...(ab.armadura ? { bloqueada: ab.armadura } : {}), ...(b.aberturasPadrao?.[ab.tipo] ? { padrao: b.aberturasPadrao[ab.tipo] } : {}), canto: !!op.paredeAberturaCanto,
-          }));
+          };
+          const resA = dimensionarAbertura(entA);
+          r.aberturas.push(resA);
+          { const elM = elDe(lance.nome); if (mem && elM) registrarAbertura(mem, { elemento: elM, lado: g.nome, lance: lance.nome, e: entA, r: resA }); }
         }
         // verificação global do lado à flexo-compressão oblíqua com a armadura adotada
         const panosLado = r.panos.filter((p) => p.lado === g.i && p.pavimento === lance.id);
@@ -462,6 +444,7 @@ export function dimensionarParedes(b: BuildingModel, an: AnaliseEdificio, elu: C
           const [e0, e1] = g.ext(lance.id), Lc = e1 - e0, refL = e0 ? refores.map((q) => ({ ...q, de: q.de - e0, ate: q.ate - e0 })) : refores;
           const bars = barrasDoLado(Lc, t, d1, vert ? { ...vert, As: asMalha(vert.phi, vert.s) } : null, refL);
           const S = secaoDoLado(Lc, t, bars, conc, aV.fyd), v = verificarLado(S, es);
+          { const elM = elDe(lance.nome); if (mem && elM) registrarLadoGlobal(mem, { elemento: elM, lado: g.nome, lance: lance.nome, Lc, t, S, es, util: v.util, combo: v.combo, vert: vert ? { phi: vert.phi, s: vert.s } : null, nReforcos: refL.length, nBarras: bars.length, As: bars.reduce((q, b2) => q + b2.A, 0) }); }
           r.lados.push({ lado: g.i, nome: g.nome, pavimento: lance.id, nomePav: lance.nome, modelo: 'casca', L: Lc, t, util: v.util, combo: v.combo, status: v.util <= 1.05 ? 'ok' : 'fail', mensagens: v.util > 1.05 ? [`Verificação global do lado: utilização ${fmt(v.util)} em ${v.combo} (armadura vertical adotada menor que a exigida pelas resultantes; a casca concentra a tração nas bordas).`] : [] });
           void ref;
         }

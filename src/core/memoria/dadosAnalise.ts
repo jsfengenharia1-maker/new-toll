@@ -82,7 +82,28 @@ export function tabelasAnalise(b: BuildingModel, an: AnaliseEdificio, combs: Com
   T.push({ nome: 'esforcos_combinacoes', descricao: 'Esforços nas extremidades flexíveis por combinação (Σ fator·caso)', cabecalho: ['combinacao', 'barra', 'ponta', 'N', 'Vy', 'Vz', 'T', 'My', 'Mz'], linhas: ec });
   T.push({ nome: 'deslocamentos_combinacoes', descricao: 'Deslocamentos nodais por combinação (Σ fator·caso)', cabecalho: ['combinacao', 'no', ...GDL], linhas: dc });
   T.push({ nome: 'reacoes_combinacoes', descricao: 'Reações por combinação (Σ fator·caso)', cabecalho: ['combinacao', 'no', 'Fx', 'Fy', 'Fz', 'Mx', 'My', 'Mz'], linhas: rc });
-  if (m.cascas?.length) T.push({ nome: 'cascas', descricao: 'Cascas de 6 nós (esforços das cascas ficam para a fase 2; o script OpenSees não as inclui)', cabecalho: ['casca', 'nos'], linhas: m.cascas.map((cs, k) => [k, cs.nos.join(' ')]) });
+  if (m.cascas?.length) {
+    T.push({ nome: 'cascas', descricao: 'Cascas de 6 nós (vértices 1 a 3 e meios dos lados 1-2, 2-3, 3-1), módulo E (kN/m²), ν e espessura h (m); o script OpenSees não as inclui', cabecalho: ['casca', 'nos', 'E', 'nu', 'h'], linhas: m.cascas.map((cs, k) => [k, cs.nos.join(' '), cs.E, cs.nu, cs.h]) });
+    // paredes e pilares-parede (MD7): de onde veio cada casca
+    if (an.paredes?.info.length) T.push({ nome: 'cascas_parede', descricao: 'Cascas de paredes e pilares-parede: elemento, lado, lance (pavimento do topo), espessura total t (m), área (m²), abscissa s no lado e cota z do centroide (m)', cabecalho: ['casca', 'parede', 'lado', 'lado_id', 'lance', 't', 'area', 's', 'z'], linhas: an.paredes.info.map((x) => [x.k, x.pp, x.lado, x.ladoId, x.lance, x.t, x.area, x.s, x.z]) });
+    // esforços das cascas no centroide, por caso e por combinação (eixos locais, por metro; tração +; M > 0 traciona a face z−)
+    const ESFC = ['nx', 'ny', 'nxy', 'mx', 'my', 'mxy', 'qx', 'qy'], ecs: (string | number)[][] = [], ecc: (string | number)[][] = [];
+    for (const c of casos) {
+      const a = c.res.cascas?.[c.ic];
+      if (a) a.forEach((v, k) => ecs.push([c.nome, k, ...Array.from(v)]));
+    }
+    for (const cmb of combs) {
+      const parc = Object.entries(cmb.fatores).map(([k, f]) => [porNome.get(k), f] as const).filter((x): x is [CasoResolvido, number] => !!x[0] && !!x[0].res.cascas?.[x[0].ic]);
+      if (!parc.length) continue;
+      for (let k = 0; k < m.cascas.length; k++) {
+        const v = new Float64Array(8);
+        for (const [c, f] of parc) { const e = c.res.cascas![c.ic][k]; if (e) for (let q = 0; q < 8; q++) v[q] += f * e[q]; }
+        ecc.push([cmb.nome, k, ...Array.from(v)]);
+      }
+    }
+    T.push({ nome: 'esforcos_cascas', descricao: 'Esforços das cascas no centroide por caso (kN/m e kN·m/m; eixos locais da casca; tração +): nx, ny (vertical nas paredes), nxy, mx, my, mxy, qx, qy', cabecalho: ['caso', 'casca', ...ESFC], linhas: ecs });
+    T.push({ nome: 'esforcos_cascas_combinacoes', descricao: 'Esforços das cascas por combinação (Σ fator·caso)', cabecalho: ['combinacao', 'casca', ...ESFC], linhas: ecc });
+  }
   return T;
 }
 

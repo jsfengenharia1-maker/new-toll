@@ -11,6 +11,8 @@ import { acoDe, cobrimentoViga, concretoDe, gamas } from './materiais';
 import type { OpcoesCalculo } from './opcoes';
 import { classificar } from './revisao';
 import type { BuildingModel } from './types';
+import { memoriaAtiva } from '../memoria/registrador';
+import { registrarVigaEmbutida } from '../memoria/paredes';
 
 const fmt = (v: number, d = 1) => v.toFixed(d).replace('.', ',');
 
@@ -32,7 +34,7 @@ export interface ResultadoVigaEmbutida {
 export function aplicarVigasEmbutidas(b: BuildingModel, op: OpcoesCalculo, vigas: ResultadoViga[]): ResultadoVigaEmbutida[] {
   const out: ResultadoVigaEmbutida[] = [];
   if (!op.paredeVigaEmbutida) return out;
-  const c = concretoDe(b, 'viga'), aPos = acoDe(b, 'vigaPos'), aEst = acoDe(b, 'vigaEstribo'), gs = gamas(b).s;
+  const c = concretoDe(b, 'viga'), aPos = acoDe(b, 'vigaPos'), aEst = acoDe(b, 'vigaEstribo'), gs = gamas(b).s, mem = memoriaAtiva();
   for (const v of b.vigas) {
     const w = v.embutida ? b.paredes?.find((x) => x.id === v.embutida) : undefined;
     if (!w || w.tipo !== 'concreto') continue;
@@ -50,6 +52,7 @@ export function aplicarVigasEmbutidas(b: BuildingModel, op: OpcoesCalculo, vigas
     if (!sh.stirrup) msgs.push(`Viga ${v.nome} embutida em ${w.nome}: estribo mínimo não encontrado.`);
     const txt = bars ? `${bars.n} φ${String(bars.phi).replace('.', ',')}${bars.layers > 1 ? ` (${bars.layers} camadas)` : ''}` : '—';
     const est = sh.stirrup, estTxt = est ? `φ${String(est.phi).replace('.', ',')} c/${Math.round(est.s * 100)}` : '—';
+    { const elM = `Viga ${v.nome}`; if (mem?.aceita(elM)) registrarVigaEmbutida(mem, { elemento: elM, parede: w.nome, b: v.secao.b, h: v.secao.h, cobInf: cob.inf, d, taxaMin: op.vigaTaxaMin, AsMin, fyd: aPos.fyd, conc: c, bars: bars ? { n: bars.n, phi: bars.phi, layers: bars.layers, As: bars.As } : null, fywk: aEst.fyk, gammaS: gs, estribo: sh.stirrup ? { phi: sh.stirrup.phi, s: sh.stirrup.s } : null, texto: txt, estTxt: sh.stirrup ? `φ${String(sh.stirrup.phi).replace('.', ',')} c/${Math.round(sh.stirrup.s * 100)}` : '—' }); }
     r.AsInf = bars?.As ?? AsMin; r.AsSup = bars?.As ?? AsMin; r.AsNec = [AsMin, AsMin];
     r.barrasInf = txt; r.barrasSup = txt; r.estribo = estTxt;
     r.arranjo = { ...r.arranjo, inf: bars ? { n: bars.n, phi: bars.phi } : null, sup: bars ? { n: bars.n, phi: bars.phi } : null, estribo: est ? { phi: est.phi, s: est.s } : null };
