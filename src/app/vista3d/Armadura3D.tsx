@@ -1,25 +1,14 @@
 // Aba "3D" das janelas de armadura da viga, do pilar e da laje (V2): o concreto do elemento (translúcido) e as barras
 // em 3D, com os mesmos controles de câmera da vista do edifício. Sem WebGL ou sem o vendor do three, mostra a lista
 // das barras e o isométrico estático do concreto.
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useBuilding } from '../edificio/store';
 import { usePlanta } from '../edificio/plantaStore';
 import { cenaDoElemento, camadasDeArmadura, type AgruparPor, type OrigemArmadura } from '../../core/vista3d/armaduras3d';
-import { enquadrar, type Camera3D } from '../../core/vista3d/camera';
 import { isometricoSvg } from '../../core/vista3d/isometrico';
-import { TIPOS_3D, type TipoElemento3D } from '../../core/vista3d/registro';
 import { cssVar } from '../design/tokens';
 import { Check, Dropdown, Slider } from '../ui';
-import { carregarThree, temWebGL, type Three } from './carregarThree';
-import { ligarControles } from './controles';
-import { RenderizadorCena, type CoresCena } from './renderizador';
-
-const CHAVES_COR = ['fundo', 'linha', 'selecao', 'destaque', 'pendente'] as const;
-function lerCores(el: HTMLElement): CoresCena {
-  const v = (n: string) => cssVar(`v3d-${n}`, el);
-  const base = Object.fromEntries(CHAVES_COR.map((k) => [k, v(k)])) as Record<(typeof CHAVES_COR)[number], string>;
-  return { ...base, tipos: Object.fromEntries(TIPOS_3D.map((t) => [t.v, v(t.v)])) as Record<TipoElemento3D, string> };
-}
+import { lerCores, useCena3DIsolada } from './useCena3DIsolada';
 
 export function Armadura3D({ tipo, id }: { tipo: OrigemArmadura; id: string }) {
   const b = useBuilding((s) => s.sessao.modelo);
@@ -30,61 +19,10 @@ export function Armadura3D({ tipo, id }: { tipo: OrigemArmadura; id: string }) {
   const [tubos, setTubos] = useState(false);
   const [ghost, setGhost] = useState(true);
   const [esc, setEsc] = useState(4);
-  const [status, setStatus] = useState<'carregando' | 'pronto' | 'sem-3d'>('carregando');
-  const [T, setT] = useState<Three | null>(null);
-  const cont = useRef<HTMLDivElement>(null);
-  const rend = useRef<RenderizadorCena | null>(null);
-  const camRef = useRef<Camera3D | null>(null);
-  const sujo = useRef(false);
 
   const r = useMemo(() => (dim ? cenaDoElemento(b, dim, tipo, id) : null), [b, rev, dim, tipo, id]);
   const camadas = useMemo(() => (r ? camadasDeArmadura(r.armaduras, por) : []), [r, por]);
-  const limitesRef = useRef(r?.cena.limites);
-  limitesRef.current = r?.cena.limites;
-
-  const desenhar = () => {
-    sujo.current = false;
-    const rd = rend.current;
-    if (!rd || !camRef.current) return;
-    rd.definirCamera(camRef.current);
-    const ms = rd.renderizar();
-    if (cont.current) cont.current.dataset.frameMs = ms.toFixed(1);
-  };
-  const pedir = () => { if (!sujo.current) { sujo.current = true; requestAnimationFrame(desenhar); } };
-  const reenquadrar = () => {
-    const el = cont.current, l = limitesRef.current;
-    if (!el || !l) return;
-    const q = el.getBoundingClientRect();
-    camRef.current = enquadrar(l, q.width / Math.max(1, q.height), { projecao: 'perspectiva' });
-  };
-
-  useEffect(() => {
-    let vivo = true;
-    if (!temWebGL()) { setStatus('sem-3d'); return; }
-    carregarThree().then((t) => { if (vivo) setT(t); }).catch(() => { if (vivo) setStatus('sem-3d'); });
-    return () => { vivo = false; };
-  }, []);
-
-  useEffect(() => {
-    const el = cont.current;
-    if (!T || !el) return;
-    let rd: RenderizadorCena;
-    try { rd = new RenderizadorCena(T, el); } catch { setStatus('sem-3d'); return; }
-    rend.current = rd;
-    rd.canvas.setAttribute('aria-label', 'Armadura em 3D');
-    const medir = () => { const q = el.getBoundingClientRect(); rd.redimensionar(q.width, q.height); pedir(); };
-    medir();
-    const ro = new ResizeObserver(medir);
-    ro.observe(el);
-    const ctl = ligarControles(el, {
-      camera: () => camRef.current!, definirCamera: (c) => { camRef.current = c; },
-      caminhando: () => false, olhar: () => { throw new Error('sem caminhar'); }, definirOlhar: () => undefined, velocidade: () => 0,
-      limites: () => limitesRef.current!, clique: () => undefined, passar: () => undefined, mudarPavimento: () => undefined,
-      enquadrar: () => { reenquadrar(); pedir(); }, mudou: pedir,
-    });
-    setStatus('pronto');
-    return () => { ro.disconnect(); ctl.desligar(); rd.dispose(); rend.current = null; };
-  }, [T]);
+  const { cont, rend, camRef, status, pedir, reenquadrar } = useCena3DIsolada(r?.cena.limites, 'Armadura em 3D');
 
   // cena, armaduras e translucidez
   useEffect(() => {

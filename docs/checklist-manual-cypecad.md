@@ -11,7 +11,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 0. Apresentação do programa | 4 | 3 | 0 | 0 | 1 |
 | 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 45 | 0 | 0 | 11 |
 | 2. Gabaritos DXF/DWG | 22 | 19 | 0 | 0 | 3 |
-| 3. Grupos e pavimentos | 41 | 36 | 1 | 1 | 3 |
+| 3. Grupos e pavimentos | 41 | 38 | 0 | 0 | 3 |
 | 4. Pilares | 63 | 55 | 1 | 0 | 7 |
 | 5. Muros e paredes estruturais | 30 | 26 | 0 | 0 | 4 |
 | 6. Vigas | 108 | 83 | 0 | 0 | 25 |
@@ -19,10 +19,10 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 8. Escadas | 65 | 65 | 0 | 0 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 22 | 1 | 0 | 3 |
-| 11. Fundações | 70 | 64 | 0 | 1 | 5 |
+| 11. Fundações | 70 | 65 | 0 | 0 | 5 |
 | 12. Isovalores e deformada | 22 | 21 | 0 | 1 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **570** | **4** | **3** | **186** |
+| **Total** | **763** | **573** | **3** | **1** | **186** |
 
 ## Pendências por frente
 
@@ -33,7 +33,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 1 | 0 | 1 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 0 | 0 | 0 |
-| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 1 | 3 | 4 |
+| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 0 | 1 | 1 |
 
 ## 0. Apresentação do programa
 
@@ -170,9 +170,9 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C3.28 | Consulta das cotas relativas e absolutas de cada pavimento. | Feito | — | cotas e pé-direito |
 | C3.29 | Mudar posição e representação das referências (textos) dos elementos com dois cliques (texto e novo local). | Feito | — | L4 núcleo: `ref.mover`, `vista.refs`, `ancorasRef`; pranchas de formas e locação respeitam o deslocamento (`prancha.ts`, `locacao.ts`); interface: ferramenta `moverRef` (cartão 03) — Feito 23/10/2026: interface em src/app/edificio (BarraAtalhos, GuiaRapido, GruposL4, DadosL4, Planta), src/app/ui/Ajuda.tsx e Modal; e2e L4 [L4] |
 | C3.30 | Ligar/desligar de forma permanente as referências na planta, escolhendo os tipos de texto visíveis. | Feito | — | L4 núcleo: `vista.textos` (comando `vista.textos`); interface: grupo Referências e dados (cartão 03) — Feito 23/10/2026: interface em src/app/edificio (BarraAtalhos, GuiaRapido, GruposL4, DadosL4, Planta), src/app/ui/Ajuda.tsx e Modal; e2e L4 [L4] |
-| C3.31 | Corte vertical do edifício por linha traçada, visto na tela e nas pranchas. | Parcial | V | cortes verticais do edifício [V2]: núcleo `vista3d/corte.ts` (`cortarCena`, `desenharCorte`), comando `corte.criar`; tela em CortesUI.tsx; pranchas pendentes — V6a: folha de cortes nas pranchas (`prancha.cortes`) a fazer |
+| C3.31 | Corte vertical do edifício por linha traçada, visto na tela e nas pranchas. | Feito | — | cortes verticais do edifício [V2, V6a]: núcleo `vista3d/corte.ts` (`cortarCena`, `desenharCorte`), comando `corte.criar`; tela em CortesUI.tsx; pranchas [V6a]: folha de cortes (tipo `cortes`, sigla SCT a confirmar) em `sheets/cortes.ts` (`montarPranchasCortes`), ativada por `prancha.cortes`, escala configurável (automática = a maior em que cabem numa folha); `CortesPranchas.tsx` na aba Pranchas |
 | C3.32 | Cortes do edifício sem limite de número, cada um com nome. Editar e apagar. | Feito | — | [V2]: `b.cortes[]`, comandos `corte.criar/editar/remover` (`commands/cortes.ts`); lista na interface em CortesUI.tsx — Feito 23/10/2026: interface em CortesUI.tsx (cortes e linhas de seção); e2e V2 [V2] |
-| C3.33 | Cortes do edifício ativáveis na prancha de cada planta, com tamanho configurável. | Falta | V | [V2]: marcas na tela em CortesUI.tsx; `prancha.cortes` e folha de cortes nas pranchas pendentes — V6a: `prancha.cortes`, tamanho configurável e folha de cortes por planta nas pranchas |
+| C3.33 | Cortes do edifício ativáveis na prancha de cada planta, com tamanho configurável. | Feito | — | [V2, V6a]: marcas na tela em CortesUI.tsx; `prancha.cortes` (comando) ativa cada corte nas pranchas (`b.prancha.cortes`: ids, plantas, escala, marca em mm); marca de corte (linha traço-ponto, traço grosso, seta de visada e nome) nas plantas de formas e de locação por `primitivasMarcasCorte` em `sheets/cortes.ts`; tamanho da marca e escala da folha configuráveis; UI `CortesPranchas.tsx` |
 | C3.34 | Linhas de seção em qualquer direção no pavimento, com diagrama da seção. A janela da seção abre automaticamente. | Feito | — | linhas de seção no pavimento [V2]: `secaoDoPavimento` (apoios, vãos, SVG), `secao.*`; janela automática em CortesUI.tsx — Feito 23/10/2026: interface em CortesUI.tsx (cortes e linhas de seção); e2e V2 [V2] |
 | C3.35 | Vista 3D do grupo atual ou de um intervalo de grupos/pavimentos. | Feito | — | vista 3D por grupo, intervalo de pavimentos ou um pavimento: `construirCena` (`src/core/vista3d/cena.ts`), aba 3D (`src/app/vista3d/Vista3D.tsx`) [V1] |
 | C3.36 | Vista 3D do edifício completo, incluindo as estruturas 3D integradas. | Feito | — | edifício completo na vista 3D (pilares, vigas, lajes e fundações); aço fora [V1] |
@@ -859,7 +859,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C11.46 | Edição: verificar a viga atual e listar as verificações feitas. | Feito | — | FU2: seção fixa (`fixa`, imposta ou igualada) só verificada; editor e janela da viga listam as verificações (mensagens FUND_VIGA_* e observações do cálculo) |
 | C11.47 | Edição: dimensionar a viga pela norma, listando as verificações. | Feito | — | FU2: `dimensionarVigaFundacao` (flexão com As,mín 17.3.5.2.1, cortante modelo I, pele, ancoragem; altura e depois largura crescentes a partir de 20 × 40 cm); sem "fixa" a viga é dimensionada e o editor lista as verificações; "Impor a seção calculada" fixa o resultado |
 | C11.48 | Edição: detalhe com cortes transversal e longitudinal, armadura e dimensões. | Feito | — | FU2: janela da viga de fundação com detalhe longitudinal (pilares das pontas, barras superiores e inferiores com lb, estribos, diagramas de momento e cortante) e transversal (seção com barras, pele e estribo), em SVG (`VigaFundacao.tsx`); desenho nas pranchas na FU5 (`desenharViga`: elevação, seção A-A, posições e ancoragem) |
-| C11.49 | Edição: vista 3D da viga. | Falta | V | [V2] vista 3D da viga de fundação; a cena 3D do edifício (V1) já traz as vigas de fundação, falta a vista isolada da viga; fora da FU por decisão da spec (20/10/2026) — V6c: vista 3D isolada da viga de fundação (janela própria reaproveitando a cena da V1) |
+| C11.49 | Edição: vista 3D da viga. | Feito | — | [V2, V6c] vista 3D isolada da viga de fundação: `vista3d/vigaFundacao3d.ts` (`cenaDaVigaFundacao`: sólido da viga e os elementos das pontas, da cena da V1); janela própria `VigaFundacao3D.tsx` (botão Vista 3D da viga na janela da viga; base `useCena3DIsolada.ts` compartilhada com a aba 3D da armadura; componente carregado sob demanda); fora da FU por decisão da spec (20/10/2026) |
 | C11.50 | Apagar viga. | Feito | — | FU2: Remover no editor, Del e botão da barra da planta (`vigaFundacao.remover`); as vigas saem junto com o elemento ou o pilar das pontas |
 | C11.51 | Ativar/desativar o equilíbrio em cada extremidade, indicado por seta curva. | Feito | — | FU2: equilíbrio por ponta no editor, indicado na planta por seta curva (anel aberto sobre o pilar da ponta equilibrada) |
 | C11.52 | Igualar vigas: copiar o tipo de uma viga de equilíbrio ou travamento para outras; se a seção copiada for insuficiente, a viga fica em vermelho; ancoragens redimensionadas; a mestre não muda. | Feito | — | FU2: "Igualar esta ao modelo" e "Igualar as selecionadas a esta" (`vigaFundacao.igualar`): copia a seção e a fixa (copiada só verificada, em vermelho se não atender); a mestre não muda |

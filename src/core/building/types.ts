@@ -1523,7 +1523,22 @@ export interface ConfigPrancha {
   folha?: FolhaUsuario;
   /** Mapa da folha de resultados (V7d, K1.11.62). */
   resultados?: EscolhaResultados;
+  /** Cortes do edifício nas pranchas (V6a, C3.31, C3.33): quais cortes, em quais plantas, escala da folha e tamanho da marca. */
+  cortes?: ConfigCortesPrancha;
 }
+/** Cortes ativos nas pranchas: marca nas plantas (formas e locação) e folha de cortes (SCT, a confirmar). */
+export interface ConfigCortesPrancha {
+  /** Ids dos cortes ativados; ausente ou vazio = nenhum. */
+  ids?: string[];
+  /** Grupos (ids) cujas plantas levam as marcas; ausente = todos. */
+  plantas?: string[];
+  /** Denominador da escala da folha de cortes; 0 = automática (a maior escala em que todos cabem numa folha). */
+  escala?: number;
+  /** Tamanho da marca de corte na planta (mm no papel): traço grosso, seta de visada e letra. */
+  marca?: number;
+}
+/** Padrão: escala automática e marca de 10 mm [a confirmar]. */
+export const CORTES_PRANCHA_PADRAO = { escala: 0, marca: 10 } as const;
 export type SimboloPilar = 'hachura' | 'tracejado' | 'cruz' | 'solido' | 'vazio';
 export interface SimbolosPilar { passa: SimboloPilar; nasce: SimboloPilar; morre: SimboloPilar }
 /** Padrão atual: o pilar que passa ou morre é hachurado e o que nasce é tracejado. */

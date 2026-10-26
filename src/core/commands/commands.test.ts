@@ -184,6 +184,7 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'pavimento.remover': () => ({ id: 'pav_6' }),
   'pavimento.repetir': () => ({ id: 'pav_6', vezes: 3 }),
   'eixo.criar': () => ({ nome: 'A', p1: [0, 0], p2: [10, 0] }),
+  'prancha.cortes': (b) => ({ ids: [b.cortes![0].id], escala: 50, marca: 12 }),
   'corte.criar': () => ({ nome: 'Corte AA', pontos: [[0, 2], [8, 2]], sentido: 'esq', profundidade: 6 }),
   'corte.editar': (b) => ({ id: b.cortes![0].id, nome: 'Corte BB', sentido: 'dir', profundidade: 0 }),
   'corte.remover': (b) => ({ ids: [b.cortes![0].id] }),

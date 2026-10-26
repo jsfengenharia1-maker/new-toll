@@ -17,6 +17,7 @@ import { primitivasDoSimbolo, simbolosEmUso } from './simbolos';
 import { aplicarMoldura } from './saidas';
 import { marcasPontoFixo, primitivasMascara } from './gabarito';
 import { chaveElem, geometriaCota } from '../building/cotas';
+import { primitivasMarcasCorte } from './cortes';
 
 export type { P };
 
@@ -48,6 +49,9 @@ export const CAMADAS = {
   'FORMA-FINA': { cor: 8, pena: 0.18, tipo: 'cont' },
   // escadas (E4b): contorno, seta de subida e nome nas formas e na locação
   'ESCADAS': { cor: 6, pena: 0.35, tipo: 'cont' },
+  // cortes do edifício (V6a): linha de corte traço-ponto e marca grossa nas pontas (plantas) e folha de cortes
+  'CORTE': { cor: 1, pena: 0.25, tipo: 'eixo' },
+  'CORTE-MARCA': { cor: 1, pena: 0.7, tipo: 'cont' },
   // fundações (FU5): contorno dos elementos (sapatas, blocos, tubulões) e das vigas de fundação em planta
   'FUNDACAO': { cor: 6, pena: 0.5, tipo: 'cont' },
   // opções de desenho (R7g): gabarito (máscara DXF/DWG) na pena mais fina das existentes e ponto fixo dos pilares
@@ -105,13 +109,13 @@ export function validarFolha(p: FolhaUsuario | undefined): string[] {
 export const ESCALAS = [75, 100, 125, 200, 250];
 
 /** Tipos de prancha do conjunto (R5) e sigla no carimbo. */
-export type TipoPrancha = 'formas' | 'locacao' | 'vigas' | 'pilares' | 'lajes' | 'fundacao' | 'paredes' | 'escadas' | 'cargas' | 'perspectiva' | 'resultados';
+export type TipoPrancha = 'formas' | 'locacao' | 'vigas' | 'pilares' | 'lajes' | 'fundacao' | 'paredes' | 'escadas' | 'cargas' | 'perspectiva' | 'resultados' | 'cortes';
 /**
  * Siglas das folhas de referência (fundação indireta SFN, direta SFS, formas SCF, vigas SCV, pilares SCP); lajes SCL por
  * extensão [a confirmar]. A sigla de `fundacao` é a padrão (SFN); cada folha de fundação leva a sua em `Prancha.sigla`
  * (`siglaFundacao`). Paredes e pilares-parede (E1d): SCM por extensão [a confirmar]. A locação dos pilares era SFN e passou a SLP, para não colidir com a fundação indireta.
  */
-export const SIGLAS: Record<TipoPrancha, string> = { formas: 'SCF', locacao: 'SLP', vigas: 'SCV', pilares: 'SCP', lajes: 'SCL', fundacao: 'SFN', paredes: 'SCM', escadas: 'SCE', cargas: 'SCC', perspectiva: 'SCX', resultados: 'SCR' };
+export const SIGLAS: Record<TipoPrancha, string> = { formas: 'SCF', locacao: 'SLP', vigas: 'SCV', pilares: 'SCP', lajes: 'SCL', fundacao: 'SFN', paredes: 'SCM', escadas: 'SCE', cargas: 'SCC', perspectiva: 'SCX', resultados: 'SCR', cortes: 'SCT' };
 export const siglaDe = (p: Pick<Prancha, 'tipo' | 'sigla'>) => p.sigla ?? SIGLAS[p.tipo ?? 'formas'];
 
 /** Linha da tabela de aço de uma prancha (comprimentos em cm e m). */
@@ -402,6 +406,7 @@ export function montarPrancha(b: BuildingModel, grupo: string, o: OpcoesPrancha 
   if (opc.pontoFixo) modelo.push(...marcasPontoFixo([...el.chegam, ...el.nascem], k));
   const centros = [...el.chegam.map((p) => contornoNoLance(p, ref!.id)), ...el.nascem.map((p) => contornoBase(b, p)), ...el.paredes.map((w) => w.lados.flatMap((l) => l.contorno))].map((c) => { const [a0, b0, a1, b1] = caixa(c); return [(a0 + a1) / 2, (b0 + b1) / 2] as P; });
   eixosECotas(modelo, el.eixos, centros, [gx0, gy0, gx1, gy1], k);
+  modelo.push(...primitivasMarcasCorte(b, k, [gx0, gy0, gx1, gy1], grupo)); // marcas dos cortes ativos (V6a)
   if (opc.cotasUsuario) cotasDoUsuario(b, modelo, k, (c) => c.grupo === grupo);
 
   // ---------- espaço do papel ----------

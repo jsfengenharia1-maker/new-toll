@@ -1,6 +1,7 @@
 // Janela da viga de fundação (frente FU2, interface): resumo das ações (alívio, cargas, travamento), mensagens e notas,
 // detalhe longitudinal (pilares das pontas, barras, estribos e diagramas de momento e cortante) e transversal (seção com
 // barras superiores, inferiores, pele e estribo), todos a partir de `diagrama` e `armadura` do resultado.
+import { lazy, Suspense, useState } from 'react';
 import { useBuilding, fundacaoAtual } from './store';
 import { classificar } from '../../core/building/revisao';
 import { cobrimentoFundacao } from '../../core/building/materiais';
@@ -8,8 +9,11 @@ import { contornoSecaoViga } from '../../core/building/secaoViga';
 import { geometriaVF, meiaFace, type ResultadoVigaFundacao } from '../../core/building/vigasFundacao';
 import type { BuildingModel, VigaFundacao } from '../../core/building/types';
 import type { BarChoice } from '../../core/concrete';
-import { KV, Pill } from '../ui';
+import { Button, KV, Pill } from '../ui';
 import { fmt, phiTxt } from './Detalhamento';
+
+// vista 3D isolada (V6c): componente pesado, fora do pacote da janela
+const VigaFundacao3D = lazy(() => import('../vista3d/VigaFundacao3D').then((m) => ({ default: m.VigaFundacao3D })));
 
 const cm = (v: number, d = 0) => fmt(v * 100, d);
 const barTxt = (x: BarChoice | null | undefined) => (x ? `${x.n} ${phiTxt(x.phi)}` : '—');
@@ -131,6 +135,7 @@ export function DetalheTransversalVF({ b, r }: { b: BuildingModel; r: ResultadoV
 export function JanelaVigaFundacao({ id }: { id: string }) {
   const b = useBuilding((s) => s.sessao.modelo), dim = useBuilding((s) => s.dim);
   const atual = useBuilding((s) => fundacaoAtual(s));
+  const [ver3d, setVer3d] = useState(false);
   const v = b.fundacao?.vigas?.find((x) => x.id === id);
   const r = dim?.vigasFundacao?.find((x) => x.id === id);
   if (!v) return <p className="muted">A viga de fundação não existe mais.</p>;
@@ -145,7 +150,9 @@ export function JanelaVigaFundacao({ id }: { id: string }) {
         <Pill tone="na">{r.tipo === 'equilibrio' ? 'Viga de equilíbrio' : 'Viga de travamento'}</Pill>
         {r.fixa && <Pill tone="warn">seção fixa</Pill>}
         <span className="muted">{r.resumo}</span>
+        <Button variant="mini" onClick={() => setVer3d(true)}>Vista 3D da viga</Button>
       </div>
+      {ver3d && <Suspense fallback={null}><VigaFundacao3D id={id} onClose={() => setVer3d(false)} /></Suspense>}
       <KV rows={[
         ['Pontas', `${r.ini} — ${r.fim} (eixo a eixo ${fmt(r.L)} m)`],
         ['Seção do modelo → adotada', `${cm(r.b)}×${cm(r.h)} → ${cm(r.bAdot)}×${cm(r.hAdot)} cm`],

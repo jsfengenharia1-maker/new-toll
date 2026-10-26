@@ -13,6 +13,7 @@ import { montarPranchasAlvenaria } from './armacaoAlvenaria';
 import { montarPranchasParedes } from './armacaoParedes';
 import { montarPranchasEscadas } from './escadasDetalhe';
 import { montarPranchaLocacao } from './locacao';
+import { cortesAtivos, montarPranchasCortes } from './cortes';
 import { montarPranchasFundacao } from './fundacao';
 import { montarPranchaPerspectiva, montarPranchasCargas, montarPranchasResultados, primitivasCargas } from './folhasV5';
 import { comEscadas } from '../building/escadasCalculo';
@@ -21,9 +22,9 @@ import { aplicarEstilo } from './estilo';
 import { inserirDetalhes } from './saidas';
 
 export type TipoSaida = TipoPrancha | 'todas';
-export const TIPOS_PRANCHA: TipoSaida[] = ['formas', 'locacao', 'fundacao', 'vigas', 'pilares', 'paredes', 'lajes', 'escadas', 'cargas', 'perspectiva', 'resultados', 'todas'];
+export const TIPOS_PRANCHA: TipoSaida[] = ['formas', 'locacao', 'fundacao', 'vigas', 'pilares', 'paredes', 'lajes', 'escadas', 'cargas', 'perspectiva', 'resultados', 'cortes', 'todas'];
 /** Ordem das pranchas no conjunto. */
-export const ORDEM_CONJUNTO: TipoPrancha[] = ['locacao', 'fundacao', 'formas', 'vigas', 'pilares', 'paredes', 'lajes', 'escadas'];
+export const ORDEM_CONJUNTO: TipoPrancha[] = ['locacao', 'fundacao', 'formas', 'cortes', 'vigas', 'pilares', 'paredes', 'lajes', 'escadas'];
 /** Tipos que exigem análise e dimensionamento. */
 export const PRECISA_CALCULO: TipoPrancha[] = ['vigas', 'pilares', 'paredes', 'lajes', 'escadas', 'fundacao', 'resultados'];
 
@@ -66,6 +67,7 @@ function montarConjuntoNaFolha(b: BuildingModel, an: AnaliseEdificio | null, dim
   const oa = { grupo: o.grupo, carimbo: o.carimbo };
   const pedeTodas = (Array.isArray(o.tipos) ? o.tipos : [o.tipos]).includes('todas');
   for (const t of tipos) {
+    if (t === 'cortes' && pedeTodas && !cortesAtivos(b).length) continue;
     if (t === 'fundacao' && pedeTodas && !b.fundacao?.elementos.length && !b.fundacao?.corridas?.length) continue;
     if (t === 'escadas' && pedeTodas && !dim?.escadasArmadura?.length) continue;
     if (t === 'paredes' && pedeTodas && !dim?.armaduraParedes?.length && !dim?.alvenaria?.paredes.length) continue;
@@ -88,6 +90,7 @@ function montarConjuntoNaFolha(b: BuildingModel, an: AnaliseEdificio | null, dim
     else if (t === 'paredes') { const pr = [...montarPranchasParedes(b, an, dim!, oa), ...montarPranchasAlvenaria(b, an, dim!, oa)]; if (!pr.length && !pedeTodas) avisos.push('Pranchas de paredes: não há paredes, pilares-parede ou alvenaria calculados.'); out.push(...pr); }
     else if (t === 'lajes') out.push(...montarPranchasLajes(b, an, dim!, oa));
     else if (t === 'escadas') { const pr = montarPranchasEscadas(b, dim!, oa); if (!pr.length && !pedeTodas) avisos.push('Pranchas de escadas: não há escadas calculadas e armadas.'); out.push(...pr); }
+    else if (t === 'cortes') { const prs = montarPranchasCortes(b, an, dim, oa); if (!prs.length) avisos.push('Folha de cortes: nenhum corte ativado nas pranchas (comando prancha.cortes).'); out.push(...prs); }
     else if (t === 'cargas') { const prs = montarPranchasCargas(b, { ...oa, escadas: an?.escadas }); if (!prs.length) avisos.push('Pranchas de cargas: não há cargas lançadas.'); out.push(...prs); }
     else if (t === 'resultados') { const prs = montarPranchasResultados(b, an, dim, oa); if (!prs.length) avisos.push('Pranchas de resultados: não há pavimento com laje calculada.'); out.push(...prs); }
     else if (t === 'perspectiva') { const pr = montarPranchaPerspectiva(b, oa); if (pr) out.push(pr); else avisos.push('Perspectiva: não há elementos para desenhar.'); }

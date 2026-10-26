@@ -70,6 +70,8 @@ export const flows = [
   m_V.f_V6d,
   m_V.f_V6e,
   m_V.f_V6f,
+  m_V.f_V6a,
+  m_V.f_V6c,
   m_V.f_V6f_alveolar,
   m_V.f_V7a,
   m_V.f_V7b,
