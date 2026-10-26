@@ -28,7 +28,7 @@ Web app de análise estrutural de pórticos planos 2D, com dimensionamento, fund
 ```bash
 npm i
 npm run dev      # Vite
-npm test         # vitest: 1499 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI, MCP e design system)
+npm test         # vitest: 2638 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI, MCP e design system)
 npm run build    # build publicado (Netlify/PWA): dist/index.html pequeno + dist/assets/* (partes sob demanda, worker do edifício à parte) + public/ (manifest, sw.js com pré-cache, ícones, vendor)
 npm run build:artifact  # variante do artifact do claude.ai: dist-artifact/index.html ÚNICO (vite-plugin-singlefile, `--mode artifact`), sem public/ nem vendor
 npm run e2e      # testes de interface: build + vite preview numa porta livre (4200–4209) + fluxos Playwright

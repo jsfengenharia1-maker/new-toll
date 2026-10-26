@@ -4,7 +4,7 @@
 // armadura e τRd3 com) e C″ a 2d da última linha de armadura. Os contornos são o retângulo (ou círculo) afastado de
 // "a" das faces, com cantos arredondados, recortado pela laje (bordas livres: pilares de borda e de canto) e sem o
 // trecho coberto por furos a menos de 8d (retas tangentes ao furo pelo centro do pilar). A tensão solicitante é
-//   τSd = FSd/(u·d) + Σ K·MSd1/(Wp·d),   MSd1 = máx(0, MSd − FSd·e*),
+//   τSd = FSd/(u·d) + Σ K·MSd1/(Wp·d),   MSd1 = máx(0, MSd − FSd·e*) (no sentido da borda livre: |MSd| + FSd·e*),
 // com Wp = ∫|e| dℓ (módulo plástico do contorno, calculado sobre o contorno recortado, em torno do seu centroide) e
 // e* a distância do centroide do contorno ao centro do pilar (pilares de borda e de canto: contorno reduzido u*).
 // Armadura de punção em linhas radiais (estribos/grampos ou conectores), primeira linha a ≤ 0,5d e entre linhas
@@ -308,6 +308,13 @@ export interface EntradaPuncao {
    * Tabela 19.2 pelas regras de borda e canto; ausente ou 'anterior' = contorno recortado, Wp e e* em torno do seu centroide.
    */
   metodoBorda?: 'nbr' | 'anterior';
+  /**
+   * Momentos com sinal (kN·m) para o método da NBR em borda e canto: Msinal[i] = FSd·e_i, com e_i a excentricidade da linha de ação da
+   * reação em relação ao centro do pilar ao longo do eixo i (u ou v), positiva no sentido +i. Com ele, a redução FSd·e* só vale quando o
+   * momento leva a reação para o interior da laje; no sentido da borda livre, MSd1 = |MSd| + FSd·e* (a favor da segurança [a confirmar]).
+   * Ausente (momentos só em módulo, caso das lajes): o sentido é incerto e vale o pior dos dois sentidos.
+   */
+  Msinal?: [number, number];
 }
 
 export interface ParametrosPuncao {
@@ -362,8 +369,10 @@ export function tirarDentro(pecas: Seg[], polis: P[][]): Seg[] {
  * Borda e canto pela NBR 6118 (19.5.2.3 e 19.5.2.4): `u` e `pecas` da Tensao são o perímetro reduzido u*; aqui ficam o contorno
  * total (Wp), o centroide de u*, os lados reduzidos a e, no canto, as duas verificações (uma por borda livre) e a que governa.
  */
+/** Sentido do momento em relação à borda livre (null: eixo sem borda livre): 'dentro' reduz por FSd·e*, 'fora' soma, 'incerto' = pior dos dois. */
+export type SentidoMomento = 'dentro' | 'fora' | 'incerto' | null;
 export interface TensaoNBR {
-  tipo: 'borda' | 'canto'; sinais: [number, number]; aRed: [number, number]; uTotal: number; pecasTotal: Seg[]; centroideRed: P;
+  tipo: 'borda' | 'canto'; sinais: [number, number]; sentido: SentidoMomento[]; aRed: [number, number]; uTotal: number; pecasTotal: Seg[]; centroideRed: P;
   /** Canto: τSd (MPa) de cada verificação (borda livre perpendicular a u; a v) e a que governa. */
   tauDir?: [number, number]; governa?: 0 | 1;
 }
@@ -379,7 +388,7 @@ function pecasDoContorno(ent: EntradaPuncao, apC: Apoio, a: number, furoDist: nu
 
 /**
  * Tensão no contorno de pilar de borda ou de canto pela NBR 6118:
- *   borda (19.5.2.3): τSd = FSd/(u*·d) + K1·MSd1/(Wp1·d) + K2·MSd2/(Wp2·d), MSd1 = máx(0; MSd − FSd·e*);
+ *   borda (19.5.2.3): τSd = FSd/(u*·d) + K1·MSd1/(Wp1·d) + K2·MSd2/(Wp2·d), MSd1 = máx(0; MSd − FSd·e*) com o momento levando a reação para o interior e |MSd| + FSd·e* no sentido da borda livre (sem sinal: o pior dos dois);
  *   canto (19.5.2.4): para cada borda livre, τSd = FSd/(u*·d) + K1·MSd1/(Wp1·d) com o momento do plano perpendicular a ela; vale a maior.
  * u* do pilar reduzido (`apoioReduzido`), e* = distância do centroide de u* ao centro do pilar (positiva para o interior da laje) e
  * Wp = ∫|e|dℓ do perímetro total u em torno do eixo que passa pelo centro do pilar (as fórmulas fechadas de `fechadasBorda`/`fechadasCanto`).
@@ -392,9 +401,17 @@ function tensaoBordaNBR(ent: EntradaPuncao, sinais: [number, number], a: number,
   const ax = eixos(ap.angulo), dc: P = [prR.centroide[0] - ap.centro[0], prR.centroide[1] - ap.centro[1]];
   // e* com sinal: positivo quando o centroide de u* está do lado do interior da laje (oposto à borda livre)
   const e = [0, 1].map((i) => (sinais[i] && prR.u ? -sinais[i] * (dc[0] * ax[i][0] + dc[1] * ax[i][1]) : 0)) as [number, number];
-  const M1 = [0, 1].map((i) => (sinais[i] ? Math.max(0, ent.M[i] - F * e[i]) : ent.M[i])) as [number, number];
+  const sentido: SentidoMomento[] = [null, null];
+  const M1 = [0, 1].map((i) => {
+    if (!sinais[i]) return ent.M[i];
+    // Mint: momento no sentido de levar a reação para o interior (positivo) ou para a borda livre (negativo)
+    const Mint = ent.Msinal ? -sinais[i] * ent.Msinal[i] : undefined, Mabs = Math.abs(ent.Msinal ? ent.Msinal[i] : ent.M[i]);
+    if (Mint === undefined) { sentido[i] = 'incerto'; return Math.max(0, Mabs - F * e[i], Mabs + F * e[i]); }
+    sentido[i] = Mint >= 0 ? 'dentro' : 'fora';
+    return Mint >= 0 ? Math.max(0, Mint - F * e[i]) : Math.max(0, Mabs + F * e[i]);
+  }) as [number, number];
   const canto = !!(sinais[0] && sinais[1]);
-  const nbr: TensaoNBR = { tipo: canto ? 'canto' : 'borda', sinais, aRed: red.a, uTotal, pecasTotal, centroideRed: prR.centroide };
+  const nbr: TensaoNBR = { tipo: canto ? 'canto' : 'borda', sinais, sentido, aRed: red.a, uTotal, pecasTotal, centroideRed: prR.centroide };
   if (prR.u < 1e-6) return { a, u: 0, tau: 0, Wp, K, M1, e, pecas, nbr };
   const tF = F / (prR.u * d), tM = [0, 1].map((i) => (Wp[i] > 1e-9 ? (K[i] * M1[i]) / (Wp[i] * d) : 0));
   let tau: number;
@@ -706,6 +723,8 @@ export interface ResultadoPuncao {
   h: number; d: number; rho: number; fck: number;
   /** Força de punção de cálculo (kN) e momentos que a transmitem por excentricidade em u e em v (kN·m). */
   F: number; M: [number, number];
+  /** Momentos com sinal (ver `EntradaPuncao.Msinal`; só no radier). */
+  Msinal?: [number, number];
   K: [number, number];
   contornos: { nome: 'C' | 'C′' | 'C″'; a: number; u: number; tau: number; limite: number; limiteNome: string; ok: boolean; Wp: [number, number]; e: [number, number]; M1: [number, number]; pontos: P[][] }[];
   tauRd1: number; tauRd2: number; tauRd3?: number;
@@ -1034,7 +1053,7 @@ export function puncaoRadier(b: BuildingModel, an: AnaliseEdificio, radiers: Res
         if (F <= 0) continue;
         const Mu = Mx * co + My * si, Mv = -Mx * si + My * co; // momento em torno de u tem excentricidade ao longo de v
         const q = perto.length ? perto.reduce((s, n) => s + f.reduce((t, fi, ic) => t - fi * n.k * desl[ic][n.no * 6 + 2], 0), 0) / perto.length : 0;
-        const ent: EntradaPuncao = { ap, reg, d, h: rad.h, F, M: [Math.abs(Mv), Math.abs(Mu)], qd: Math.max(0, q), descontar: true, metodoBorda: op.puncaoWpBorda ? 'nbr' : 'anterior' };
+        const ent: EntradaPuncao = { ap, reg, d, h: rad.h, F, M: [Math.abs(Mv), Math.abs(Mu)], Msinal: [-Mv, Mu], qd: Math.max(0, q), descontar: true, metodoBorda: op.puncaoWpBorda ? 'nbr' : 'anterior' };
         const tau = tensaoNoContorno(ent, livres, 2 * d, op.puncaoFuroDist).tau;
         if (regR) taus.push({ nome: cb.nome, tau });
         if (!melhor || tau > melhor.tau) {
@@ -1059,7 +1078,7 @@ export function puncaoRadier(b: BuildingModel, an: AnaliseEdificio, radiers: Res
       const mk = (k: 0 | 1 | 2, t: Tensao, lim: number, limNome: string) => ({ nome: NOMES_C[k], a: t.a, u: t.u, tau: t.tau, limite: lim, limiteNome: limNome, ok: t.tau <= lim + 1e-9, Wp: t.Wp, e: t.e, M1: t.M1, pontos: polilinhas(t.pecas) });
       lista.push({
         id: `${pid}|fundacao`, pilar: pid, nome: p.nome, pavimento: 'Fundação', pavimentoId: 'fundacao', laje: rad.id, lajeNome: rad.nome, origem: 'radier', combinacao: melhor.nome,
-        tipo: v.tipo, livres: v.livres, c1: ap.c1, c2: ap.c2, circular, angulo: p.angulo, centro, h: rad.h, d, rho, fck: c.fck, F: ent.F, M: ent.M, K: v.C.K,
+        tipo: v.tipo, livres: v.livres, c1: ap.c1, c2: ap.c2, circular, angulo: p.angulo, centro, h: rad.h, d, rho, fck: c.fck, F: ent.F, M: ent.M, ...(ent.Msinal ? { Msinal: ent.Msinal } : {}), K: v.C.K,
         contornos: [mk(0, v.C, v.tauRd2, 'τRd2'), mk(1, v.C2, v.tauRd3 ?? v.tauRd1, v.tauRd3 !== undefined ? 'τRd3' : 'τRd1'), ...(v.C3 ? [mk(2, v.C3, v.tauRd1, 'τRd1')] : [])],
         tauRd1: v.tauRd1, tauRd2: v.tauRd2, ...(v.tauRd3 !== undefined ? { tauRd3: v.tauRd3 } : {}), ...(v.armadura ? { armadura: v.armadura } : {}),
         manual: [], cortante: v.cortante, status: v.status, mensagens: msgs,
