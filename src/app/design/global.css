@@ -893,6 +893,14 @@ tr.sel td { background: var(--accent-soft); }
 .v3d-def-leg { display: flex; gap: 8px; align-items: center; padding: 3px 10px; font-size: 11.5px; border-top: 1px solid var(--line); background: var(--surface); }
 .v3d-def-rampa { flex: 0 0 220px; height: 10px; border-radius: 3px; border: 1px solid var(--line); background: linear-gradient(90deg, var(--v3d-def-1), var(--v3d-def-2), var(--v3d-def-3), var(--v3d-def-4), var(--v3d-def-5)); }
 .v3d-def-leg .num { font-family: var(--font-num); }
+.v3d-comp { flex: none; gap: 8px; }
+.v3d-comp-grade { display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.v3d-comp-grade[data-colunas='3'] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.v3d-comp-jan { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.v3d-comp-cab { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: 12px; }
+.v3d-comp-cab select { border: 1px solid var(--line); border-radius: var(--radius); padding: 3px 6px; background: var(--surface); color: var(--ink); font-size: 12px; max-width: 220px; }
+.v3d-comp-cv { position: relative; height: clamp(200px, 32vh, 420px); overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; background: var(--v3d-fundo); outline: none; border: 1px solid var(--line); border-radius: var(--radius); }
+.v3d-comp-cv canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
 .v3d-consulta { max-height: 34%; overflow: auto; padding: 6px 10px; border-top: 1px solid var(--line); background: var(--surface); font-size: 12px; }
 .v3d-consulta .row { align-items: flex-start; flex-wrap: wrap; gap: 8px 12px; }
 .desloc-aba { display: flex; flex-direction: column; gap: 12px; padding: 10px; overflow: auto; }

@@ -1,7 +1,7 @@
 // Vista 3D do edifício (V1): three.js carregado sob demanda (public/vendor); sem o arquivo ou sem WebGL, o isométrico
 // estático em SVG da mesma cena. Escopo por pavimento, grupo ou intervalo, tipos, transparência, perspectiva/isométrica,
 // caminhar, seleção sincronizada com a planta e captura PNG. A geometria vem de src/core/vista3d (função pura).
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { calculoAtual, useBuilding } from '../edificio/store';
 import { usePlanta } from '../edificio/plantaStore';
 import { abrirJanela, irParaElemento } from '../edificio/Revisao';
@@ -19,11 +19,14 @@ import { Button, Check, Chip, Dropdown, Seg, Slider, download } from '../ui';
 import { carregarThree, temWebGL, type Three } from './carregarThree';
 import { ligarControles } from './controles';
 import { RenderizadorCena, type CoresCena } from './renderizador';
+import { contextosWebgl } from './contextos';
 import { opcoesDaVista, useVista3d } from './vista3dStore';
 import { consultaNo } from '../../core/resultados/consultas';
 import { TabelaConsultaNo } from '../edificio/ConsultaNoUI';
 import { useResultados, type PedidoNo } from '../edificio/resultadosStore';
 import { useEdifUI } from '../edificio/uiStore';
+
+const CompararDeformadas = lazy(() => import('./CompararDeformadas').then((m) => ({ default: m.CompararDeformadas })));
 
 type Status = 'carregando' | 'pronto' | 'sem-vendor' | 'sem-webgl';
 const graus = (r: number) => (r * 180) / Math.PI;
@@ -71,6 +74,7 @@ export function Vista3D({ onPlanta }: { onPlanta: () => void }) {
   const [dica, setDica] = useState<{ x: number; y: number; texto: string } | null>(null);
   const [aviso, setAviso] = useState('');
   const [noPedido, setNoPedido] = useState<PedidoNo | null>(null);
+  const [comparar, setComparar] = useState(false);
 
   // ---------------------------------------------------------------- cena (função pura do núcleo)
   const opcoes = useMemo(() => opcoesDaVista(b, st), [b, rev, st.escopo, st.grupo, st.de, st.ate, st.pavimento, st.tipos, st.detalhe]);
@@ -137,6 +141,7 @@ export function Vista3D({ onPlanta }: { onPlanta: () => void }) {
     if (!T || !el) return;
     let r: RenderizadorCena;
     try { r = new RenderizadorCena(T, el); } catch { setStatus('sem-webgl'); return; }
+    const contado = contextosWebgl.adquirir();
     rend.current = r;
     r.canvas.setAttribute('aria-label', 'Vista 3D do edifício');
     const medir = () => { const q = el.getBoundingClientRect(); r.redimensionar(q.width, q.height); pedir(); };
@@ -188,6 +193,7 @@ export function Vista3D({ onPlanta }: { onPlanta: () => void }) {
       el.removeEventListener('keydown', ligaLaco); el.removeEventListener('pointerdown', ligaLaco);
       cancelAnimationFrame(laco); window.clearTimeout(temporizador);
       r.dispose(); rend.current = null;
+      if (contado) contextosWebgl.liberar();
     };
   }, [T]);
 
@@ -375,6 +381,7 @@ export function Vista3D({ onPlanta }: { onPlanta: () => void }) {
             <Dropdown aria-label="Hipótese da deformada" value={hip?.id ?? ''} onChange={(e) => st.set({ defHipotese: e.target.value })}>
               {hips.map((h) => <option key={h.id} value={h.id}>{h.tipo === 'caso' ? `Caso ${h.nome}` : h.nome}</option>)}
             </Dropdown>
+            <Button variant="ghost" disabled={!analiseAtual || fallback} title="Abre 2 a 4 janelas de deformada lado a lado, cada uma com a sua hipótese e escala" onClick={() => setComparar(true)}>Comparar deformadas</Button>
             <Check label="Escala automática" checked={st.defAuto} onChange={(v) => st.set({ defAuto: v })} />
             {!st.defAuto && <Slider label="Escala da deformada" value={st.defEscala} min={1} max={1000} unit="×" onChange={(v) => st.set({ defEscala: v })} />}
             <Check label="Só eixos das barras" checked={st.defEixos} onChange={(v) => st.set({ defEixos: v })} />
@@ -431,6 +438,11 @@ export function Vista3D({ onPlanta }: { onPlanta: () => void }) {
             </>
           )}
         </div>
+      )}
+      {comparar && analiseAtual && (
+        <Suspense fallback={null}>
+          <CompararDeformadas cena={cena} analise={analiseAtual} hipoteses={hips} atual={hip?.id ?? ''} tema={tema} onClose={() => setComparar(false)} />
+        </Suspense>
       )}
       <div className="v3d-st">
         <span>Cena: <b className="num">{cena.contagens.total}</b> objetos — {TIPOS_3D.filter((t) => contagem[t.v]).map((t) => `${t.label.toLowerCase()} ${contagem[t.v]}`).join(', ') || 'vazia'}</span>

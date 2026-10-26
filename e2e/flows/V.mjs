@@ -1387,3 +1387,79 @@ export const f_V6c = {
       assert.equal(await j3.count(), 0);
     },
   };
+
+export const f_V6b = {
+    webgl: true,
+    name: 'V6b: comparar deformadas — 2 a 4 janelas lado a lado, hipótese e escala por janela (comum, própria, manual), câmera sincronizada, fechar libera os contextos',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 60000 });
+      await page.locator('.edif-tabs').getByRole('tab', { name: '3D', exact: true }).click();
+      const cv = page.locator('.v3d-cv');
+      await cv.waitFor();
+      await page.waitForFunction(() => document.querySelector('.v3d-cv')?.getAttribute('data-status') !== 'carregando');
+      const status = await cv.getAttribute('data-status');
+      console.log(`        (V6b: vista 3D em modo ${status})`);
+      await page.getByLabel('Deformada', { exact: true }).check();
+      const botao = page.getByRole('button', { name: 'Comparar deformadas', exact: true });
+      await botao.waitFor();
+      if (status !== 'pronto') { assert.equal(await botao.isDisabled(), true); return; }
+
+      await botao.click();
+      const jan = page.getByRole('dialog', { name: 'Comparar deformadas', exact: true });
+      await jan.waitFor();
+      const raiz = jan.locator('[data-comparar]');
+      const le = async () => JSON.parse(await raiz.getAttribute('data-comparar'));
+      await page.waitForFunction(() => JSON.parse(document.querySelector('[data-comparar]').getAttribute('data-comparar')).janelas.every((j) => j.status === 'pronto'));
+      let d = await le();
+      assert.equal(d.n, 2);
+      assert.equal(d.modo, 'comum');
+      assert.equal(await jan.locator('.v3d-comp-cv canvas').count(), 2);
+      // hipóteses iniciais distintas, escala comum igual nas duas
+      assert.notEqual(d.janelas[0].hipotese, d.janelas[1].hipotese);
+      assert.equal(d.janelas[0].escala, d.janelas[1].escala);
+      assert.ok(d.janelas[0].dmaxMm > 0 && d.janelas[1].dmaxMm > 0);
+      // 4 janelas em grade 2×2
+      await jan.getByLabel('Número de janelas', { exact: true }).selectOption('4');
+      await page.waitForFunction(() => document.querySelectorAll('[data-comparar] .v3d-comp-cv canvas').length === 4);
+      d = await le();
+      assert.equal(d.janelas.length, 4);
+      assert.equal(new Set(d.janelas.map((j) => j.hipotese)).size, 4);
+      const colunas = await jan.locator('.v3d-comp-grade').evaluate((e) => getComputedStyle(e).gridTemplateColumns.split(' ').length);
+      assert.equal(colunas, 2);
+      // trocar a hipótese da janela 2 muda o máximo dela
+      const antes = d.janelas[1].dmaxMm;
+      const lista = jan.getByLabel('Hipótese da janela 2', { exact: true });
+      const atual = await lista.inputValue();
+      const outra = (await lista.locator('option').evaluateAll((os) => os.map((o) => o.value))).filter((v) => v !== atual);
+      await lista.selectOption(outra[outra.length - 1]);
+      await page.waitForFunction((a) => JSON.parse(document.querySelector('[data-comparar]').getAttribute('data-comparar')).janelas[1].dmaxMm !== a, antes);
+      // escala própria: o maior deslocamento ganha a menor escala; manual: slider por janela
+      await jan.getByLabel('Escala das deformadas', { exact: true }).selectOption('propria');
+      await page.waitForFunction(() => JSON.parse(document.querySelector('[data-comparar]').getAttribute('data-comparar')).modo === 'propria');
+      d = await le();
+      const imax = d.janelas.reduce((m, j, i, a) => (j.dmaxMm > a[m].dmaxMm ? i : m), 0), imin = d.janelas.reduce((m, j, i, a) => (j.dmaxMm < a[m].dmaxMm ? i : m), 0);
+      if (d.janelas[imax].dmaxMm > d.janelas[imin].dmaxMm * 1.01) assert.ok(d.janelas[imax].escala < d.janelas[imin].escala, JSON.stringify(d.janelas));
+      await jan.getByLabel('Escala das deformadas', { exact: true }).selectOption('manual');
+      await jan.locator('.slider', { hasText: 'Escala da janela 3' }).locator('input').fill('120');
+      await page.waitForFunction(() => JSON.parse(document.querySelector('[data-comparar]').getAttribute('data-comparar')).janelas[2].escala === 120);
+      // câmera sincronizada: ligada por padrão, desligável
+      assert.equal(await jan.getByLabel('Sincronizar a câmera', { exact: true }).isChecked(), true);
+      await jan.getByLabel('Sincronizar a câmera', { exact: true }).uncheck();
+      assert.equal((await le()).sincronizar, false);
+      // reduz a 2 janelas: os contextos das outras são liberados (canvas removidos)
+      await jan.getByLabel('Número de janelas', { exact: true }).selectOption('2');
+      await page.waitForFunction(() => document.querySelectorAll('[data-comparar] .v3d-comp-cv canvas').length === 2);
+      await page.keyboard.press('Escape');
+      assert.equal(await jan.count(), 0);
+      assert.equal(await page.locator('.v3d-comp-cv').count(), 0);
+      await page.getByLabel('Deformada', { exact: true }).uncheck();
+    },
+  };
