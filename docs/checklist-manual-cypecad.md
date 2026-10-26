@@ -20,9 +20,9 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 22 | 1 | 0 | 3 |
 | 11. Fundações | 70 | 65 | 0 | 0 | 5 |
-| 12. Isovalores e deformada | 22 | 21 | 0 | 1 | 0 |
+| 12. Isovalores e deformada | 22 | 22 | 0 | 0 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **574** | **2** | **1** | **186** |
+| **Total** | **763** | **575** | **2** | **0** | **186** |
 
 ## Pendências por frente
 
@@ -33,7 +33,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 0 | 0 | 0 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 0 | 0 | 0 |
-| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 0 | 1 | 1 |
+| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 0 | 0 | 0 |
 
 ## 0. Apresentação do programa
 
@@ -912,7 +912,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C12.19 | Opções: escolher hipótese/combinação, fator de escala, estrutura completa ou simplificada, mostrar lajes nervuradas/cogumelo e animação. | Feito | — | [V3]: hipótese/combinação, escala (automática 5 % da altura, editável), completa ou simplificada (`eixosDeformados`) e animação (desligada por padrão e parada com prefers-reduced-motion) em Vista3D.tsx e AbaDeslocamentos.tsx; lajes nervuradas bidirecionais/cogumelo (E3c e E3d) seguem a malha da grelha (`deformadaCena.ts`) — Feito 23/10/2026: interface: Vista3D.tsx (deformada) e AbaDeslocamentos.tsx; e2e V3 [V3] |
 | C12.20 | Animação da deformada para identificar comportamento anômalo. | Feito | — | [V3]: `fatorAnimacao(t, T)` = sin(2πt/T), período padrão 2 s (a confirmar); animação na interface em AbaDeslocamentos.tsx e Vista3D.tsx — Feito 23/10/2026: interface: Vista3D.tsx (deformada) e AbaDeslocamentos.tsx; e2e V3 [V3] |
 | C12.21 | Elementos deformados coloridos pelo deslocamento resultante (vetor de Δx, Δy, Δz), com legenda no rodapé. | Feito | — | [V3]: módulo do deslocamento (Δ) por vértice (`ObjetoDeformado.delta`), rampa `--v3d-def-*` e legenda no rodapé em AbaDeslocamentos.tsx e Vista3D.tsx — Feito 23/10/2026: interface: Vista3D.tsx (deformada) e AbaDeslocamentos.tsx; e2e V3 [V3] |
-| C12.22 | Várias janelas de deformada simultâneas para comparar hipóteses/combinações. | Falta | V | [V3]: várias janelas lado a lado ainda não têm núcleo nem cartão (só uma deformada na vista 3D) — V6b: várias janelas de deformada lado a lado (um renderizador por janela, com limite de contextos WebGL) |
+| C12.22 | Várias janelas de deformada simultâneas para comparar hipóteses/combinações. | Feito | — | [V3, V6b] várias janelas de deformada lado a lado: núcleo `vista3d/comparar.ts` (grade 2 a 4 janelas, hipóteses iniciais distintas, escala comum/própria/manual, rampa comum, contador de contextos WebGL, limite 8 a confirmar); janela `CompararDeformadas.tsx` (botão Comparar deformadas no grupo Deformada da vista 3D; um renderizador por janela pelo hook `useCena3DIsolada`, câmera sincronizada opcional, contextos liberados ao reduzir/fechar, aviso e janela sem contexto ao passar do limite; carregada sob demanda); contador `contextos.ts` também usado pela vista 3D principal |
 
 ## 13. Tabelas e bibliotecas
 

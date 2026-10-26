@@ -88,7 +88,7 @@ Escalonamento: se um agente S falhar a verificação duas vezes ou relatar dúvi
 | V3 deformada, deslocamentos e flecha entre pontos | S2 | S2 |
 | V4 isovalores e isolinhas | S2 | S2 |
 | V5 esforços por hipótese, vistas de vigotas e saídas | S2 | S1 |
-| V6 pendentes da auditoria V: V6a pranchas de cortes, V6b janelas de deformada, V6c viga de fundação 3D, V6d cliques (planta e vista 3D), V6e vento e cargas por caso na planta, V6f folha Resultados e figuras no memorial (correções da auditoria V já feitas em 24/10/2026; V6d, V6e e V6f feitas em 24/10/2026 na branch `worktree-agent-a9dcb169364e84b69`, ainda sem merge; V6a e V6c feitas em 26/10/2026 na branch `worktree-agent-a1f54aca71dc73f15`, sem merge) | S2 | S2 |
+| V6 pendentes da auditoria V: V6a pranchas de cortes, V6b janelas de deformada (feita em 26/10/2026, branch `worktree-agent-aa8cfc6e02b2b9d61`, sem merge), V6c viga de fundação 3D, V6d cliques (planta e vista 3D), V6e vento e cargas por caso na planta, V6f folha Resultados e figuras no memorial (correções da auditoria V já feitas em 24/10/2026; V6d, V6e e V6f feitas em 24/10/2026 na branch `worktree-agent-a9dcb169364e84b69`, ainda sem merge; V6a e V6c feitas em 26/10/2026 na branch `worktree-agent-a1f54aca71dc73f15`, sem merge) | S2 | S2 |
 | E5a pranchas das lajes inclinadas: dobramento, marca de dobra, croqui (6 linhas) | S2 | — |
 | E5b ferramentas de planta com o mouse: diagonal por dois cliques, consolo na face, linhas magenta, cursor de captura, arrasto de plano, ábaco (7 linhas) | — | S2 |
 | E5c botões, seletores e etapa Muros: redimensionar todos os consolos, abertura para pano a definir, cópia de plano entre grupos, radier no seletor, etapa Muros (5 linhas) | — | S1 |
