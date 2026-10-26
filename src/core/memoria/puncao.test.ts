@@ -193,7 +193,7 @@ interface Ref {
   /** Sem K / cortante o resultado não os expõe (verificação fora do ábaco): refaz-se só das entradas. */
   d: number; rho: number; K?: [number, number]; tauRd1: number; tauRd2: number; tauRd3?: number;
   armadura?: ResultadoPuncao['armadura']; cortante?: ResultadoPuncao['cortante'];
-  M: [number, number]; F: number; ap: { c1: number; c2: number; ang: number; centro: [number, number]; circular: boolean };
+  M: [number, number]; Msinal?: [number, number]; F: number; ap: { c1: number; c2: number; ang: number; centro: [number, number]; circular: boolean };
 }
 
 /** Refaz geometria, K, tensões resistentes, contornos, varredura de cortante e armadura de uma verificação. */
@@ -282,7 +282,9 @@ function refazVerificacao(c: Caso, el: string, rot: string, x: Ref, opt: { comC3
         if (ct) expect(Math.abs(eS[i] - ct.e[i])).toBeLessThan(1e-9);
         expect(rel(Wc[i], pw.resultado as number)).toBeLessThan(1e-9);
         if (ct) expect(rel(Wc[i], ct.Wp[i])).toBeLessThan(1e-9);
-        const m1 = Math.max(0, x.M[i] - Fa * eS[i]);
+        // sentido do momento: radier traz o sinal (Msinal); laje, só módulos (incerto: pior dos dois sentidos)
+        const Mint = x.Msinal && sin[i] ? -sin[i] * x.Msinal[i] : undefined;
+        const m1 = !sin[i] ? x.M[i] : Mint === undefined ? Math.max(0, x.M[i] - Fa * eS[i], x.M[i] + Fa * eS[i]) : Mint >= 0 ? Math.max(0, Mint - Fa * eS[i]) : Math.max(0, x.M[i] + Fa * eS[i]);
         expect(Math.abs(m1 - (pm.resultado as number))).toBeLessThan(1e-9 * Math.max(1, m1));
         tM.push(Wc[i] > 1e-9 ? (Kc[i] * m1) / (Wc[i] * d) : 0);
       }
@@ -455,7 +457,7 @@ function refazVerificacao(c: Caso, el: string, rot: string, x: Ref, opt: { comC3
   return { ...out, AswAuto, escolha: esc };
 }
 
-const refDe = (r: ResultadoPuncao): Ref => ({ contornos: r.contornos, d: r.d, rho: r.rho, K: r.K, tauRd1: r.tauRd1, tauRd2: r.tauRd2, tauRd3: r.tauRd3, armadura: r.armadura, cortante: r.cortante, M: r.M, F: r.F, ap: { c1: r.c1, c2: r.c2, ang: r.angulo, centro: r.centro as [number, number], circular: r.circular } });
+const refDe = (r: ResultadoPuncao): Ref => ({ contornos: r.contornos, d: r.d, rho: r.rho, K: r.K, tauRd1: r.tauRd1, tauRd2: r.tauRd2, tauRd3: r.tauRd3, armadura: r.armadura, cortante: r.cortante, M: r.M, Msinal: r.Msinal, F: r.F, ap: { c1: r.c1, c2: r.c2, ang: r.angulo, centro: r.centro as [number, number], circular: r.circular } });
 
 /** Punções com cadeia própria (as demais pavimentos de grelha idêntica só remetem). */
 const proprias = (c: Caso, lista = c.dim.puncao ?? []) => lista.filter((r) => passosDe(c, elDe(r), 'Contorno C').length > 0 || passosDe(c, elDe(r), 'Contorno C – região interna (ábaco)').length > 0);

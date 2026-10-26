@@ -15,6 +15,7 @@ export function CortesPranchas() {
   const mudarPlantas = (id: string, on: boolean) => {
     const n = new Set(plantas);
     if (on) n.add(id); else n.delete(id);
+    if (!n.size) return; // lista vazia no comando = todas as plantas; a última marcada não se desmarca
     exec('prancha.cortes', { plantas: n.size === b.grupos.length ? [] : [...n] });
   };
   return (
@@ -32,8 +33,9 @@ export function CortesPranchas() {
           <NumField label="Tamanho da marca de corte" unit="mm" width={130} value={marca} onChange={(v) => exec('prancha.cortes', { marca: Math.min(MARCA_CORTE.max, Math.max(MARCA_CORTE.min, v)) })} />
         </div>
         {ativos.size > 0 && b.grupos.length > 1 && (
-          <div className="row wrap">{b.grupos.map((g) => <Check key={g.id} label={`Marcas na planta: ${g.nome}`} checked={plantas.has(g.id)} onChange={(v) => mudarPlantas(g.id, v)} />)}</div>
+          <div className="row wrap">{b.grupos.map((g) => <Check key={g.id} label={`Marcas na planta: ${g.nome}`} checked={plantas.has(g.id)} disabled={plantas.size === 1 && plantas.has(g.id)} onChange={(v) => mudarPlantas(g.id, v)} />)}</div>
         )}
+        {ativos.size > 0 && b.grupos.length > 1 && <Hint>Ao menos uma planta fica marcada; para não ter marcas nas plantas, desative os cortes.</Hint>}
         <Hint>Os cortes ativados saem como marca (linha traço-ponto, seta de visada e nome) nas plantas de formas e de locação e como a folha de cortes (sigla SCT, a confirmar). Escala automática: a maior em que todos cabem numa folha.</Hint>
       </div>
     </Group>

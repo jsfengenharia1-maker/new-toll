@@ -262,7 +262,7 @@ describe('punção de borda e canto pela NBR 6118 (19.5.2.3 e 19.5.2.4, opção 
   it('contorno C′ (arcos por 40 cordas por quadrante): biblioteca = fórmulas fechadas a menos da corda', () => {
     const reg: Regiao = { poligonos: [quad(0, -20, 20, 20)], furos: [] };
     const ap = pilar(0.4, 0.4, [0.2, 0]), f = fechadasBorda(0.4, 0.4, 2 * d, d);
-    const t = tensaoNoContorno({ ap, reg, d, h: 0.25, F: 500, M: [200, 30], qd: 0, metodoBorda: 'nbr' }, ['u-'], 2 * d, 8);
+    const t = tensaoNoContorno({ ap, reg, d, h: 0.25, F: 500, M: [200, 30], Msinal: [200, 30], qd: 0, metodoBorda: 'nbr' }, ['u-'], 2 * d, 8);
     expect(t.u / f.uRed).toBeCloseTo(1, 3);
     expect(uTotal(t) / f.u).toBeCloseTo(1, 3);
     expect(t.e[0] / f.eRed).toBeCloseTo(1, 3);
@@ -345,6 +345,49 @@ describe('punção: tensões e resistências (cálculo manual)', () => {
     expect(t.tau / esperado).toBeCloseTo(1, 2);
     // momento menor que F·e*: MSd1 = 0 (a excentricidade já o absorve)
     expect(tensaoNoContorno({ ...ent, M: [100, 0] }, ['u-'], 2 * d, 8).M1[0]).toBe(0);
+  });
+});
+
+describe('punção de borda pela NBR: sentido do momento em relação à borda livre', () => {
+  const reg: Regiao = { poligonos: [quad(0, -20, 20, 20)], furos: [] };
+  const d = 0.2, ap = pilar(0.4, 0.4, [0.2, 0]); // borda livre em u− (x = 0)
+  const mk = (M: number, Msinal?: [number, number]): EntradaPuncao => ({ ap, reg, d, h: 0.25, F: 500, M: [M, 0], ...(Msinal ? { Msinal } : {}), qd: 0, metodoBorda: 'nbr' });
+
+  it('C′ (e* > 0): para dentro MSd1 = MSd − FSd·e*; para fora MSd1 = |MSd| + FSd·e* (maior); sem sinal, o pior dos dois', () => {
+    const dentro = tensaoNoContorno(mk(200, [200, 0]), ['u-'], 2 * d, 8);
+    const fora = tensaoNoContorno(mk(200, [-200, 0]), ['u-'], 2 * d, 8);
+    const incerto = tensaoNoContorno(mk(200), ['u-'], 2 * d, 8);
+    const e = dentro.e[0];
+    expect(e).toBeGreaterThan(0.2);
+    expect(Math.abs(dentro.M1[0] - (200 - 500 * e))).toBeLessThan(1e-9);
+    expect(Math.abs(fora.M1[0] - (200 + 500 * e))).toBeLessThan(1e-9);
+    expect(Math.abs(incerto.M1[0] - fora.M1[0])).toBeLessThan(1e-9);
+    expect(fora.M1[0]).toBeGreaterThan(dentro.M1[0]);
+    expect(fora.tau).toBeGreaterThan(dentro.tau);
+    expect(dentro.nbr!.sentido).toEqual(['dentro', null]);
+    expect(fora.nbr!.sentido).toEqual(['fora', null]);
+    expect(incerto.nbr!.sentido).toEqual(['incerto', null]);
+    // o momento só em módulo no eixo sem borda livre (v) segue sem redução
+    expect(dentro.M1[1]).toBe(0);
+  });
+
+  it('C (e* = −0,05, valores exatos): para dentro 60 + 25 = 85; para fora 60 − 25 = 35; sem sinal 85; momento menor que FSd·e* para dentro: 0', () => {
+    const dentro = tensaoNoContorno(mk(60, [60, 0]), ['u-'], 0, 8);
+    expect(dentro.e[0]).toBeCloseTo(-0.05, 12);
+    expect(Math.abs(dentro.M1[0] - 85)).toBeLessThan(1e-9);
+    expect(Math.abs(tensaoNoContorno(mk(60, [-60, 0]), ['u-'], 0, 8).M1[0] - 35)).toBeLessThan(1e-9);
+    expect(Math.abs(tensaoNoContorno(mk(60), ['u-'], 0, 8).M1[0] - 85)).toBeLessThan(1e-9);
+    // sentido para fora com |MSd| < FSd·|e*| e e* < 0: máx(0; 10 − 25) = 0
+    expect(tensaoNoContorno(mk(10, [-10, 0]), ['u-'], 0, 8).M1[0]).toBe(0);
+  });
+
+  it('borda livre em u+ (sinal invertido): +Msinal leva a reação para a borda', () => {
+    const ap2 = pilar(0.4, 0.4, [19.8, 0]), reg2: Regiao = { poligonos: [quad(-20, -20, 20, 20)], furos: [] };
+    const base: EntradaPuncao = { ap: ap2, reg: reg2, d, h: 0.25, F: 500, M: [200, 0], qd: 0, metodoBorda: 'nbr' };
+    const a = tensaoNoContorno({ ...base, Msinal: [-200, 0] }, ['u+'], 2 * d, 8), b = tensaoNoContorno({ ...base, Msinal: [200, 0] }, ['u+'], 2 * d, 8);
+    expect(a.nbr!.sentido[0]).toBe('dentro');
+    expect(b.nbr!.sentido[0]).toBe('fora');
+    expect(Math.abs(b.M1[0] - (200 + 500 * b.e[0]))).toBeLessThan(1e-9);
   });
 });
 
