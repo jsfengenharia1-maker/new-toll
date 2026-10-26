@@ -88,29 +88,41 @@ function sigmaC(e: number, c: Concrete) {
 export interface FiberSection { mesh: Fiber[]; bars: RBar[]; cx: number; cy: number; c: Concrete; fyd: number; poly: Pt[] }
 
 /** Esforços (MN, MN·m) para a linha neutra perpendicular a u = (cos θ, sin θ) e parâmetro de domínio t ∈ [0, 3]. */
-/** Fibras e barras em vetores (coordenadas relativas ao centro), calculados uma vez por seção. */
-const vetores = new WeakMap<FiberSection, { fx: Float64Array; fy: Float64Array; fa: Float64Array; bx: Float64Array; by: Float64Array; ba: Float64Array; px: Float64Array; py: Float64Array }>();
-function vetoresDe(S: FiberSection) {
+/** Fibras e barras em vetores (coordenadas relativas ao centro), calculados uma vez por seção; guarda também as projeções do último θ pedido. */
+interface Vetores { fx: Float64Array; fy: Float64Array; fa: Float64Array; bx: Float64Array; by: Float64Array; ba: Float64Array; px: Float64Array; py: Float64Array; sf: Float64Array; sb: Float64Array; theta: number; ux: number; uy: number; sMax: number; sMin: number; sBar: number }
+const vetores = new WeakMap<FiberSection, Vetores>();
+function vetoresDe(S: FiberSection): Vetores {
   let v = vetores.get(S);
   if (!v) {
     const m = S.mesh, br = S.bars, pl = S.poly;
+    const col = (n: number, f: (i: number) => number) => { const a = new Float64Array(n); for (let i = 0; i < n; i++) a[i] = f(i); return a; };
     v = {
-      fx: Float64Array.from(m, (f) => f.x - S.cx), fy: Float64Array.from(m, (f) => f.y - S.cy), fa: Float64Array.from(m, (f) => f.A),
-      bx: Float64Array.from(br, (b) => b.x - S.cx), by: Float64Array.from(br, (b) => b.y - S.cy), ba: Float64Array.from(br, (b) => b.A),
-      px: Float64Array.from(pl, (p) => p[0] - S.cx), py: Float64Array.from(pl, (p) => p[1] - S.cy),
+      fx: col(m.length, (i) => m[i].x - S.cx), fy: col(m.length, (i) => m[i].y - S.cy), fa: col(m.length, (i) => m[i].A),
+      bx: col(br.length, (i) => br[i].x - S.cx), by: col(br.length, (i) => br[i].y - S.cy), ba: col(br.length, (i) => br[i].A),
+      px: col(pl.length, (i) => pl[i][0] - S.cx), py: col(pl.length, (i) => pl[i][1] - S.cy),
+      sf: new Float64Array(m.length), sb: new Float64Array(br.length), theta: NaN, ux: 0, uy: 0, sMax: 0, sMin: 0, sBar: 0,
     };
     vetores.set(S, v);
   }
   return v;
 }
 
-/** Plano de deformações da família de estados (θ = direção da compressão, t ∈ [0, 3]): ε(s) = e0 + e1·s, compressão +. */
-function planoDeformacoes(S: FiberSection, theta: number, t: number) {
-  const ux = Math.cos(theta), uy = Math.sin(theta);
+/** Parte do plano de deformações que só depende de θ (projeções de fibras e barras sobre u, extremos da seção e das barras); refeita só quando θ muda. */
+function projecoes(S: FiberSection, theta: number): Vetores {
   const V = vetoresDe(S);
+  if (V.theta === theta) return V;
+  const ux = Math.cos(theta), uy = Math.sin(theta);
   let sMax = -Infinity, sMin = Infinity, sBar = Infinity;
   for (let k = 0; k < V.px.length; k++) { const s = V.px[k] * ux + V.py[k] * uy; if (s > sMax) sMax = s; if (s < sMin) sMin = s; }
-  for (let k = 0; k < V.bx.length; k++) { const s = V.bx[k] * ux + V.by[k] * uy; if (s < sBar) sBar = s; }
+  for (let k = 0; k < V.bx.length; k++) { const s = V.bx[k] * ux + V.by[k] * uy; V.sb[k] = s; if (s < sBar) sBar = s; }
+  for (let k = 0; k < V.fx.length; k++) V.sf[k] = V.fx[k] * ux + V.fy[k] * uy;
+  V.theta = theta; V.ux = ux; V.uy = uy; V.sMax = sMax; V.sMin = sMin; V.sBar = sBar;
+  return V;
+}
+
+/** Coeficientes (e0, e1) do plano ε(s) = e0 + e1·s e a altura h, para a família (θ já em `V`, t ∈ [0, 3]). */
+function coefPlano(S: FiberSection, V: Vetores, t: number) {
+  const { sMax, sMin, sBar } = V;
   const h = sMax - sMin, d = Math.max(sMax - sBar, 0.9 * h);
   const c = S.c;
   let top: number, bot: number; // deformações na fibra mais comprimida (profundidade 0) e em h
@@ -118,23 +130,29 @@ function planoDeformacoes(S: FiberSection, theta: number, t: number) {
   else if (t <= 2) { top = c.ecu; bot = (c.ecu + ((-0.01 - c.ecu) * h) / d) * (2 - t); }
   else { const yC = (1 - c.ec2 / c.ecu) * h, b2 = c.ec2 * (t - 2), sl = (b2 - c.ec2) / (h - yC); top = c.ec2 - sl * yC; bot = b2; }
   // ε(s) = top + (bot − top)·(sMax − s)/h = e0 + e1·s
-  const e1 = -(bot - top) / h, e0 = top + (bot - top) * sMax / h;
-  return { ux, uy, V, sMax, sMin, sBar, h, d, top, bot, e0, e1 };
+  return { h, d, top, bot, e0: top + (bot - top) * sMax / h, e1: -(bot - top) / h };
+}
+
+/** Plano de deformações da família de estados (θ = direção da compressão, t ∈ [0, 3]): ε(s) = e0 + e1·s, compressão +. */
+function planoDeformacoes(S: FiberSection, theta: number, t: number) {
+  const V = projecoes(S, theta);
+  return { ux: V.ux, uy: V.uy, V, sMax: V.sMax, sMin: V.sMin, sBar: V.sBar, ...coefPlano(S, V, t) };
 }
 
 function stateForces(S: FiberSection, theta: number, t: number) {
-  const { ux, uy, V, e0, e1 } = planoDeformacoes(S, theta, t);
+  const V = projecoes(S, theta);
+  const { e0, e1 } = coefPlano(S, V, t);
   const c = S.c;
   let N = 0, Mx = 0, My = 0;
   // fibras tracionadas (ε ≤ 0) têm σ = 0: somariam +0, que não muda nenhuma soma (que nunca chega a −0)
   for (let k = 0; k < V.fx.length; k++) {
-    const x = V.fx[k], y = V.fy[k], e = e0 + e1 * (x * ux + y * uy);
+    const e = e0 + e1 * V.sf[k];
     if (e <= 0) continue;
     const F = sigmaC(e, c) * V.fa[k];
-    N += F; Mx += F * x; My += F * y;
+    N += F; Mx += F * V.fx[k]; My += F * V.fy[k];
   }
   for (let k = 0; k < V.bx.length; k++) {
-    const x = V.bx[k], y = V.by[k], e = e0 + e1 * (x * ux + y * uy);
+    const x = V.bx[k], y = V.by[k], e = e0 + e1 * V.sb[k];
     const F = (Math.max(-S.fyd, Math.min(S.fyd, ES * e)) - sigmaC(e, c)) * V.ba[k];
     N += F; Mx += F * x; My += F * y;
   }
@@ -158,8 +176,47 @@ export function fiberAxialRange(S: FiberSection) {
  * mx > 0 comprime x+, my > 0 comprime y+ — para a normal Nd (MN, compressão +). null se Nd fora da faixa.
  */
 export function fiberCapacity(S: FiberSection, NdMN: number, mx: number, my: number): number | null {
+  // mesma seção (malha, barras, concreto, fyd) e mesmos esforços dão o mesmo resultado: o dimensionamento repete as
+  // avaliações (combinações com os mesmos esforços, reavaliação da disposição escolhida, pilares iguais)
+  const chave = `${numChave(NdMN)}|${numChave(mx)}|${numChave(my)}`, porSecao = memoSecao(S);
+  const memo = porSecao.get(chave);
+  if (memo !== undefined) return memo;
   const r = fiberSolve(S, NdMN, mx, my);
-  return r ? Math.hypot(r.Mx, r.My) : null;
+  const v = r ? Math.hypot(r.Mx, r.My) : null;
+  porSecao.set(chave, v);
+  return v;
+}
+
+/** Número como texto sem perder o −0 (que muda o ângulo da resultante). */
+const numChave = (x: number) => (Object.is(x, -0) ? '-0' : String(x));
+
+/** Resumo da malha (nº de fibras, primeira, última e somas): a malha vem do polígono e de `n`, então isso a identifica. */
+function assinaturaMalha(m: Fiber[]) {
+  let sx = 0, sy = 0, sa = 0;
+  for (const f of m) { sx += f.x; sy += f.y; sa += f.A; }
+  const a = m[0], z = m[m.length - 1];
+  return [m.length, a?.x, a?.y, a?.A, z?.x, z?.y, z?.A, sx, sy, sa];
+}
+
+/** Esvazia os resultados guardados por `fiberCapacity` (início e fim de um dimensionamento). */
+export function limparMemoCapacidade() { memosCapacidade.clear(); }
+
+const assinaturaSecao = new WeakMap<FiberSection, string>();
+const memosCapacidade = new Map<string, Map<string, number | null>>();
+/** Resultados de `fiberCapacity` da seção, compartilhados entre objetos `FiberSection` de mesmo conteúdo (limitado: esvazia ao passar do teto). */
+function memoSecao(S: FiberSection): Map<string, number | null> {
+  let ass = assinaturaSecao.get(S);
+  if (ass === undefined) {
+    ass = JSON.stringify([S.cx, S.cy, S.fyd, S.c, S.poly, S.bars.map((b) => [b.x, b.y, b.A]), assinaturaMalha(S.mesh)]);
+    assinaturaSecao.set(S, ass);
+  }
+  let m = memosCapacidade.get(ass);
+  if (!m) {
+    if (memosCapacidade.size >= 4000) memosCapacidade.clear();
+    m = new Map();
+    memosCapacidade.set(ass, m);
+  }
+  return m;
 }
 
 /** Estado último da seção para a normal Nd (MN, compressão +) e a direção do momento (mx, my): esforços resistentes e parâmetros (θ da compressão, t ∈ [0, 3]) do plano de deformações. */

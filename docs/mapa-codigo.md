@@ -1167,7 +1167,7 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
   - usado por: -
 - `fiber.test.ts`: (sem exports)
   - usado por: -
-- `fiber.ts`: Pt, PolyProps, polyProps, pointInPoly, insetPolygon, circlePolygon, lPolygon, Fiber, RBar, fiberMesh, FiberSection, fiberAxialRange, fiberCapacity, EstadoUltimo, fiberSolve, fiberEstado, fiberSigmaC, cPolygon, zPolygon, doubleAnglePolygon
+- `fiber.ts`: Pt, PolyProps, polyProps, pointInPoly, insetPolygon, circlePolygon, lPolygon, Fiber, RBar, fiberMesh, FiberSection, fiberAxialRange, fiberCapacity, limparMemoCapacidade, EstadoUltimo, fiberSolve, fiberEstado, fiberSigmaC, cPolygon, zPolygon, doubleAnglePolygon
   - usado por: app/panels/Estrutura.tsx, core/building/dimensionamento.ts, core/building/inclinadas.test.ts, core/building/inclinadasDim.ts, core/building/paredesLado.test.ts, core/building/paredesLado.ts, core/building/pilaresLocais.test.ts, core/columnGeneral.ts, core/fiber.test.ts, core/memoria/paredes.ts, core/memoria/porticoPilar.ts, core/metodoGeral.test.ts, core/metodoGeral.ts, core/resultados/estadoSecao.test.ts, core/resultados/estadoSecao.ts, core/resultados/v7c.test.ts, core/section.ts
 - `footings.test.ts`: (sem exports)
   - usado por: -

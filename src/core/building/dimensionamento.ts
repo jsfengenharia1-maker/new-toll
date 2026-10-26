@@ -11,7 +11,7 @@ import { barArea, beamAsMin, beamFlexure, chooseBars, chooseStirrup, crackLimit,
 import { BITOLAS_TABELA, ESPACAMENTOS_PILAR, bitolasPilar, escolherBarrasViga, escolherEstribo, espacamentosPilar, estriboDaTabelaPilar, linhaLajes, pilarRestrito, modoGrampos, tabelaDe, tabelaPilarNaSecao } from './tabelasArmadura';
 import { acoDe, cobrimentoLaje, cobrimentoPilar, cobrimentoViga, concretoDe, flambagemLance, gamas } from './materiais';
 import { flambagemTrecho } from './desnivel';
-import { fiberAxialRange, fiberCapacity, fiberMesh, polyProps, circlePolygon, type FiberSection, type Pt, type RBar } from '../fiber';
+import { fiberAxialRange, fiberCapacity, limparMemoCapacidade, fiberMesh, polyProps, circlePolygon, type FiberSection, type Pt, type RBar } from '../fiber';
 import type { AnaliseEdificio, GrelhaPavimento } from './analitico';
 import { deltaXi } from '../design';
 import { excentricidadeAcidental, excentricidadeFluencia, metodoGeral, relacaoMCurvatura } from '../metodoGeral';
@@ -98,9 +98,17 @@ function cargasDaBarra(caso: Caso3, bi: number) {
   return m.get(bi);
 }
 
+/** Base local da barra, calculada uma vez por barra do modelo (o modelo do pórtico não muda durante o dimensionamento). */
+const memoBase = new WeakMap<Modelo3, ReturnType<typeof baseBarra>['R'][]>();
+function baseBarraMemo(m: Modelo3, bi: number) {
+  let v = memoBase.get(m);
+  if (!v) { v = []; memoBase.set(m, v); }
+  return (v[bi] ??= baseBarra(m, m.barras[bi]).R);
+}
+
 export function esforcosAoLongo(m: Modelo3, bi: number, f: ArrayLike<number>, caso: Caso3 | undefined, xs: number[]): Estacao[] {
-  const { R } = baseBarra(m, m.barras[bi]);
-  const loc = (g: ArrayLike<number>, o = 0): V3 => [0, 1, 2].map((r) => R[r][0] * g[o] + R[r][1] * g[o + 1] + R[r][2] * g[o + 2]) as V3;
+  const R = baseBarraMemo(m, bi);
+  const loc = (g: ArrayLike<number>, o = 0): V3 => [R[0][0] * g[o] + R[0][1] * g[o + 1] + R[0][2] * g[o + 2], R[1][0] * g[o] + R[1][1] * g[o + 1] + R[1][2] * g[o + 2], R[2][0] * g[o] + R[2][1] * g[o + 1] + R[2][2] * g[o + 2]];
   let q: V3 = [0, 0, 0];
   const cb = caso ? cargasDaBarra(caso, bi) : undefined;
   for (const d of cb?.dist ?? []) { const l = loc(d.q); q = [q[0] + l[0], q[1] + l[1], q[2] + l[2]]; }
@@ -2077,6 +2085,7 @@ export function comFundacao(b: BuildingModel, an: AnaliseEdificio | null, o: Opc
  * `fundacao`: opções do cálculo das fundações (modo, resultados anteriores, níveis).
  */
 export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { fundacao?: false | OpcoesFundacao } = {}): Dimensionamento {
+  limparMemoCapacidade(); // resultados de fiberCapacity valem só dentro de um dimensionamento
   b = comEscadas(b, an.escadas); // reações das escadas (E4c) como cargas nos elementos de apoio
   const combs = combinacoesEdificio(b, an), elu = combinacoesDoEstado(b, an, 'concreto', combs), freq = combinacoesDoEstado(b, an, 'fissuracao', combs);
   let vigas = dimensionarVigas(b, an, elu, freq), agrupamentos: InfoAgrupamento[] | undefined;
