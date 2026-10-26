@@ -168,7 +168,7 @@ export function JanelaPuncao({ id }: { id: string }) {
   const atual = pavs.includes(pav) ? pav : pavs[0];
   return (
     <div data-janela-puncao={id}>
-      <p className="small">Contornos C (face do pilar), C′ (a 2d) e C″ (a 2d da última linha de armadura) recortados pela laje e pelos furos; τSd = FSd/(u·d) + ΣK·MSd1/(Wp·d). Contorno em vermelho: a tensão excede a resistência.</p>
+      <p className="small">Contornos C (face do pilar), C′ (a 2d) e C″ (a 2d da última linha de armadura) recortados pela laje e pelos furos; τSd = FSd/(u·d) + ΣK·MSd1/(Wp·d); pilares de borda e de canto pela NBR 6118, 19.5.2.3 e 19.5.2.4 (perímetro reduzido u*, opção da punção). Contorno em vermelho: a tensão excede a resistência.</p>
       {pavs.length > 1 && <Select label="Pavimento" value={atual} options={pavs.map((p) => ({ v: p, label: p }))} onChange={setPav} />}
       {rs.filter((r) => r.pavimento === atual).map((r) => <CartaoPuncao key={r.id} r={r} />)}
     </div>

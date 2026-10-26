@@ -70,6 +70,7 @@ const L16 = caso('h = 16 cm, q = 14', lisa(0.16, { q: 14 }));
 const need = L16.dim.puncao!.find((r) => r.tipo === 'interno' && r.pavimento === 'Tipo 1')!.armadura!;
 const COBRE = caso('armadura informada cobre', lisa(0.16, { q: 14, extra: (s) => ok(s, 'laje.puncao', { id: s.modelo.lajes[0].id, adicionar: [{ pilar: s.modelo.pilares[4].id, linhas: 40, barras: need.barras, phi: 8, s: need.sr }] }) }));
 const PARCIAL = caso('armadura informada parcial', lisa(0.16, { q: 14, extra: (s) => ok(s, 'laje.puncao', { id: s.modelo.lajes[0].id, adicionar: [{ pilar: s.modelo.pilares[4].id, linhas: 6, barras: need.barras + 1, phi: 8, s: need.sr }] }) }));
+const ANTERIOR = caso('h = 16 cm, q = 14, critério anterior de borda e canto', lisa(0.16, { q: 14, valores: { puncaoWpBorda: 0 } }));
 const CONECT = caso('conectores', lisa(0.16, { q: 14, valores: { puncaoTipoArmadura: 1 } }));
 const CIRC = caso('pilares circulares', lisa(0.2, { secao: { tipo: 'circ', d: 0.5 } }));
 const VENTO = caso('vento, modelo integrado', lisa(0.2, { vento: true }));
@@ -96,6 +97,14 @@ function geometria(segs: Seg[], ang: number, centro: [number, number]) {
     return s + (e1 * e2 >= 0 ? (L[i] * (Math.abs(e1) + Math.abs(e2))) / 2 : (L[i] * (e1 * e1 + e2 * e2)) / (2 * (Math.abs(e1) + Math.abs(e2))));
   }, 0));
   return { u, cx, cy, e, Wp };
+}
+/** Wp = ∫|e| dℓ com e medido a partir do centro do pilar (borda e canto pela NBR, 19.5.2.3), integral exata por segmento. */
+function wpCentro(segs: Seg[], ang: number, centro: [number, number]) {
+  const a = (ang * Math.PI) / 180, eixos = [[Math.cos(a), Math.sin(a)], [-Math.sin(a), Math.cos(a)]];
+  return eixos.map((v) => segs.reduce((s, q) => {
+    const L = Math.hypot(q[2] - q[0], q[3] - q[1]), e1 = (q[0] - centro[0]) * v[0] + (q[1] - centro[1]) * v[1], e2 = (q[2] - centro[0]) * v[0] + (q[3] - centro[1]) * v[1];
+    return s + (e1 * e2 >= 0 ? (L * (Math.abs(e1) + Math.abs(e2))) / 2 : (L * (e1 * e1 + e2 * e2)) / (2 * (Math.abs(e1) + Math.abs(e2))));
+  }, 0));
 }
 const coefK = (r: number) => {
   const T: [number, number][] = [[0.5, 0.45], [1, 0.6], [2, 0.7], [3, 0.8]];
@@ -208,7 +217,15 @@ function refazVerificacao(c: Caso, el: string, rot: string, x: Ref, opt: { comC3
   const tk = T('Tipo de apoio e coeficiente K');
   const pc = todos(c, el, tk, 'Coeficiente K');
   let Kc: [number, number] = [0.6, 0.6];
-  if (x.ap.circular) { expect(pc[0].resultado).toBe(0.6); if (x.K) expect(x.K).toEqual([0.6, 0.6]); }
+  const ladoP = achar(c, el, tk, 'Lados livres'), nbr = num(ladoP, 'metodoNBR') === 1, sin = nbr ? [num(ladoP, 'sinalU'), num(ladoP, 'sinalV')] : [0, 0];
+  if (nbr) {
+    // borda (19.5.2.3): K1 = K(C1/C2) com C1 perpendicular à borda; K2 = K(C2/(2·C1)); canto (19.5.2.4): K(C1/C2) em cada direção
+    expect(pc).toHaveLength(2);
+    const cc = [x.ap.c1, x.ap.c2];
+    const Kn = [0, 1].map((i) => (sin[i] ? coefK(cc[i] / cc[1 - i]) : sin[1 - i] ? coefK(cc[i] / (2 * cc[1 - i])) : coefK(cc[i] / cc[1 - i]))) as [number, number];
+    for (const i of [0, 1]) { expect(rel(Kn[i], pc[i].resultado as number)).toBeLessThan(1e-9); if (x.K) expect(rel(Kn[i], x.K[i])).toBeLessThan(1e-9); }
+    Kc = Kn;
+  } else if (x.ap.circular) { expect(pc[0].resultado).toBe(0.6); if (x.K) expect(x.K).toEqual([0.6, 0.6]); }
   else {
     expect(pc).toHaveLength(2);
     const lado = achar(c, el, tk, 'Lados livres');
@@ -243,6 +260,40 @@ function refazVerificacao(c: Caso, el: string, rot: string, x: Ref, opt: { comC3
     expect(segs).toHaveLength(num(pu, 'trechos'));
     const g = geometria(segs, x.ap.ang, x.ap.centro);
     expect(rel(g.u, pu.resultado as number)).toBeLessThan(1e-9);
+    if (nbr) {
+      // borda e canto pela NBR: u* dos trechos do pilar reduzido; e* com sinal (para o interior) a partir do centroide de u*; Wp do
+      // perímetro total em torno do centro do pilar
+      const pa = achar(c, el, tp, 'Pilar reduzido');
+      for (const i of [0, 1]) if (sin[i]) expect(rel(num(pa, i ? 'aV' : 'aU'), Math.min(1.5 * d, 0.5 * (i ? x.ap.c2 : x.ap.c1)))).toBeLessThan(1e-9);
+      const pt = achar(c, el, tp, 'Perímetro total u'), segT = JSON.parse(pt.entradas.segmentosTotal as string) as Seg[];
+      const gT = geometria(segT, x.ap.ang, x.ap.centro);
+      expect(rel(gT.u, pt.resultado as number)).toBeLessThan(1e-9);
+      expect(gT.u).toBeGreaterThanOrEqual(g.u - 1e-12);
+      const ang = (x.ap.ang * Math.PI) / 180, eix = [[Math.cos(ang), Math.sin(ang)], [-Math.sin(ang), Math.cos(ang)]];
+      const eS = [0, 1].map((i) => (sin[i] ? -sin[i] * ((g.cx - x.ap.centro[0]) * eix[i][0] + (g.cy - x.ap.centro[1]) * eix[i][1]) : 0));
+      const Wc = wpCentro(segT, x.ap.ang, x.ap.centro);
+      let Fa = x.F;
+      const pf = todos(c, el, tp, 'FSd no contorno');
+      if (pf.length) { Fa = Math.max(0, num(pf[0], 'F') - num(pf[0], 'qd') * num(pf[0], 'A')); expect(rel(Fa, pf[0].resultado as number)).toBeLessThan(1e-9); }
+      const tF = Fa / (g.u * d), tM: number[] = [];
+      for (const i of [0, 1]) {
+        const pe = achar(c, el, tp, `Excentricidade e*${'uv'[i]}`), pw = achar(c, el, tp, `Módulo de resistência plástica Wp${'uv'[i]}`), pm = achar(c, el, tp, `Momento transmitido por cisalhamento na direção ${'uv'[i]}`);
+        expect(Math.abs(eS[i] - (pe.resultado as number))).toBeLessThan(1e-9);
+        if (ct) expect(Math.abs(eS[i] - ct.e[i])).toBeLessThan(1e-9);
+        expect(rel(Wc[i], pw.resultado as number)).toBeLessThan(1e-9);
+        if (ct) expect(rel(Wc[i], ct.Wp[i])).toBeLessThan(1e-9);
+        const m1 = Math.max(0, x.M[i] - Fa * eS[i]);
+        expect(Math.abs(m1 - (pm.resultado as number))).toBeLessThan(1e-9 * Math.max(1, m1));
+        tM.push(Wc[i] > 1e-9 ? (Kc[i] * m1) / (Wc[i] * d) : 0);
+      }
+      const canto = sin[0] !== 0 && sin[1] !== 0;
+      const tau = (canto ? Math.max(tF + tM[0], tF + tM[1]) : tF + tM[0] + tM[1]) / 1000;
+      const ps = achar(c, el, tp, 'Tensão solicitante de cálculo');
+      expect(rel(tau, ps.resultado as number)).toBeLessThan(1e-9);
+      if (ct) { expect(rel(tau, ct.tau)).toBeLessThan(1e-9); expect(rel(g.u, ct.u)).toBeLessThan(1e-9); expect(ct.ok).toBe(ct.tau <= ct.limite + 1e-9); }
+      tausCalc.push(tau);
+      continue;
+    }
     if (ct) { expect(rel(g.u, ct.u)).toBeLessThan(1e-9); expect(rel(num(pu, 'a'), ct.a)).toBeLessThan(1e-9); }
     let Fa = x.F;
     const pf = todos(c, el, tp, 'FSd no contorno');
@@ -437,7 +488,7 @@ describe('MD4: punção', () => {
     });
   }
 
-  const lajes: [string, Caso][] = [['h = 22 cm', L22], ['h = 16 cm, q = 14', L16], ['armadura informada cobre', COBRE], ['armadura informada parcial', PARCIAL], ['conectores', CONECT], ['pilares circulares', CIRC], ['vento, modelo integrado', VENTO], ['vento, modelo separado (molas)', MOLAS], ['viga chata', CHATA], ['abertura junto ao pilar', FURO]];
+  const lajes: [string, Caso][] = [['h = 22 cm', L22], ['h = 16 cm, q = 14', L16], ['critério anterior de borda e canto', ANTERIOR], ['armadura informada cobre', COBRE], ['armadura informada parcial', PARCIAL], ['conectores', CONECT], ['pilares circulares', CIRC], ['vento, modelo integrado', VENTO], ['vento, modelo separado (molas)', MOLAS], ['viga chata', CHATA], ['abertura junto ao pilar', FURO]];
   for (const [nome, c] of lajes) {
     it(`${nome}: solicitação, K, tensões resistentes, contornos, varredura de cortante e armadura refeitos das entradas`, () => {
       const rs = proprias(c);
@@ -479,7 +530,7 @@ describe('MD4: punção', () => {
     expect(FURO.mem.passos.some((p) => p.descricao.includes('Trechos junto a aberturas'))).toBe(true);
   });
 
-  it('pilar interno sem momento: valores de mão (u = 2(c1+c2), Wp = c1²/2 + c1·c2 em C; τF = F/(u·d)); canto com e* = 0,125 m', () => {
+  it('pilar interno sem momento: valores de mão (u = 2(c1+c2), Wp = c1²/2 + c1·c2 em C; τF = F/(u·d)); canto: e* = 0,125 m (anterior) e pelo pilar reduzido (NBR)', () => {
     const r = L22.dim.puncao!.find((x) => x.tipo === 'interno' && x.pavimento === 'Tipo 1')!;
     const el = elDe(r), pu = achar(L22, el, 'Contorno C', 'Contorno C a');
     expect(pu.resultado).toBeCloseTo(2 * (0.5 + 0.5), 12);
@@ -487,8 +538,25 @@ describe('MD4: punção', () => {
     const uC2 = achar(L22, el, 'Contorno C′', 'Contorno C′ a').resultado as number;
     expect(uC2 / (2 * (0.5 + 0.5) + 2 * Math.PI * 2 * r.d)).toBeGreaterThan(0.999);
     expect(uC2 / (2 * (0.5 + 0.5) + 2 * Math.PI * 2 * r.d)).toBeLessThan(1);
-    const rc = L16.dim.puncao!.find((x) => x.tipo === 'canto' && x.pavimento === 'Tipo 1')!;
-    expect(achar(L16, elDe(rc), 'Contorno C', 'Excentricidade e*u').resultado).toBeCloseTo(0.125, 12);
+    // critério anterior: em C, as duas faces internas do pilar 50×50 têm centroide a 0,375 m das bordas → |e*| = 0,125 m
+    const rcA = ANTERIOR.dim.puncao!.find((x) => x.tipo === 'canto' && x.pavimento === 'Tipo 1')!;
+    expect(achar(ANTERIOR, elDe(rcA), 'Contorno C', 'Excentricidade e*u').resultado).toBeCloseTo(0.125, 12);
+    // NBR (19.5.2.4): pilar reduzido a × a junto ao canto, a = mín(1,5d; 0,5c); em C, u* = 2a (as duas faces internas do pilar reduzido),
+    // centroide a 0,75a das bordas → e* = 0,75a − c/2 (negativo: o centroide de u* fica do lado da borda)
+    const rc = L16.dim.puncao!.find((x) => x.tipo === 'canto' && x.pavimento === 'Tipo 1')!, a = Math.min(1.5 * rc.d, 0.25);
+    expect(rc.d).toBeCloseTo(0.125, 12);
+    expect(a).toBeCloseTo(0.1875, 12);
+    expect(achar(L16, elDe(rc), 'Contorno C', 'Contorno C a').resultado).toBeCloseTo(2 * a, 12);
+    expect(achar(L16, elDe(rc), 'Contorno C', 'Excentricidade e*u').resultado).toBeCloseTo(0.75 * a - 0.25, 12);
+    expect(achar(L16, elDe(rc), 'Contorno C', 'Excentricidade e*v').resultado).toBeCloseTo(0.75 * a - 0.25, 12);
+    // Wp em C em torno do centro do pilar, perímetro total (faces internas): C1²/4 + C1·C2/2 = 0,0625 + 0,125 = 0,1875 m² (fórmula de canto com d = 0)
+    expect(achar(L16, elDe(rc), 'Contorno C', 'Módulo de resistência plástica Wpu').resultado).toBeCloseTo(0.25 * 0.25 + 0.125, 12);
+    // borda: u* em C = 2a + c2; Wp1 = C1²/2 + C1·C2/2 = 0,25 m²; Wp2 = C2²/4 + C1·C2 = 0,3125 m² (fórmulas de borda com d = 0)
+    const rb = L16.dim.puncao!.find((x) => x.tipo === 'borda' && x.pavimento === 'Tipo 1')!, elB = elDe(rb);
+    expect(achar(L16, elB, 'Contorno C', 'Contorno C a').resultado).toBeCloseTo(2 * a + 0.5, 12);
+    const W = [0, 1].map((i) => achar(L16, elB, 'Contorno C', `Módulo de resistência plástica Wp${'uv'[i]}`).resultado as number).sort((x, y) => x - y);
+    expect(W[0]).toBeCloseTo(0.125 + 0.125, 12);
+    expect(W[1]).toBeCloseTo(0.0625 + 0.25, 12);
   });
 
   for (const AB of [ABACO, ABACO20, ABACO30, ABACO45]) {

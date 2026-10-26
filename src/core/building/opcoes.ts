@@ -180,6 +180,8 @@ export interface OpcoesCalculo {
   vigotaBranson: number;
   /** 1 = igualação das vigotas pela área de aço, em cadeia entre vizinhas (E5e, C7.100); 0 = pelos momentos (grupo cresce pela diferença dos extremos). */
   vigotaIgualacaoBase: number;
+  /** Igualação pela área (C7.100, E6b): 1 = a armadura superior também é igualada em cadeia entre panos vizinhos, ao longo de cada apoio; 0 = só dentro do pano. */
+  vigotaIgualacaoPanos: number;
   /** 1 = verifica a flecha de montagem da vigota sobre escoras (E5e, C7.102); 0 = não verifica. */
   vigotaMontagem: number;
   /** Vigotas: distância máxima entre escoras (m) na montagem (0 = sem escora, biapoiada). */
@@ -330,6 +332,11 @@ export interface OpcoesCalculo {
   puncaoSr: number;
   /** Furos a menos de este múltiplo de d da face do pilar descontam o contorno crítico (NBR 6118, 19.5.2.5: 8d). */
   puncaoFuroDist: number;
+  /**
+   * Pilares de borda e de canto (K1.13.2.4-2): 1 = NBR 6118, 19.5.2.3 e 19.5.2.4 (u* do pilar reduzido, e* do centroide de u*, Wp do
+   * perímetro total em torno do centro do pilar, K de borda/canto); 0 = critério anterior (contorno recortado, Wp e e* em torno do centroide).
+   */
+  puncaoWpBorda: number;
   /** 1 = viga chata mais larga que o apoio em mais de uma altura recebe aviso e verificação de punção. */
   puncaoVigaChata: number;
   /** 1 = verifica o cortante das lajes maciças (NBR 6118, 19.4), com armadura transversal quando necessário. */
@@ -847,8 +854,10 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: '1 = nas lajes de vigotas por ficha (E3a), o EI (e o GJ, se a ficha informar) da nervura na grelha vem da ficha; 0 = inércia da seção T calculada pela geometria. Treliçadas do catálogo interno e fichas sem EI sempre usam a inércia calculada. O redutor “Vigotas: redutor da rigidez à flexão” continua valendo sobre o resultado.' },
   { chave: 'vigotaIgualacaoPonto', rotulo: 'Vigotas: igualação ponto a ponto', min: 0, max: 1, passo: 1, padrao: 1, padraoNBR: 0, booleana: true, fonte: 'Programa de referência (C7.97): igualação ponto a ponto da discretização da vigota, com todas as combinações de todas as vigotas do grupo', fonteNBR: 'NBR 6118 não fixa o critério de igualação: pelos valores de pico de cada vigota', aConfirmar: false,
     descricao: '1 = vigotas de um grupo de igualação são igualadas em cada ponto da discretização (passo de 0,25 m) e o dimensionamento usa o pico do diagrama igualado; 0 = igualam-se os valores de pico de cada vigota. Pelo máximo (critério 1) os dois coincidem; pela média o ponto a ponto é menos conservador.' },
-  { chave: 'vigotaIgualacaoBase', rotulo: 'Vigotas: igualar pela área de aço', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Programa de referência (C7.100): compara a área de aço de cada vigota com a vizinha e iguala se a diferença é menor que o percentual, em cadeia pelo pano; padrão desligado para manter os resultados da E3b [a confirmar o padrão]', aConfirmar: true,
+  { chave: 'vigotaIgualacaoBase', rotulo: 'Vigotas: igualar pela área de aço', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Programa de referência (C7.100): compara a área de aço de cada vigota com a vizinha e iguala se a diferença é menor que o percentual, em cadeia pelo pano (entre panos: opção “igualação da armadura superior entre panos”, E6b); padrão desligado para manter os resultados da E3b [a confirmar o padrão]', aConfirmar: true,
     descricao: '1 = a diferença da opção “Vigotas: diferença para igualar” é medida entre as áreas de aço (positiva, com ρmín) de vigotas vizinhas, uma a uma em cadeia (a vigota entra no grupo se difere da anterior menos que o percentual do maior); pela média, a área média do grupo dá o momento de cálculo (negativos pela seção retangular da nervura). 0 = pelos momentos, o grupo cresce enquanto máximo − mínimo < diferença × máximo.' },
+  { chave: 'vigotaIgualacaoPanos', rotulo: 'Vigotas: igualação da armadura superior entre panos', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, padraoNBR: 0, fonteNBR: 'NBR 6118 não trata a igualação: cada pano com a sua armadura superior (comportamento da E5e)', fonte: 'Programa de referência (C7.100): a igualação compara cada vigota com a vizinha e segue em cadeia por todo o pano e por todos os panos; vale com “igualar pela área de aço” ligada', aConfirmar: false,
+    descricao: '1 = com a igualação pela área de aço, a armadura superior (negativos das pontas) das vigotas que chegam a um mesmo apoio é comparada em cadeia ao longo do apoio, passando de um pano para o vizinho (os dois lados do apoio e os panos lado a lado): a ponta entra no grupo se a área difere da vizinha menos que o percentual; o grupo recebe a maior área (critério máximo) ou a média (critério média), convertida no momento de cada pano. 0 = só dentro do pano.' },
   { chave: 'vigotaMontagem', rotulo: 'Vigotas: verificar a flecha de montagem', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Programa de referência (C7.102: flecha por carga de montagem); critério de verificação e rigidez da vigota isolada a confirmar (pendências do usuário); desligada por padrão para manter os resultados da E3b', aConfirmar: true,
     descricao: '1 = a vigota sozinha, sobre escoras a cada “distância entre escoras” (0 = biapoiada), com o peso próprio da laje fresca e a carga de construção, não pode ter flecha instantânea acima do limite (vão entre escoras ÷ divisor). Não vale para as moldadas no local.' },
   { chave: 'vigotaEscoraDist', rotulo: 'Vigotas: distância entre escoras na montagem', unidade: 'm', min: 0, max: 5, passo: 0.1, padrao: 1.5, fonte: 'Prática usual (escoras a cada 1,0 a 1,5 m, conforme o fabricante) [a confirmar com o fabricante]', aConfirmar: true,
@@ -1009,6 +1018,8 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Distância entre as barras de uma mesma linha radial, em múltiplos de d (até 0,75).' },
   { chave: 'puncaoFuroDist', rotulo: 'Punção: distância dos furos que descontam o contorno', unidade: '× d', min: 0, max: 20, passo: 1, padrao: 8, fonte: 'NBR 6118, 19.5.2.5: furos a menos de 8d da face do pilar (retas tangentes ao furo pelo centro do pilar); item a confirmar', aConfirmar: true,
     descricao: 'Furos mais perto que este múltiplo de d da face do pilar descontam do contorno crítico o trecho entre as tangentes ao furo traçadas pelo centro do pilar.' },
+  { chave: 'puncaoWpBorda', rotulo: 'Punção: pilares de borda e de canto pela NBR (u*, e*, Wp e K)', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6118, 19.5.2.3 (borda: τSd = FSd/(u*·d) + K1·MSd1/(Wp1·d) + K2·MSd2/(Wp2·d), u* com a ≤ 1,5d e ≤ 0,5c1, Figura 19.6) e 19.5.2.4 (canto: cada borda livre verificada como de borda); K da Tabela 19.2 com C1/C2 e C2/(2C1); o programa de referência segue a norma. Transcrição a confirmar', aConfirmar: true,
+    descricao: 'Ligada: nos pilares de borda e de canto, a parcela de FSd usa o perímetro reduzido u* (pilar reduzido a mín(1,5d; 0,5c) junto à borda), o momento é reduzido por FSd·e* (centroide de u*) e Wp é o do perímetro total em torno do centro do pilar; no canto vale a maior das verificações das duas bordas. Desligada: critério anterior (contorno recortado, Wp e e* em torno do seu centroide).' },
   { chave: 'puncaoVigaChata', rotulo: 'Punção: viga chata mais larga que o apoio', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Programa de referência (viga chata mais larga que o apoio em mais de uma altura: punção verificada); critério da largura a confirmar', aConfirmar: true,
     descricao: 'Viga cuja largura passa da largura do pilar mais uma altura da viga: aviso e verificação de punção no apoio, com a altura da viga e o contorno limitado à largura dela.' },
   { chave: 'cortanteLajes', rotulo: 'Cortante das lajes maciças (NBR 6118, 19.4)', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6118, 19.4.1 e 19.4.2', aConfirmar: false,
@@ -1348,8 +1359,8 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   'pilarInsuficienteSemDesenho', 'lajeNegativoVao', 'lajeNegativoBorda', 'lajeDecalagem', 'lajeBitolaMinima', 'lajeEspacamentoMinimo',
   'lajeArmaduraCanto', 'lajePernasNegativos', 'lajeBaseDetalhada', 'lajeBaseEmendaApoio', 'lajeReforcoReducao', 'lajeTelaTraspasse',
   'lajeEmendaConstrutiva', 'lajeUniformizarPilares', 'lajeUniformizarPilaresLargura', 'lajeArmaduraMedia', 'lajeSiglaReforco', 'lajeNumeracao',
-  'vigotaMomentoMinPositivo', 'vigotaMomentoMinNegativo', 'vigotaIgualacao', 'vigotaIgualacaoDif', 'vigotaNegativoVao', 'vigotaIgualacaoPonto', 'vigotaRedistribuir', 'vigotaBranson', 'vigotaIgualacaoBase', 'vigotaMontagem', 'vigotaEscoraDist', 'vigotaCargaConstrucao', 'vigotaMontagemLimite', 'vigotaMontagemSapata', 'vigotaEstriboOmega', 'vigotaOmegaAba', 'vigotaCortanteTotal', 'nervuradaMesaMin', 'nervuradaCortanteDist', 'nervuradaIgualacaoDif', 'nervuradaFissuraNegativo', 'nervuradaWoodArmer', 'equGamaFav', 'equGamaVento',
-  'puncaoVerificar', 'puncaoTipoArmadura', 'puncaoS0', 'puncaoSr', 'puncaoFuroDist', 'puncaoVigaChata', 'cortanteLajes', 'cortanteVarredura',
+  'vigotaMomentoMinPositivo', 'vigotaMomentoMinNegativo', 'vigotaIgualacao', 'vigotaIgualacaoDif', 'vigotaNegativoVao', 'vigotaIgualacaoPonto', 'vigotaRedistribuir', 'vigotaBranson', 'vigotaIgualacaoBase', 'vigotaIgualacaoPanos', 'vigotaMontagem', 'vigotaEscoraDist', 'vigotaCargaConstrucao', 'vigotaMontagemLimite', 'vigotaMontagemSapata', 'vigotaEstriboOmega', 'vigotaOmegaAba', 'vigotaCortanteTotal', 'nervuradaMesaMin', 'nervuradaCortanteDist', 'nervuradaIgualacaoDif', 'nervuradaFissuraNegativo', 'nervuradaWoodArmer', 'equGamaFav', 'equGamaVento',
+  'puncaoVerificar', 'puncaoTipoArmadura', 'puncaoS0', 'puncaoSr', 'puncaoFuroDist', 'puncaoWpBorda', 'puncaoVigaChata', 'cortanteLajes', 'cortanteVarredura',
   'cortanteVarreduraPasso', 'puncaoNervCortante', 'pilarLancesDesligados', 'pilarFluencia', 'pilarTaxaMin', 'rearmarLimiteRigidez',
   'vigaApoioLongProlong', 'vigaApoioLongBarras', 'vigaApoioLongVao', 'vigaApoioLongEixos', 'vigaPartirParede',
   'arredondamentoApoio', 'redistribuicaoFaces', 'momentoFaceMin', 'envoltoriaCortante', 'vigaTaxaMin', 'lajeTaxaMin', 'vigaEstriboSmax', 'vigaEstriboSmin',

@@ -53,3 +53,64 @@ export function conversaoDaLaje(b: BuildingModel, l: Laje, g: GeometriaNervurada
     neg: { areaDe: (M) => (M < 0.01 ? 0 : Math.max(beamFlexure(ret, false, M, dS, 0.03, c, aS.fyd).As * 1e4, AsMin)), momentoDe: (A) => momentoResistenteT(c, bw, h, bw, dS, A / 1e4, aS.fyd) },
   };
 }
+
+// ---------------------------------------------------------------- E6b: armadura superior em cadeia entre panos (C7.100)
+
+/** Ponta de vigota com armadura superior (negativo) que entra na igualação entre panos. `M` ≤ 0 (kN·m por nervura). */
+export interface PontaSuperior {
+  laje: string; faixa: number; ponta: 0 | 1;
+  /** Posição da ponta (m), direção das vigotas (unitária) e largura representada pelo alinhamento (m). */
+  p: [number, number]; u: [number, number]; largura: number;
+  M: number; conv: ConversaoMomentoArea;
+}
+export const chavePonta = (q: Pick<PontaSuperior, 'faixa' | 'ponta'>) => `${q.faixa}|${q.ponta}`;
+
+/**
+ * Igualação da armadura superior entre panos (E6b, C7.100: "segue em cadeia por todo o pano e por todos os panos"). As pontas com
+ * negativo que chegam a um mesmo apoio (vigotas paralelas e coordenada longitudinal igual a menos de `tolApoio`, de um lado ou do
+ * outro do apoio) formam uma linha; só as linhas com pontas de dois ou mais panos entram (dentro de um pano vale a E5e). Na linha,
+ * ordenadas ao longo do apoio, cada ponta é comparada com a vizinha pela área de aço (`gruposEmCadeia`); um vão maior que a soma das
+ * meias larguras + `folga` interrompe a cadeia. O grupo recebe a maior área (critério 1: só as menores sobem) ou a média das áreas
+ * (critério 2), de volta em momento pela seção de cada pano. Devolve, por laje, o novo momento (≤ 0) de cada ponta alterada.
+ */
+export function igualarSuperiorEntrePanos(pontas: PontaSuperior[], difPct: number, criterio: number, tolApoio = 0.6, folga = 0.6): Map<string, Map<string, number>> {
+  const out = new Map<string, Map<string, number>>();
+  if (criterio <= 0 || pontas.length < 2) return out;
+  // linhas de apoio (união das pontas paralelas na mesma coordenada longitudinal)
+  const pai = pontas.map((_, i) => i), raiz = (i: number): number => (pai[i] === i ? i : (pai[i] = raiz(pai[i])));
+  for (let i = 0; i < pontas.length; i++) for (let j = i + 1; j < pontas.length; j++) {
+    const a = pontas[i], z = pontas[j];
+    if (Math.abs(a.u[0] * z.u[1] - a.u[1] * z.u[0]) > 1e-3) continue;
+    if (Math.abs((z.p[0] - a.p[0]) * a.u[0] + (z.p[1] - a.p[1]) * a.u[1]) <= tolApoio) pai[raiz(j)] = raiz(i);
+  }
+  const linhas = new Map<number, PontaSuperior[]>();
+  pontas.forEach((q, i) => linhas.set(raiz(i), [...(linhas.get(raiz(i)) ?? []), q]));
+  for (const linha of linhas.values()) {
+    if (new Set(linha.map((q) => q.laje)).size < 2) continue;
+    const u = linha[0].u, n: [number, number] = [-u[1], u[0]], t = (q: PontaSuperior) => q.p[0] * n[0] + q.p[1] * n[1], s = (q: PontaSuperior) => q.p[0] * u[0] + q.p[1] * u[1];
+    const ord = [...linha].sort((a, z) => t(a) - t(z) || s(a) - s(z) || (a.laje < z.laje ? -1 : a.laje > z.laje ? 1 : 0));
+    // trechos contínuos ao longo do apoio
+    const trechos: PontaSuperior[][] = [];
+    ord.forEach((q, i) => {
+      const ant = ord[i - 1];
+      if (ant && t(q) - t(ant) <= (q.largura + ant.largura) / 2 + folga) trechos.at(-1)!.push(q); else trechos.push([q]);
+    });
+    for (const tr of trechos) {
+      const areas = tr.map((q) => q.conv.areaDe(-q.M));
+      for (const g of gruposEmCadeia(areas, difPct, criterio)) {
+        if (g.length < 2) continue;
+        const As = g.map((i) => areas[i]), alvo = criterio === 2 ? As.reduce((x, y) => x + y, 0) / As.length : Math.max(...As);
+        for (const i of g) {
+          const q = tr[i];
+          if (criterio !== 2 && areas[i] >= alvo - 1e-9) continue;
+          const M = criterio === 2 ? -q.conv.momentoDe(alvo) : Math.min(q.M, -q.conv.momentoDe(alvo));
+          if (Math.abs(M - q.M) < 1e-9) continue;
+          const m = out.get(q.laje) ?? new Map<string, number>();
+          m.set(chavePonta(q), M);
+          out.set(q.laje, m);
+        }
+      }
+    }
+  }
+  return out;
+}

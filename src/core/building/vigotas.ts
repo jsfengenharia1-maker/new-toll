@@ -15,7 +15,7 @@ import { vaos } from './lajes';
 import { esforcosDoGrupo, minimosDaFaixa, pontasContinuas, posicionarVigotas, redistribuirNegativos, tipoDeVao, type DiagramaVigota, type MinimosFaixa, type VigotaPosicionada } from './vigotasEsforcos';
 import type { FlechaAlinhamento } from './dimensionamento';
 import { ehNervurada, geometriaNervurada, modelosTrelicadas, trelicasDe, type FamiliaVigota, type FonteLajes } from './tiposLaje';
-import { conversaoDaLaje, gruposEmCadeia, igualarPorArea, type ConversaoArea } from './vigotasArea';
+import { chavePonta, conversaoDaLaje, gruposEmCadeia, igualarPorArea, igualarSuperiorEntrePanos, type ConversaoArea, type PontaSuperior } from './vigotasArea';
 import { mensagemMontagem, montagemDaLaje } from './vigotasMontagem';
 import { memoriaAtiva } from '../memoria/registrador';
 import { registrarAcoNervurada } from '../memoria/nervurada';
@@ -314,6 +314,49 @@ export function prepararVigotas(b: BuildingModel, an: AnaliseEdificio, l: Laje, 
   return { u, nomesPav, faixas, mins, idxGr, avisos };
 }
 
+/**
+ * E6b (C7.100): novos negativos (kN·m por nervura, ≤ 0) das pontas de vigota pela igualação da armadura superior em cadeia entre
+ * panos vizinhos (`igualarSuperiorEntrePanos`), por laje e por `faixa|ponta`. Vale com a igualação pela área de aço
+ * (`vigotaIgualacaoBase`), um critério de igualação e a opção `vigotaIgualacaoPanos`; só entre lajes do mesmo grupo de pavimentos.
+ */
+const CACHE_SUP = new WeakMap<AnaliseEdificio, { b: BuildingModel; op: OpcoesCalculo; r: Map<string, Map<string, number>> }>();
+export function superiorEntrePanos(b: BuildingModel, an: AnaliseEdificio, op: OpcoesCalculo): Map<string, Map<string, number>> {
+  if (!op.vigotaIgualacaoPanos || !op.vigotaIgualacaoBase || op.vigotaIgualacao <= 0) return new Map();
+  const c = CACHE_SUP.get(an);
+  if (c && c.b === b && c.op === op) return c.r;
+  const porGrupo = new Map<string, PontaSuperior[]>();
+  for (const l of b.lajes) {
+    const g0 = ehNervurada(l.tipo) ? geometriaNervurada(b, l.tipo) : null;
+    if (!g0 || !(l.tipo.tipo === 'trelicada' || g0.familia === 'trelicada' || !g0.ausente)) continue;
+    const conv = conversaoDaLaje(b, l, g0, op), prep = conv ? prepararVigotas(b, an, l, g0.intereixo, op, conv) : null;
+    if (!conv || !prep) continue;
+    const lista = porGrupo.get(l.grupo) ?? [];
+    prep.mins.forEach((m, i) => ([0, 1] as const).forEach((k) => {
+      const M = m.esforcos.mNeg[k], f = prep.faixas[i];
+      if (M < -0.01) lista.push({ laje: l.id, faixa: i, ponta: k, p: k ? f.z : f.a, u: prep.u, largura: f.largura, M, conv: conv.neg });
+    }));
+    porGrupo.set(l.grupo, lista);
+  }
+  const r = new Map<string, Map<string, number>>();
+  for (const lista of porGrupo.values()) for (const [laje, m] of igualarSuperiorEntrePanos(lista, op.vigotaIgualacaoDif, op.vigotaIgualacao)) r.set(laje, m);
+  CACHE_SUP.set(an, { b, op, r });
+  return r;
+}
+
+/** Aplica aos mínimos da laje os negativos igualados entre panos (E6b) e acrescenta o aviso; devolve o número de pontas alteradas. */
+export function aplicarSuperiorEntrePanos(prep: PreparoVigotas, m: Map<string, number> | undefined): number {
+  if (!m?.size) return 0;
+  let n = 0;
+  prep.mins = prep.mins.map((x, i) => {
+    const a = m.get(chavePonta({ faixa: i, ponta: 0 })), z = m.get(chavePonta({ faixa: i, ponta: 1 }));
+    if (a === undefined && z === undefined) return x;
+    n += (a !== undefined ? 1 : 0) + (z !== undefined ? 1 : 0);
+    return { ...x, esforcos: { ...x.esforcos, mNeg: [a ?? x.esforcos.mNeg[0], z ?? x.esforcos.mNeg[1]] } };
+  });
+  prep.avisos.push(`Vigotas: armadura superior igualada em cadeia com os panos vizinhos ao longo dos apoios (C7.100, opção “igualação da armadura superior entre panos”): ${n} ponta(s) de alinhamento alterada(s).`);
+  return n;
+}
+
 /** Vigotas reais da laje com o alinhamento, o grupo e os esforços de cada uma (a unidade à parte, se houver, vale para as suas vigotas). */
 export function listaDeVigotas(pos: VigotaPosicionada[], faixas: FaixaVigota[], grupos: GrupoVigotas[], l: Pick<Laje, 'vigotasBiapoiadas'> | undefined, pesoLinear: (multipla: 1 | 2 | 3) => number): VigotaIndividual[] {
   return pos.map((p) => {
@@ -350,6 +393,7 @@ export function dimensionarVigotas(b: BuildingModel, an: AnaliseEdificio, lajes:
     const conv = conversaoDaLaje(b, l, g0, op);
     const prep = prepararVigotas(b, an, l, intereixo, op, conv);
     if (!prep) continue;
+    aplicarSuperiorEntrePanos(prep, superiorEntrePanos(b, an, op).get(l.id));
     const { nomesPav, faixas, mins, idxGr, u } = prep, pavs = pavimentosDoGrupo(b, l.grupo);
     const erros: string[] = [], avisos: string[] = [...prep.avisos];
     if (l.edicaoVigotas?.length || l.vigotasMultiplas?.length) avisos.push('Vigotas: a edição por vigota (tipo, parciais, esforços atribuídos e vigotas duplas) vale para vigotas por ficha e moldadas; nas treliçadas use a armadura bloqueada (laje.armaduraVigotas).');

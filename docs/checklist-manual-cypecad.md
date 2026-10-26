@@ -15,14 +15,14 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 4. Pilares | 63 | 55 | 1 | 0 | 7 |
 | 5. Muros e paredes estruturais | 30 | 26 | 0 | 0 | 4 |
 | 6. Vigas | 108 | 83 | 0 | 0 | 25 |
-| 7. Lajes | 195 | 127 | 1 | 0 | 67 |
+| 7. Lajes | 195 | 128 | 0 | 0 | 67 |
 | 8. Escadas | 65 | 65 | 0 | 0 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 22 | 1 | 0 | 3 |
 | 11. Fundações | 70 | 65 | 0 | 0 | 5 |
 | 12. Isovalores e deformada | 22 | 21 | 0 | 1 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **573** | **3** | **1** | **186** |
+| **Total** | **763** | **574** | **2** | **1** | **186** |
 
 ## Pendências por frente
 
@@ -30,7 +30,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 1 | 0 | 1 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 0 | 0 | 0 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 0 | 0 | 0 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 0 | 1 | 1 |
@@ -524,7 +524,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.97 | Igualação feita ponto a ponto da discretização da vigota, considerando todas as combinações de todas as vigotas do grupo. | Feito | — | igualação ponto a ponto na discretização de 0,25 m com todas as combinações de todos os pavimentos do grupo (`esforcosDoGrupo`, opção `vigotaIgualacaoPonto`; por pico no perfil NBR) [E3b] |
 | C7.98 | Momentos igualados pelo máximo de cada ponto ou pela média de cada ponto, à escolha. | Feito | — | igualação pelo máximo ou pela média (opção vigotaIgualacao) (R6) |
 | C7.99 | Cortante igualada sempre pelo máximo entre as combinações das vigotas do grupo. | Feito | — | cortante igualada sempre pelo máximo do grupo (R6) |
-| C7.100 | Igualação da armadura superior: percentual de diferença e critério (maior ou média) definidos pelo usuário; compara a área de aço de cada vigota com a vizinha, iguala se a diferença é menor que o percentual e segue em cadeia por todo o pano e por todos os panos. | Parcial | E | igualação pela área de aço em cadeia entre vizinhas (opção `vigotaIgualacaoBase`, `gruposEmCadeia`/`igualarPorArea` em `vigotasArea.ts`; critério máximo ou média, percentual editável); a cadeia vale dentro de cada pano, não entre panos distintos (cada pano tem vão e armadura próprios; conferir com o programa de referência, pendencias-usuario.md) [E3b/E5e] — Resíduo [E6b]: igualação das vigotas entre panos. |
+| C7.100 | Igualação da armadura superior: percentual de diferença e critério (maior ou média) definidos pelo usuário; compara a área de aço de cada vigota com a vizinha, iguala se a diferença é menor que o percentual e segue em cadeia por todo o pano e por todos os panos. | Feito | — | igualação pela área de aço em cadeia entre vizinhas (opção vigotaIgualacaoBase, gruposEmCadeia/igualarPorArea em vigotasArea.ts; critério máximo ou média, percentual editável) [E3b/E5e]; entre panos, a armadura superior das pontas que chegam a um mesmo apoio segue em cadeia de um pano ao vizinho (opção vigotaIgualacaoPanos: sistema ligada, perfil NBR desligada; igualarSuperiorEntrePanos em vigotasArea.ts, superiorEntrePanos/aplicarSuperiorEntrePanos em vigotas.ts) [E6b] |
 | | **7.2.1.3 Erros de vigotas** | | | |
 | C7.101 | Vigotas com erro (flecha, cortante ou outro) aparecem em vermelho; consulta da mensagem clicando na vigota. | Feito | — | cada vigota com situação e mensagens (`VigotaIndividual.status`, `mensagens`) (vermelho na planta e na lista) [E3b] |
 | C7.102 | Erro de armadura inferior: flecha instantânea, diferida ou ativa acima do limite (por peso próprio, sobrecarga ou carga de montagem); sugere aumentar a espessura. | Feito | — | erro de flecha por peso próprio, sobrecarga (flecha total, ativa e das variáveis por vigota com Branson e etapas) e por carga de montagem (`verificarMontagem`/`flechaMontagem` em `vigotasMontagem.ts`, opção `vigotaMontagem`: viga contínua entre escoras, 5qℓ⁴/384EI sem escora); sugere aumentar a altura ou reduzir a distância entre escoras; valores de montagem (carga 1,0 kN/m², escoras a 1,5 m, limite ℓ/500, rigidez da vigota isolada) a confirmar em pendencias-usuario.md [E3b/E5e] |
@@ -1104,3 +1104,6 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **24/10/2026 — fatia V7g (torçor do pilar-parede por hipótese).** C4.60 passa a Feito: `torsorDoPilarParede` e `Mz` na base do pilar-parede (`reacaoParede` em analitico.ts), por caso, combinação ou envoltória, com polo editável na janela de esforços; testes em `v7g.test.ts` (equilíbrio global em z a 1e-9 e OpenSees, `validation/opensees/torcao_pp.py`), e2e `V7g`. Torçor só na base; centro de cisalhamento teórico a confirmar.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: V diminui (1 item a Feito); V7g concluída.
+- **26/10/2026 — fatias E6b e N4b (parte da punção).** C7.100 passa a Feito: a armadura superior das vigotas segue em cadeia entre panos ao longo dos apoios (`igualarSuperiorEntrePanos` em `vigotasArea.ts`, opção `vigotaIgualacaoPanos`: sistema ligada, NBR desligada; vale com a igualação pela área); testes em `vigotasE6b.test.ts`.
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: E diminui (1 item a Feito); E6b concluída.

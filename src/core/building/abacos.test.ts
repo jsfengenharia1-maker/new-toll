@@ -332,9 +332,15 @@ describe('punção com ábaco (C′ e C″ à mão)', () => {
     const borda = tipo1.find((r) => r.tipo === 'borda')!, canto = tipo1.find((r) => r.tipo === 'canto')!;
     expect(borda.livres).toHaveLength(1);
     expect(canto.livres).toHaveLength(2);
-    expect(borda.contornos[0].u).toBeCloseTo(1.5, 9); // 0,5 + 2 × 0,5
-    expect(canto.contornos[0].u).toBeCloseTo(1.0, 9);
+    // NBR 6118, 19.5.2.3 (opção puncaoWpBorda, padrão): u* em C do pilar reduzido a = mín(1,5d; 0,5c) junto à borda: c2 + 2a; canto: 2a
+    const a = Math.min(1.5 * borda.d, 0.25);
+    expect(borda.contornos[0].u).toBeCloseTo(0.5 + 2 * a, 9);
+    expect(canto.contornos[0].u).toBeCloseTo(2 * Math.min(1.5 * canto.d, 0.25), 9);
     expect(borda.abaco!.extensaoMin).toBeGreaterThan(1);
+    // critério anterior: contorno recortado, 0,5 + 2 × 0,5 e 2 × 0,5
+    const ant = calcular(lisa({ extra: (ok) => ok('opcoes.definir', { valores: { puncaoWpBorda: 0 } }) }).modelo).d.puncao!.filter((x) => x.pavimento === 'Tipo 1');
+    expect(ant.find((r) => r.tipo === 'borda')!.contornos[0].u).toBeCloseTo(1.5, 9);
+    expect(ant.find((r) => r.tipo === 'canto')!.contornos[0].u).toBeCloseTo(1.0, 9);
   });
 
   it('armadura de punção quando o C′ passa de τRd1: pilar interno com carga alta pede linhas radiais dentro do ábaco', () => {

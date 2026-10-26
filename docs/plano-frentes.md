@@ -6,9 +6,9 @@ Base: `checklist-manual-cypecad.md` (manual do usuário, 763 itens) e `checklist
 
 | Frente | Manual do usuário | Manual de cálculo | Total |
 |---|---|---|---|
-| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 5 | 7 |
+| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 4 | 6 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas em 20/10/2026; o resíduo é a R7, especificada em `spec-frente-R.md` com as subfatias R7-0 e R7a–R7g, depois da FU; auditada no código em 20/10/2026) | 0 | 0 | 0 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 1 | 0 | 1 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 0 | 0 | 0 |
 | FU — Fundações integradas (spec: `spec-frente-FU.md`, aprovada em 20/10/2026; FU1 concluída, núcleo e interface, em 20/10/2026; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026, núcleo e interface, e FU4 em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 0 | 0 | 0 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas; V1 a V5 concluídas; V6 = correções da auditoria V, feita em 24/10/2026, e dona dos pendentes, subfatias V6a–V6f marcadas nas notas: V6a cortes nas pranchas (feita em 26/10/2026), V6b várias janelas de deformada, V6c vista 3D da viga de fundação (feita em 26/10/2026), V6d cliques na planta e na vista 3D, V6e vento e cargas por caso na planta, V6f folha Resultados e figuras de isovalores no memorial) | 1 | 0 | 1 |
@@ -62,11 +62,11 @@ Itens Parcial ou Falta cujas notas só citavam fatias já encerradas (`node scri
 | V7f | V | 1 | interface das opções próprias da viga (e opções próprias de lajes e pilares) | interface |
 | V7g | V | 1 | momento de torção do pilar-parede por hipótese (resíduo da V7c) | núcleo |
 | N4a | N | 4 | tabelas de fogo (2012, 180 min, NBR 14432), e ≤ 0,15·b; material do usuário | núcleo |
-| N4b | N | 3 | ábacos da NBR 6123, Wp/K da punção; material do usuário | núcleo |
+| N4b | N | 3 | ábacos da NBR 6123 (material do usuário); Wp/K da punção de borda e canto concluídos em 26/10/2026 (K1.13.2.4-2 Feito, opção `puncaoWpBorda`, transcrição a confirmar) | núcleo |
 | N4c | N | 3 | redistribuição nas faces, opções por elemento, flecha ativa | núcleo |
 | R8a | R | 4 | vigas: comprimentos de corte, grupos, ancoragem, montagem e adicional | núcleo + interface |
 | E6a | E | 1 | tabela de aço da alvenaria armada na prancha | núcleo + interface |
-| E6b | E | 1 | igualação das vigotas entre panos | núcleo |
+| E6b | E | 1 | igualação das vigotas entre panos — concluída em 26/10/2026 (C7.100 Feito, opção `vigotaIgualacaoPanos`) | núcleo |
 
 ## Fora do escopo (decidido)
 

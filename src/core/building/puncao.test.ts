@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { concrete } from '../concrete';
 import {
-  coefK, curvaAfastada, descontarFuros, fatoresK, ladosLivres, propriedadesContorno, recortar, tauRd1, tauRd2, tauRd3c, tensaoNoContorno, tipoApoio, verificarPuncao,
+  apoioReduzido, bordasNBR, coefK, curvaAfastada, descontarFuros, fatoresK, fatoresKNBR, fechadasBorda, fechadasCanto, ladosLivres, uTotal, wpEmTorno, propriedadesContorno, recortar, tauRd1, tauRd2, tauRd3c, tensaoNoContorno, tipoApoio, verificarPuncao,
   type Apoio, type EntradaPuncao, type ParametrosPuncao, type Regiao,
 } from './puncao';
 import { cortanteLaje, vcLaje } from './puncao';
@@ -152,6 +152,154 @@ describe('punção: Wp de borda e canto contra a definição (19.5.2.2) e a fór
   });
 });
 
+
+describe('punção de borda e canto pela NBR 6118 (19.5.2.3 e 19.5.2.4, opção puncaoWpBorda)', () => {
+  const d = 0.2;
+  it('fórmulas fechadas do pilar de borda 40×40 a 2d (cálculo à mão)', () => {
+    const f = fechadasBorda(0.4, 0.4, 2 * d, d);
+    // u = 2·C1 + C2 + 2π·d = 0,8 + 0,4 + 0,4π
+    expect(f.u).toBeCloseTo(1.2 + 0.4 * Math.PI, 12);
+    // a = mín(1,5d; 0,5C1) = mín(0,30; 0,20) = 0,20; u* = 2a + C2 + 2π·d = 0,4 + 0,4 + 0,4π = 2,0566371 m
+    expect(f.uRed).toBeCloseTo(0.8 + 0.4 * Math.PI, 12);
+    expect(f.uRed).toBeCloseTo(2.056637061435917, 12);
+    // centroide de u* a partir da borda: [a² + π·2d·a + 2(2d)² + C2·(a + 2d)] / u* = (0,04 + 0,08π + 0,32 + 0,24)/u* → e* = x̄ − C1/2
+    expect(f.eRed).toBeCloseTo((0.6 + 0.08 * Math.PI) / (0.8 + 0.4 * Math.PI) - 0.2, 12);
+    expect(f.eRed).toBeCloseTo(0.21394149130658863, 12);
+    // Wp1 = C1²/2 + C1·C2/2 + 2·C2·d + 8·d² + π·d·C1 = 0,08 + 0,08 + 0,16 + 0,32 + 0,08π
+    expect(f.Wp1).toBeCloseTo(0.64 + 0.08 * Math.PI, 12);
+    // Wp2 = C2²/4 + C1·C2 + 4·C1·d + 8·d² + π·d·C2 = 0,04 + 0,16 + 0,32 + 0,32 + 0,08π (= fórmula de 19.5.2.3)
+    expect(f.Wp2).toBeCloseTo(0.84 + 0.08 * Math.PI, 12);
+    // a = 1,5d quando o pilar é profundo: C1 = 1,0 → a = 0,30, u* = 0,6 + C2 + 0,4π
+    expect(fechadasBorda(1.0, 0.4, 2 * d, d).uRed).toBeCloseTo(1.0 + 0.4 * Math.PI, 12);
+  });
+
+  it('fórmulas fechadas do pilar de canto 40×60 a 2d (cálculo à mão)', () => {
+    // borda adotada perpendicular a C1 = 0,4; C2 = 0,6: a1 = mín(0,3; 0,2) = 0,2; a2 = mín(0,3; 0,3) = 0,3
+    const f = fechadasCanto(0.4, 0.6, 2 * d, d);
+    expect(f.u).toBeCloseTo(1.0 + 0.2 * Math.PI, 12);
+    expect(f.uRed).toBeCloseTo(0.5 + 0.2 * Math.PI, 12);
+    // x̄ = [a2·(a1 + 2d) + a1²/2 + π·d·a1 + 4d²] / u* = (0,18 + 0,02 + 0,04π + 0,16)/u*
+    expect(f.eRed).toBeCloseTo((0.36 + 0.04 * Math.PI) / (0.5 + 0.2 * Math.PI) - 0.2, 12);
+    // Wp1 = C1²/4 + C1·C2/2 + 2·C2·d + 4·d² + π·d·C1/2 = 0,04 + 0,12 + 0,24 + 0,16 + 0,04π
+    expect(f.Wp1).toBeCloseTo(0.56 + 0.04 * Math.PI, 12);
+  });
+
+  it('bordas, pilar reduzido e K pelas regras de borda e canto', () => {
+    const ap = pilar(0.4, 0.6, [0.2, 0.3]);
+    expect(bordasNBR(ap, [])).toBeNull();
+    expect(bordasNBR(ap, ['u-'])).toEqual([-1, 0]);
+    expect(bordasNBR(ap, ['u-', 'v-'])).toEqual([-1, -1]);
+    expect(bordasNBR(ap, ['u-', 'u+'])).toBeNull();
+    expect(bordasNBR({ ...ap, circular: true }, ['u-'])).toBeNull();
+    const r = apoioReduzido(ap, [-1, -1], d);
+    expect(r.a[0]).toBeCloseTo(0.2, 12);
+    expect(r.a[1]).toBeCloseTo(0.3, 12);
+    expect(r.ap.c1).toBeCloseTo(0.2, 12);
+    expect(r.ap.c2).toBeCloseTo(0.3, 12);
+    expect(r.ap.centro[0]).toBeCloseTo(0.1, 12); // face livre em x = 0: pilar reduzido x ∈ [0; 0,2]
+    expect(r.ap.centro[1]).toBeCloseTo(0.15, 12);
+    // borda u−: K1 = K(C1/C2 = 0,4/0,6) = 0,45 + (0,6667 − 0,5)/0,5·0,15 = 0,50; K2 = K(C2/(2C1) = 0,75) = 0,525
+    expect(fatoresKNBR(ap, [-1, 0])[0]).toBeCloseTo(0.5, 12);
+    expect(fatoresKNBR(ap, [-1, 0])[1]).toBeCloseTo(0.525, 12);
+    // canto: cada direção K(C1/C2) sem dividir: u 0,50; v K(1,5) = 0,65 (o critério anterior dividia as duas por 2: K(0,333) = 0,45 e K(0,75) = 0,525)
+    expect(fatoresKNBR(ap, [-1, -1])[0]).toBeCloseTo(0.5, 12);
+    expect(fatoresKNBR(ap, [-1, -1])[1]).toBeCloseTo(0.65, 12);
+    expect(fatoresK(ap, ['u-', 'v-'])[0]).toBeCloseTo(0.45, 12);
+    expect(fatoresK(ap, ['u-', 'v-'])[1]).toBeCloseTo(0.525, 12);
+  });
+
+  it('borda 40×40 no contorno C (sem arcos, valores exatos): τSd = FSd/(u*·d) + K1·MSd1/(Wp1·d) + K2·MSd2/(Wp2·d)', () => {
+    const reg: Regiao = { poligonos: [quad(0, -20, 20, 20)], furos: [] };
+    const ap = pilar(0.4, 0.4, [0.2, 0]);
+    const ent: EntradaPuncao = { ap, reg, d, h: 0.25, F: 500, M: [60, 30], qd: 0, metodoBorda: 'nbr' };
+    const t = tensaoNoContorno(ent, ['u-'], 0, 8);
+    // pilar reduzido 0,2 × 0,4 junto à borda: u* = 2·0,2 + 0,4 = 0,8; centroide x̄ = (2·0,2·0,1 + 0,4·0,2)/0,8 = 0,15 → e* = 0,15 − 0,2 = −0,05
+    expect(t.u).toBeCloseTo(0.8, 12);
+    expect(t.e[0]).toBeCloseTo(-0.05, 12);
+    expect(t.e[1]).toBe(0);
+    // perímetro total em C: 2·C1 + C2 = 1,2; Wp1 = C1²/2 + C1·C2/2 = 0,16; Wp2 = C2²/4 + C1·C2 = 0,2
+    expect(uTotal(t)).toBeCloseTo(1.2, 12);
+    expect(t.Wp[0]).toBeCloseTo(0.16, 12);
+    expect(t.Wp[1]).toBeCloseTo(0.2, 12);
+    const f = fechadasBorda(0.4, 0.4, 0, d);
+    expect(Math.abs(t.u - f.uRed)).toBeLessThan(1e-9);
+    expect(Math.abs(t.e[0] - f.eRed)).toBeLessThan(1e-9);
+    expect(Math.abs(t.Wp[0] - f.Wp1)).toBeLessThan(1e-9);
+    expect(Math.abs(t.Wp[1] - f.Wp2)).toBeLessThan(1e-9);
+    // MSd1 = 60 − 500·(−0,05) = 85; MSd2 = 30 (sem redução); K1 = 0,6; K2 = K(0,5) = 0,45
+    expect(t.M1[0]).toBeCloseTo(85, 9);
+    expect(t.M1[1]).toBeCloseTo(30, 9);
+    expect(t.K).toEqual([0.6, 0.45]);
+    const esperado = (500 / (0.8 * d) + (0.6 * 85) / (0.16 * d) + (0.45 * 30) / (0.2 * d)) / 1000; // 3125 + 1593,75 + 337,5 kPa
+    expect(esperado).toBeCloseTo(5.05625, 12);
+    expect(Math.abs(t.tau - esperado)).toBeLessThan(1e-9);
+    expect(t.nbr?.tipo).toBe('borda');
+  });
+
+  it('canto 40×60 no contorno C (valores exatos): uma verificação por borda livre, vale a maior', () => {
+    const reg: Regiao = { poligonos: [quad(0, 0, 20, 20)], furos: [] };
+    const ap = pilar(0.4, 0.6, [0.2, 0.3]);
+    expect(ladosLivres(ap, reg, d).sort()).toEqual(['u-', 'v-']);
+    const t = tensaoNoContorno({ ap, reg, d, h: 0.25, F: 300, M: [40, 50], qd: 0, metodoBorda: 'nbr' }, ['u-', 'v-'], 0, 8);
+    // pilar reduzido 0,2 × 0,3 no canto: u* = 0,3 + 0,2 = 0,5; centroide (0,16; 0,21) → e*u = −0,04, e*v = −0,09
+    expect(t.u).toBeCloseTo(0.5, 12);
+    expect(t.e[0]).toBeCloseTo(-0.04, 12);
+    expect(t.e[1]).toBeCloseTo(-0.09, 12);
+    // Wp do perímetro total (faces internas) em torno do centro: u 0,6·0,2 + 0,04 = 0,16; v 0,4·0,3 + 0,09 = 0,21
+    expect(t.Wp[0]).toBeCloseTo(0.16, 12);
+    expect(t.Wp[1]).toBeCloseTo(0.21, 12);
+    expect(Math.abs(t.Wp[0] - fechadasCanto(0.4, 0.6, 0, d).Wp1)).toBeLessThan(1e-9);
+    expect(Math.abs(t.Wp[1] - fechadasCanto(0.6, 0.4, 0, d).Wp1)).toBeLessThan(1e-9);
+    expect(Math.abs(t.e[1] - fechadasCanto(0.6, 0.4, 0, d).eRed)).toBeLessThan(1e-9);
+    // MSd1: 40 + 300·0,04 = 52; 50 + 300·0,09 = 77; K 0,50 e 0,65
+    // τu = 300/(0,5·0,2) + 0,5·52/(0,16·0,2) = 3000 + 812,5; τv = 3000 + 0,65·77/(0,21·0,2) = 3000 + 1191,667 → τSd = 4,191667 MPa
+    expect(t.nbr!.tauDir![0]).toBeCloseTo(3.8125, 12);
+    expect(Math.abs(t.nbr!.tauDir![1] - (3000 + (0.65 * 77) / (0.21 * 0.2)) / 1000)).toBeLessThan(1e-9);
+    expect(t.nbr!.governa).toBe(1);
+    expect(t.tau).toBe(t.nbr!.tauDir![1]);
+  });
+
+  it('contorno C′ (arcos por 40 cordas por quadrante): biblioteca = fórmulas fechadas a menos da corda', () => {
+    const reg: Regiao = { poligonos: [quad(0, -20, 20, 20)], furos: [] };
+    const ap = pilar(0.4, 0.4, [0.2, 0]), f = fechadasBorda(0.4, 0.4, 2 * d, d);
+    const t = tensaoNoContorno({ ap, reg, d, h: 0.25, F: 500, M: [200, 30], qd: 0, metodoBorda: 'nbr' }, ['u-'], 2 * d, 8);
+    expect(t.u / f.uRed).toBeCloseTo(1, 3);
+    expect(uTotal(t) / f.u).toBeCloseTo(1, 3);
+    expect(t.e[0] / f.eRed).toBeCloseTo(1, 3);
+    expect(t.Wp[0] / f.Wp1).toBeCloseTo(1, 3);
+    expect(t.Wp[1] / f.Wp2).toBeCloseTo(1, 3);
+    // τSd pelas fórmulas fechadas: 500/(u*·d) + 0,6·(200 − 500·e*)/(Wp1·d) + 0,45·30/(Wp2·d)
+    const esperado = (500 / (f.uRed * d) + (0.6 * (200 - 500 * f.eRed)) / (f.Wp1 * d) + (0.45 * 30) / (f.Wp2 * d)) / 1000;
+    expect(t.tau / esperado).toBeCloseTo(1, 3);
+    // Wp do perímetro total em torno do centro = mesma integral pela função geral
+    expect(t.Wp).toEqual(wpEmTorno(t.nbr!.pecasTotal, 0, ap.centro));
+    // canto 40×60 a 2d contra as fórmulas de canto, nas duas direções
+    const regC: Regiao = { poligonos: [quad(0, 0, 20, 20)], furos: [] }, apC = pilar(0.4, 0.6, [0.2, 0.3]);
+    const tc = tensaoNoContorno({ ap: apC, reg: regC, d, h: 0.25, F: 300, M: [40, 50], qd: 0, metodoBorda: 'nbr' }, ['u-', 'v-'], 2 * d, 8);
+    const fu = fechadasCanto(0.4, 0.6, 2 * d, d), fv = fechadasCanto(0.6, 0.4, 2 * d, d);
+    expect(tc.u / fu.uRed).toBeCloseTo(1, 3);
+    expect(fu.uRed).toBeCloseTo(fv.uRed, 12);
+    expect(tc.e[0] / fu.eRed).toBeCloseTo(1, 3);
+    expect(tc.e[1] / fv.eRed).toBeCloseTo(1, 3);
+    expect(tc.Wp[0] / fu.Wp1).toBeCloseTo(1, 3);
+    expect(tc.Wp[1] / fv.Wp1).toBeCloseTo(1, 3);
+  });
+
+  it('critério anterior inalterado sem a opção; interno igual nos dois; circular de borda fica no anterior', () => {
+    const reg: Regiao = { poligonos: [quad(0, -20, 20, 20)], furos: [] };
+    const ap = pilar(0.4, 0.4, [0.2, 0]);
+    const ent: EntradaPuncao = { ap, reg, d, h: 0.25, F: 500, M: [200, 0], qd: 0 };
+    const ant = tensaoNoContorno(ent, ['u-'], 2 * d, 8);
+    expect(tensaoNoContorno({ ...ent, metodoBorda: 'anterior' }, ['u-'], 2 * d, 8)).toEqual(ant);
+    expect(ant.nbr).toBeUndefined();
+    const nbr = tensaoNoContorno({ ...ent, metodoBorda: 'nbr' }, ['u-'], 2 * d, 8);
+    expect(nbr.tau).not.toBeCloseTo(ant.tau, 3);
+    const entI: EntradaPuncao = { ap: pilar(0.4, 0.4), reg: grande, d, h: 0.25, F: 1000, M: [60, 20], qd: 0 };
+    expect(tensaoNoContorno({ ...entI, metodoBorda: 'nbr' }, [], 2 * d, 8)).toEqual(tensaoNoContorno(entI, [], 2 * d, 8));
+    const circ = { ...ent, ap: { ...ap, circular: true }, metodoBorda: 'nbr' as const };
+    expect(tensaoNoContorno(circ, ['u-'], 2 * d, 8)).toEqual(tensaoNoContorno({ ...circ, metodoBorda: 'anterior' }, ['u-'], 2 * d, 8));
+  });
+});
 
 describe('punção: tensões e resistências (cálculo manual)', () => {
   it('K da Tabela 19.2 e as regras de borda e canto', () => {

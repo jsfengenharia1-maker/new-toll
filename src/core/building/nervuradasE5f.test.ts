@@ -182,15 +182,16 @@ describe('E5f: punção da nervurada com ábaco — cortante nas nervuras, grupo
     expect(rE.armadura).toBeUndefined();
   }, 300000);
 
-  it('borda e canto com ábaco: τSd(C) = F/(u·d) + ΣK·M1/(Wp·d), M1 = máx(0, M − F·e)', () => {
+  it('borda e canto com ábaco: τSd(C) = F/(u*·d) + ΣK·M1/(Wp·d), M1 = máx(0, M − F·e*); canto: a maior das duas bordas (19.5.2.4)', () => {
     for (const tipo of ['borda', 'canto'] as const) {
       const r = dA.puncao!.filter((x) => x.pavimento === 'Tipo 1').find((x) => x.tipo === tipo)!;
       const C = r.contornos[0];
-      let tau = r.F / (C.u * r.d);
+      const tF = r.F / (C.u * r.d), tM: number[] = [];
       for (let i = 0; i < 2; i++) {
         expect(C.M1[i]).toBeCloseTo(Math.max(0, r.M[i] - r.F * C.e[i]), 6);
-        if (C.Wp[i] > 1e-9) tau += (r.K[i] * C.M1[i]) / (C.Wp[i] * r.d);
+        tM.push(C.Wp[i] > 1e-9 ? (r.K[i] * C.M1[i]) / (C.Wp[i] * r.d) : 0);
       }
+      const tau = tipo === 'canto' ? Math.max(tF + tM[0], tF + tM[1]) : tF + tM[0] + tM[1];
       expect(C.tau).toBeCloseTo(tau / 1000, 9);
       expect(C.tau).toBeGreaterThanOrEqual(r.F / (C.u * r.d) / 1000 - 1e-12);
     }

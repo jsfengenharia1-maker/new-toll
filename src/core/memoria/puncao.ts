@@ -4,7 +4,7 @@
 // Os contornos entram com todos os segmentos (x0, y0, x1, y1) dentro da laje, para o teste refazer u, centroide, Wp e τSd.
 import { barArea, type Concrete } from '../concrete';
 import {
-  areaDentro, curvaAfastada, propriedadesContorno,
+  areaDentro, curvaAfastada, propriedadesContorno, uTotal,
   type DetSolicitacao, type EntradaPuncao, type ParametrosPuncao, type ResultadoVerificacao, type Tensao,
 } from '../building/puncao';
 import { fm, fp, type Registrador, type ValorMemoria } from './registrador';
@@ -140,8 +140,15 @@ export function registrarVerificacaoPuncao(mem: Registrador, el: string, x: CtxV
   // ---- tipo de apoio e K
   const tk = 'Tipo de apoio e coeficiente K';
   const livU = v.livres.some((l) => l.startsWith('u')), livV = v.livres.some((l) => l.startsWith('v'));
-  R(tk, { descricao: `Lados livres do ${apoio} (borda livre da laje a menos de 0,5d da face) e tipo`, formula: 'interno: 0 lados; de borda: 1; de canto: 2 ou mais', expressao: `lados livres: ${v.livres.length ? v.livres.join(', ') : 'nenhum'} → pilar ${v.tipo}`, resultado: v.tipo, unidade: '', norma: `${NBR}, 19.5.2.3 e 19.5.2.4`, entradas: { nLivres: v.livres.length, livres: v.livres.join(' '), livreU: livU ? 1 : 0, livreV: livV ? 1 : 0 } });
-  if (ap.circular) R(tk, { descricao: 'Coeficiente K do pilar circular (nas duas direções)', formula: 'K = 0,6', expressao: 'K = 0,6', resultado: 0.6, unidade: '', norma: `${NBR}, Tabela 19.2`, entradas: { circular: 1 } });
+  const nb = v.C.nbr;
+  R(tk, { descricao: `Lados livres do ${apoio} (borda livre da laje a menos de 0,5d da face) e tipo`, formula: 'interno: 0 lados; de borda: 1; de canto: 2 ou mais', expressao: `lados livres: ${v.livres.length ? v.livres.join(', ') : 'nenhum'} → pilar ${v.tipo}`, resultado: v.tipo, unidade: '', norma: `${NBR}, 19.5.2.3 e 19.5.2.4`, entradas: { nLivres: v.livres.length, livres: v.livres.join(' '), livreU: livU ? 1 : 0, livreV: livV ? 1 : 0, metodoNBR: nb ? 1 : 0, ...(nb ? { sinalU: nb.sinais[0], sinalV: nb.sinais[1] } : {}) } });
+  if (v.tipo !== 'interno' && ent.metodoBorda === 'nbr' && !nb) R(tk, { descricao: `${ap.circular ? 'Pilar circular' : 'Pilar com as duas faces opostas livres'}: as regras de borda e canto da NBR (u*, e*, Wp) não se aplicam; vale o contorno recortado com Wp e e* em torno do seu centroide`, formula: '—', expressao: 'critério anterior', resultado: 'anterior', unidade: '', norma: `${NBR}, 19.5.2.3 e 19.5.2.4`, aConfirmar: true, entradas: {} });
+  if (nb) for (const k of [0, 1] as const) {
+    const j = 1 - k, c = [ap.c1, ap.c2], rr = nb.sinais[k] ? c[k] / c[j] : nb.sinais[j] ? c[k] / (2 * c[j]) : c[k] / c[j];
+    const regra = nb.sinais[k] ? `C1/C2 com C1 = lado perpendicular à borda livre (${nb.tipo === 'canto' ? '19.5.2.4: cada borda livre verificada como de borda' : '19.5.2.3 a, K1'})` : 'momento no plano paralelo à borda livre: C1/C2 substituído por C2/(2·C1) (19.5.2.3 b, K2)';
+    R(tk, { descricao: `Coeficiente K da direção ${k === 0 ? 'u' : 'v'} pela regra de ${nb.tipo} da NBR: ${regra}`, formula: 'K = interpolação da Tabela 19.2: C1/C2 = 0,5 → 0,45; 1 → 0,6; 2 → 0,7; 3 → 0,8', expressao: `razão = ${fm(rr)} → K = ${fm(v.C.K[k])}`, resultado: v.C.K[k], unidade: '', norma: `${NBR}, 19.5.2.3, 19.5.2.4 e Tabela 19.2`, aConfirmar: true, entradas: { c1: c[k], c2: c[j], perpendicular: nb.sinais[k] ? 1 : 0, razao: rr }, observacao: 'Regras de K de borda e canto transcritas do texto da NBR 6118 (a confirmar a transcrição).' });
+  }
+  else if (ap.circular) R(tk, { descricao: 'Coeficiente K do pilar circular (nas duas direções)', formula: 'K = 0,6', expressao: 'K = 0,6', resultado: 0.6, unidade: '', norma: `${NBR}, Tabela 19.2`, entradas: { circular: 1 } });
   else for (const k of [0, 1] as const) {
     const rr = k === 0 ? ap.c1 / ap.c2 / (livV ? 2 : 1) : ap.c2 / ap.c1 / (livU ? 2 : 1);
     R(tk, { descricao: `Coeficiente K da direção ${k === 0 ? 'u' : 'v'} (fração do momento transmitida por cisalhamento): C1/C2 com C1 na direção da excentricidade; com borda livre paralela ao eixo, C1/(2·C2)`, formula: 'K = interpolação da Tabela 19.2: C1/C2 = 0,5 → 0,45; 1 → 0,6; 2 → 0,7; 3 → 0,8', expressao: `C1/C2 = ${fm(rr)} → K = ${fm(v.C.K[k])}`, resultado: v.C.K[k], unidade: '', norma: `${NBR}, Tabela 19.2`, entradas: { c1: k === 0 ? ap.c1 : ap.c2, c2: k === 0 ? ap.c2 : ap.c1, bordaParalela: (k === 0 ? livV : livU) ? 1 : 0, razao: rr } });
@@ -185,7 +192,7 @@ function registrarContorno(mem: Registrador, el: string, tp: string, nome: strin
     const u = 2 * (ap.c1 + ap.c2) + 2 * Math.PI * t.a;
     fechada = ` Conferência: u = 2·(c1 + c2) + 2π·a = ${fm(u)} m (o cálculo aproxima cada arco por 40 cordas por quadrante).`;
   }
-  P({ descricao: `Contorno ${nome} a ${fm(t.a)} m das faces do ${x.apoio ?? 'pilar'}: retângulo de cantos arredondados (raio a), recortado pelas bordas livres da laje.${sem}${furos} Perímetro u`, formula: 'u = Σ ℓ dos trechos do contorno dentro da laje', expressao: `${n} trechos → u = ${fm(t.u)} m`, resultado: t.u, unidade: 'm', norma: `${NBR}, 19.5.2.1 e 19.5.2.2`, entradas: { a: t.a, trechos: n, segmentos: json(t) }, observacao: `Segmentos do contorno em planta (x0, y0, x1, y1), em m, no campo "segmentos".${fechada}` });
+  P({ descricao: `Contorno ${nome} a ${fm(t.a)} m das faces do ${x.apoio ?? 'pilar'}: retângulo de cantos arredondados (raio a), recortado pelas bordas livres da laje.${sem}${furos}${t.nbr ? ` Perímetro crítico reduzido u* (pilar de ${t.nbr.tipo}, NBR 6118, 19.5.2.3: trechos do pilar reduzido)` : ' Perímetro u'}`, formula: t.nbr ? 'u* = Σ ℓ dos trechos do contorno do pilar reduzido dentro da laje' : 'u = Σ ℓ dos trechos do contorno dentro da laje', expressao: `${n} trechos → u = ${fm(t.u)} m`, resultado: t.u, unidade: 'm', norma: `${NBR}, 19.5.2.1 e 19.5.2.2`, entradas: { a: t.a, trechos: n, segmentos: json(t) }, observacao: `Segmentos do contorno em planta (x0, y0, x1, y1), em m, no campo "segmentos".${fechada}` });
   if (t.u < 1e-6 || pr.u < 1e-6) {
     P({ descricao: `Contorno ${nome} sem trecho dentro da laje: τSd = 0`, formula: 'u = 0', expressao: 'u = 0', resultado: 0, unidade: 'MPa', entradas: {} });
     return;
@@ -198,6 +205,7 @@ function registrarContorno(mem: Registrador, el: string, tp: string, nome: strin
     P({ descricao: `FSd no contorno ${nome}: a carga distribuída (reação do solo) dentro do contorno é descontada`, formula: 'FSd,a = máx(0; FSd − qd·A)', expressao: `FSd,a = máx(0; ${fm(ent.F)} − ${fm(ent.qd)}·${fm(A)}) = ${fm(Fa)} kN`, resultado: Fa, unidade: 'kN', norma: `${NBR}, 19.5.2.1`, entradas: { F: ent.F, qd: ent.qd, A } });
   }
   const ex = ['u', 'v'] as const, M = ap.circular ? ([Math.hypot(ent.M[0], ent.M[1]), 0] as [number, number]) : ent.M;
+  if (t.nbr) { registrarContornoNBR(P, t, x, Fa, M, nome); return; }
   if (ap.circular) P({ descricao: 'Momento resultante do pilar circular (flexão em qualquer direção)', formula: 'M = √(Meu² + Mev²)', expressao: `M = √(${fm(ent.M[0])}² + ${fm(ent.M[1])}²) = ${fm(M[0])} kN·m`, resultado: M[0], unidade: 'kN·m', norma: `${NBR}, 19.5.2.2`, entradas: { Meu: ent.M[0], Mev: ent.M[1] } });
   for (const k of [0, 1] as const) {
     P({ descricao: `Excentricidade e*${ex[k]}: distância do centroide do contorno ao centro do ${x.apoio ?? 'pilar'}, projetada em ${ex[k]}`, formula: `e*${ex[k]} = |(centroide − centro)·${ex[k]}|`, expressao: `centroide = (${fm(pr.centroide[0])}; ${fm(pr.centroide[1])}); e*${ex[k]} = ${fm(t.e[k])} m`, resultado: t.e[k], unidade: 'm', norma: `${NBR}, 19.5.2.3`, entradas: { cx: pr.centroide[0], cy: pr.centroide[1], px: ap.centro[0], py: ap.centro[1], angulo: ap.angulo, eixo: ex[k] } });
@@ -217,6 +225,38 @@ function registrarContorno(mem: Registrador, el: string, tp: string, nome: strin
     P({ descricao: `Parcela do momento na direção ${ex[k]} da tensão solicitante`, formula: `τM,${ex[k]} = K${ex[k]}·MSd1,${ex[k]} / (Wp${ex[k]}·d)`, expressao: t.Wp[k] > 1e-9 ? `τM,${ex[k]} = ${fm(t.K[k])}·${fm(t.M1[k])} / (${fm(t.Wp[k])}·${fm(d)}) / 1000 = ${fm(val)} MPa` : `Wp${ex[k]} ≈ 0 → τM,${ex[k]} = 0`, resultado: val, unidade: 'MPa', norma: `${NBR}, 19.5.2.2`, entradas: { K: t.K[k], M1: t.M1[k], Wp: t.Wp[k], d } });
   }
   P({ descricao: `Tensão solicitante de cálculo no contorno ${nome}`, formula: 'τSd = FSd/(u·d) + ΣK·MSd1/(Wp·d)', expressao: `τSd = ${fm(tF)} + ${fm(tM[0])} + ${fm(tM[1])} = ${fm(t.tau)} MPa`, resultado: t.tau, unidade: 'MPa', norma: `${NBR}, 19.5.2.2`, entradas: { tauF: tF, tauMu: tM[0], tauMv: tM[1] } });
+}
+
+/**
+ * Contorno de pilar de borda ou de canto pela NBR 6118 (19.5.2.3 e 19.5.2.4): u* do pilar reduzido, e* do centroide de u*,
+ * Wp do perímetro total em torno do centro do pilar e τSd (canto: uma verificação por borda livre, vale a maior).
+ */
+function registrarContornoNBR(P: (p: Chave) => void, t: Tensao, x: CtxVerif, Fa: number, M: [number, number], nome: string) {
+  const nb = t.nbr!, ap = x.ent.ap, d = x.ent.d, ex = ['u', 'v'] as const, apoio = x.apoio ?? 'pilar';
+  const segT = JSON.stringify(nb.pecasTotal.map(([a, z]) => [a[0], a[1], z[0], z[1]]));
+  P({ descricao: `Pilar reduzido do perímetro u*: em cada direção perpendicular a uma borda livre, o ${apoio} vale a = mín(1,5d; 0,5·c) junto à borda`, formula: 'a = mín(1,5·d; 0,5·c)', expressao: ex.map((e, i) => (nb.sinais[i] ? `a${e} = mín(${fm(1.5 * d)}; ${fm(0.5 * [ap.c1, ap.c2][i])}) = ${fm(nb.aRed[i])} m` : `${e}: sem borda livre`)).join('; '), resultado: Math.max(...nb.aRed), unidade: 'm', norma: `${NBR}, 19.5.2.3 (Figura 19.6)`, aConfirmar: true, entradas: { d, c1: ap.c1, c2: ap.c2, aU: nb.aRed[0], aV: nb.aRed[1], sinalU: nb.sinais[0], sinalV: nb.sinais[1] }, observacao: 'Os trechos do contorno são os do pilar reduzido afastados de a; o perímetro u do passo anterior é o reduzido u* (a confirmar a transcrição da Figura 19.6).' });
+  P({ descricao: `Perímetro total u do contorno ${nome} (sem a redução), usado em Wp, na armadura de punção e na varredura de cortante`, formula: 'u = Σ ℓ dos trechos do contorno completo dentro da laje', expressao: `${nb.pecasTotal.length} trechos → u = ${fm(nb.uTotal)} m`, resultado: nb.uTotal, unidade: 'm', norma: `${NBR}, 19.5.2.3`, entradas: { segmentosTotal: segT, trechos: nb.pecasTotal.length } });
+  for (const k of [0, 1] as const) {
+    P({ descricao: `Excentricidade e*${ex[k]}: distância do centroide de u* ao centro do ${apoio}, positiva para o interior da laje${nb.sinais[k] ? '' : ' (sem borda livre perpendicular: momento sem redução)'}`, formula: nb.sinais[k] ? `e*${ex[k]} = −s·(centroide(u*) − centro)·${ex[k]}, s = lado da borda livre` : `e*${ex[k]} = 0`, expressao: `centroide(u*) = (${fm(nb.centroideRed[0])}; ${fm(nb.centroideRed[1])}); e*${ex[k]} = ${fm(t.e[k])} m`, resultado: t.e[k], unidade: 'm', norma: `${NBR}, 19.5.2.3`, entradas: { cx: nb.centroideRed[0], cy: nb.centroideRed[1], px: ap.centro[0], py: ap.centro[1], angulo: ap.angulo, eixo: ex[k], sinal: nb.sinais[k] } });
+  }
+  for (const k of [0, 1] as const) {
+    P({ descricao: `Módulo de resistência plástica Wp${ex[k]} do perímetro total u, em torno do eixo que passa pelo centro do ${apoio}`, formula: `Wp${ex[k]} = ∫ |e| dℓ (e a partir do centro do ${apoio})`, expressao: `Wp${ex[k]} = ${fm(t.Wp[k])} m²`, resultado: t.Wp[k], unidade: 'm²', norma: `${NBR}, 19.5.2.3`, aConfirmar: true, entradas: { px: ap.centro[0], py: ap.centro[1], angulo: ap.angulo, eixo: ex[k] }, observacao: 'Integrado sobre os trechos do perímetro total; equivale às fórmulas fechadas Wp1 = C1²/2 + C1·C2/2 + 2·C2·d + 8·d² + π·d·C1 (borda) e Wp2 = C2²/4 + C1·C2 + 4·C1·d + 8·d² + π·d·C2 em C′ (a confirmar a transcrição).' });
+  }
+  for (const k of [0, 1] as const) {
+    P({ descricao: `Momento transmitido por cisalhamento na direção ${ex[k]}${nb.sinais[k] ? ': o momento do pilar menos FSd·e*' : ' (plano paralelo à borda livre: MSd2 sem redução)'}`, formula: `MSd1,${ex[k]} = máx(0; MSd,${ex[k]} − FSd·e*${ex[k]})`, expressao: `MSd1,${ex[k]} = máx(0; ${fm(M[k])} − ${fm(Fa)}·${fm(t.e[k])}) = ${fm(t.M1[k])} kN·m`, resultado: t.M1[k], unidade: 'kN·m', norma: `${NBR}, 19.5.2.3 e 19.5.2.4`, entradas: { M: M[k], F: Fa, e: t.e[k] } });
+  }
+  const tF = Fa / (t.u * d) / 1000;
+  P({ descricao: 'Parcela da força normal da tensão solicitante, com o perímetro reduzido u*', formula: 'τF = FSd / (u*·d)', expressao: `τF = ${fm(Fa)} / (${fm(t.u)}·${fm(d)}) / 1000 = ${fm(tF)} MPa`, resultado: tF, unidade: 'MPa', norma: `${NBR}, 19.5.2.3`, entradas: { F: Fa, u: t.u, d } });
+  const tM: number[] = [];
+  for (const k of [0, 1] as const) {
+    const val = t.Wp[k] > 1e-9 ? (t.K[k] * t.M1[k]) / (t.Wp[k] * d) / 1000 : 0;
+    tM.push(val);
+    P({ descricao: `Parcela do momento na direção ${ex[k]} da tensão solicitante`, formula: `τM,${ex[k]} = K${ex[k]}·MSd1,${ex[k]} / (Wp${ex[k]}·d)`, expressao: t.Wp[k] > 1e-9 ? `τM,${ex[k]} = ${fm(t.K[k])}·${fm(t.M1[k])} / (${fm(t.Wp[k])}·${fm(d)}) / 1000 = ${fm(val)} MPa` : `Wp${ex[k]} ≈ 0 → τM,${ex[k]} = 0`, resultado: val, unidade: 'MPa', norma: `${NBR}, 19.5.2.3`, entradas: { K: t.K[k], M1: t.M1[k], Wp: t.Wp[k], d } });
+  }
+  if (nb.tipo === 'canto') {
+    for (const k of [0, 1] as const) P({ descricao: `Verificação com a borda livre perpendicular a ${ex[k]} (momento do plano perpendicular a ela)`, formula: `τSd,${ex[k]} = τF + τM,${ex[k]}`, expressao: `τSd,${ex[k]} = ${fm(tF)} + ${fm(tM[k])} = ${fm(nb.tauDir![k])} MPa`, resultado: nb.tauDir![k], unidade: 'MPa', norma: `${NBR}, 19.5.2.4`, entradas: { tauF: tF, tauM: tM[k] } });
+    P({ descricao: `Tensão solicitante de cálculo no contorno ${nome} (pilar de canto: a maior das duas verificações)`, formula: 'τSd = máx(τSd,u; τSd,v)', expressao: `τSd = máx(${fm(nb.tauDir![0])}; ${fm(nb.tauDir![1])}) = ${fm(t.tau)} MPa`, resultado: t.tau, unidade: 'MPa', norma: `${NBR}, 19.5.2.4`, entradas: { tauU: nb.tauDir![0], tauV: nb.tauDir![1], canto: 1 } });
+  } else P({ descricao: `Tensão solicitante de cálculo no contorno ${nome} (pilar de borda)`, formula: 'τSd = FSd/(u*·d) + K1·MSd1/(Wp1·d) + K2·MSd2/(Wp2·d)', expressao: `τSd = ${fm(tF)} + ${fm(tM[0])} + ${fm(tM[1])} = ${fm(t.tau)} MPa`, resultado: t.tau, unidade: 'MPa', norma: `${NBR}, 19.5.2.3`, entradas: { tauF: tF, tauMu: tM[0], tauMv: tM[1] } });
 }
 
 /** Varredura de cortante da laje a cada passo·d a partir de C′ (19.4.1) e a armadura transversal que as superfícies reprovadas exigem (19.4.2). */
@@ -252,7 +292,7 @@ function registrarArmaduraPuncao(mem: Registrador, el: string, x: CtxVerif, C3?:
     for (const t of D.tentativas) P({ descricao: `Busca do número de anéis: contorno C″ com ${t.n} anel(éis), a = s0 + (n−1)·sr + 2d = ${fm(t.a)} m`, formula: 'τSd,C″ ≤ τRd1 para dispensar mais anéis', expressao: `u = ${fm(t.u)} m; τSd = ${fm(t.tau)} ${t.tau <= v.tauRd1 + 1e-9 ? '≤' : '>'} ${fm(v.tauRd1)} MPa`, resultado: t.tau, unidade: 'MPa', norma: `${NBR}, 19.5.3.5`, entradas: { n: t.n, a: t.a, u: t.u, tauSd: t.tau, tauRd1: v.tauRd1 } });
     if (D.desfecho === 'semSolucaoC3' && !D.nb) return;
     if (D.nb) P({ descricao: 'Número de anéis exigido pela punção (primeiro n em que C″ dispensa armadura)', formula: 'nb = mín{n : τSd,C″(n) ≤ τRd1}', expressao: `nb = ${D.nb}`, resultado: D.nb, unidade: '', norma: `${NBR}, 19.5.3.5`, entradas: { nb: D.nb } });
-    P({ descricao: 'Área de armadura por anel exigida pela punção', formula: 'AswP = (τSd,C′ − τRd3,c)·u·sr / (1,5·fywd)', expressao: `AswP = (${fm(v.C2.tau)} − ${fm(v.tauRd3c)})·${fm(v.C2.u)}·${fm(D.sr)}·10⁴ / (1,5·${fm(par.fywd)}) = ${fm(D.AswPunc)} cm²`, resultado: D.AswPunc, unidade: 'cm²', norma: `${NBR}, 19.5.3.3`, entradas: { tauSd: v.C2.tau, tauRd3c: v.tauRd3c, u: v.C2.u, sr: D.sr, fywd: par.fywd } });
+    P({ descricao: 'Área de armadura por anel exigida pela punção', formula: 'AswP = (τSd,C′ − τRd3,c)·u·sr / (1,5·fywd)', expressao: `AswP = (${fm(v.C2.tau)} − ${fm(v.tauRd3c)})·${fm(uTotal(v.C2))}·${fm(D.sr)}·10⁴ / (1,5·${fm(par.fywd)}) = ${fm(D.AswPunc)} cm²`, resultado: D.AswPunc, unidade: 'cm²', norma: `${NBR}, 19.5.3.3`, entradas: { tauSd: v.C2.tau, tauRd3c: v.tauRd3c, u: uTotal(v.C2), sr: D.sr, fywd: par.fywd } });
   }
   if (v.cortante.falha) {
     const falhas = sup.filter((s) => !s.ok);
@@ -272,10 +312,10 @@ function registrarArmaduraPuncao(mem: Registrador, el: string, x: CtxVerif, C3?:
     return;
   }
   if (D.desfecho === 'informadaAtende') {
-    P({ descricao: 'A armadura informada atende; nenhuma armadura calculada é acrescentada. Tensão resistente em C′ com a armadura informada', formula: 'τRd3 = τRd3,c + 1,5·AswInf·fywd/(sr·u·10⁴)', expressao: `τRd3 = ${fm(v.tauRd3c)} + 1,5·${fm(D.manAsw)}·${fm(par.fywd)}/(${fm(D.sr)}·${fm(v.C2.u)}·10⁴) = ${fm(v.tauRd3 ?? 0)} MPa`, resultado: v.tauRd3 ?? 0, unidade: 'MPa', norma: `${NBR}, 19.5.3.3`, entradas: { tauRd3c: v.tauRd3c, Asw: D.manAsw, fywd: par.fywd, sr: D.sr, u: v.C2.u } });
+    P({ descricao: 'A armadura informada atende; nenhuma armadura calculada é acrescentada. Tensão resistente em C′ com a armadura informada', formula: 'τRd3 = τRd3,c + 1,5·AswInf·fywd/(sr·u·10⁴)', expressao: `τRd3 = ${fm(v.tauRd3c)} + 1,5·${fm(D.manAsw)}·${fm(par.fywd)}/(${fm(D.sr)}·${fm(uTotal(v.C2))}·10⁴) = ${fm(v.tauRd3 ?? 0)} MPa`, resultado: v.tauRd3 ?? 0, unidade: 'MPa', norma: `${NBR}, 19.5.3.3`, entradas: { tauRd3c: v.tauRd3c, Asw: D.manAsw, fywd: par.fywd, sr: D.sr, u: uTotal(v.C2) } });
     return;
   }
-  P({ descricao: 'Espaçamento tangencial máximo no contorno C′ (2d se τSd,C ≤ 0,63·τRd2; senão 1,5d), número mínimo de barras por anel e máximo que cabe no primeiro anel (≥ 5 cm entre barras)', formula: 'sT = 2d ou 1,5d; nMin = máx(2; ⌈u(C′)/sT⌉); nCap = máx(nMin; ⌊u1/0,05⌋)', expressao: `sT = ${fm(D.sT)} m; nMin = ⌈${fm(v.C2.u)}/${fm(D.sT)}⌉ → ${D.nMinT}; u1 = ${fm(D.u1)} m → nCap = ${D.nCap}`, resultado: D.nMinT, unidade: '', norma: `${NBR}, 19.5.3.5`, aConfirmar: true, entradas: { tauC: v.C.tau, tauRd2: v.tauRd2, d, uC2: v.C2.u, u1: D.u1, sT: D.sT, nMin: D.nMinT, nCap: D.nCap }, observacao: 'O espaçamento tangencial de 2d / 1,5d e o mínimo de 5 cm entre barras são critérios do programa (a confirmar).' });
+  P({ descricao: 'Espaçamento tangencial máximo no contorno C′ (2d se τSd,C ≤ 0,63·τRd2; senão 1,5d), número mínimo de barras por anel e máximo que cabe no primeiro anel (≥ 5 cm entre barras)', formula: 'sT = 2d ou 1,5d; nMin = máx(2; ⌈u(C′)/sT⌉); nCap = máx(nMin; ⌊u1/0,05⌋)', expressao: `sT = ${fm(D.sT)} m; nMin = ⌈${fm(uTotal(v.C2))}/${fm(D.sT)}⌉ → ${D.nMinT}; u1 = ${fm(D.u1)} m → nCap = ${D.nCap}`, resultado: D.nMinT, unidade: '', norma: `${NBR}, 19.5.3.5`, aConfirmar: true, entradas: { tauC: v.C.tau, tauRd2: v.tauRd2, d, uC2: uTotal(v.C2), u1: D.u1, sT: D.sT, nMin: D.nMinT, nCap: D.nCap }, observacao: 'O espaçamento tangencial de 2d / 1,5d e o mínimo de 5 cm entre barras são critérios do programa (a confirmar).' });
   const pernas = D.pernas;
   for (const b of D.bitolas) P({ descricao: `Barras por anel com φ${fm(b.phi)} mm (${pernas} perna${pernas > 1 ? 's' : ''} por barra)`, formula: 'n = máx(nMin; ⌈AswA/(pernas·As,φ)⌉)', expressao: `n = máx(${D.nMinT}; ⌈${fm(D.AswAuto)}/(${pernas}·${fm(barArea(b.phi) * 1e4)})⌉) = ${b.n}`, resultado: b.n, unidade: '', norma: `${NBR}, 19.5.3.5`, entradas: { phi: b.phi, AswA: D.AswAuto, pernas, areaCm2: barArea(b.phi) * 1e4, nMin: D.nMinT, n: b.n } });
   if (D.escolha) P({ descricao: D.escolha.poucasLinhas ? `Bitola adotada: a menor com no máximo máx(nMin; 16) = ${D.limiteLinhas} barras por anel` : `Nenhuma bitola resolve com até ${D.limiteLinhas} barras por anel: a maior bitola permitida que cabe no primeiro anel (n ≤ ${D.nCap})`, formula: D.escolha.poucasLinhas ? 'φ = mín{φ : n(φ) ≤ máx(nMin; 16)}' : 'φ = máx{φ : n(φ) ≤ nCap}', expressao: `φ${fm(D.escolha.phi)} mm, ${D.escolha.n} barras por anel`, resultado: D.escolha.phi, unidade: 'mm', norma: `${NBR}, 19.5.3.5`, aConfirmar: true, entradas: { phi: D.escolha.phi, n: D.escolha.n, limite: D.limiteLinhas, nCap: D.nCap, poucasLinhas: D.escolha.poucasLinhas ? 1 : 0 } });
@@ -283,7 +323,7 @@ function registrarArmaduraPuncao(mem: Registrador, el: string, x: CtxVerif, C3?:
   if (!arm || !D.escolha) return;
   const somaInf = D.manAneis >= D.nbTot ? D.manAsw : 0;
   P({ descricao: 'Área efetiva por anel adotada (mais a armadura informada, se cobre todos os anéis)', formula: 'Asw,ef = n·pernas·As,φ + AswInf', expressao: `Asw,ef = ${arm.linhas}·${arm.pernas}·${fm(barArea(arm.phi) * 1e4)} + ${fm(somaInf)} = ${fm(arm.AswAnel)} cm²`, resultado: arm.AswAnel, unidade: 'cm²', norma: `${NBR}, 19.5.3.5`, entradas: { n: arm.linhas, pernas: arm.pernas, areaCm2: barArea(arm.phi) * 1e4, AswInf: somaInf } });
-  P({ descricao: 'Tensão resistente em C′ com a armadura de punção adotada', formula: 'τRd3 = τRd3,c + 1,5·Asw,ef·fywd / (sr·u·10⁴)', expressao: `τRd3 = ${fm(v.tauRd3c)} + 1,5·${fm(arm.AswAnel)}·${fm(par.fywd)} / (${fm(D.sr)}·${fm(v.C2.u)}·10⁴) = ${fm(v.tauRd3 ?? 0)} MPa`, resultado: v.tauRd3 ?? 0, unidade: 'MPa', norma: `${NBR}, 19.5.3.3`, entradas: { tauRd3c: v.tauRd3c, Asw: arm.AswAnel, fywd: par.fywd, sr: D.sr, u: v.C2.u } });
+  P({ descricao: 'Tensão resistente em C′ com a armadura de punção adotada', formula: 'τRd3 = τRd3,c + 1,5·Asw,ef·fywd / (sr·u·10⁴)', expressao: `τRd3 = ${fm(v.tauRd3c)} + 1,5·${fm(arm.AswAnel)}·${fm(par.fywd)} / (${fm(D.sr)}·${fm(uTotal(v.C2))}·10⁴) = ${fm(v.tauRd3 ?? 0)} MPa`, resultado: v.tauRd3 ?? 0, unidade: 'MPa', norma: `${NBR}, 19.5.3.3`, entradas: { tauRd3c: v.tauRd3c, Asw: arm.AswAnel, fywd: par.fywd, sr: D.sr, u: uTotal(v.C2) } });
   if (C3) P({ descricao: `Verificação fora da armadura: contorno C″ a 2d da última linha (a = s0 + (nbTot − 1)·sr + 2d = ${fm(C3.a)} m)`, formula: 'τSd,C″ ≤ τRd1', expressao: `${fm(C3.tau)} ${C3.tau <= v.tauRd1 + 1e-9 ? '≤' : '>'} ${fm(v.tauRd1)} MPa → ${C3.tau <= v.tauRd1 + 1e-9 ? 'atende' : 'NÃO atende'}`, resultado: C3.tau <= v.tauRd1 + 1e-9 ? 'atende' : 'não atende', unidade: '', norma: `${NBR}, 19.5.3.5`, entradas: { s0: D.s0, sr: D.sr, nbTot: D.nbTot, d, a: C3.a, tauSd: C3.tau, tauRd1: v.tauRd1 } });
   const T = (p: Chave) => mem.passo({ etapa: 'detalhamento', elemento: el, topico: td, ...p });
   T({ descricao: `Disposição: ${arm.linhas} linhas radiais com ${arm.barras} ${arm.tipo === 'estribo' ? 'estribos (grampos, 2 pernas)' : 'conectores (1 perna)'} cada, φ${fm(arm.phi)} mm; a primeira a ${fm(arm.s0 * 100)} cm da face e entre barras a ${fm(arm.sr * 100)} cm`, formula: 'linhas × barras; s0; sr', expressao: `${arm.linhas} × ${arm.barras} = ${arm.total} barras de φ${fm(arm.phi)} mm`, resultado: arm.total, unidade: 'un', norma: `${NBR}, 19.5.3.5`, entradas: { linhas: arm.linhas, barras: arm.barras, phi: arm.phi, s0: arm.s0, sr: arm.sr, pernas: arm.pernas, total: arm.total, AswAnel: arm.AswAnel, posicoes: JSON.stringify(arm.posicoes) } });

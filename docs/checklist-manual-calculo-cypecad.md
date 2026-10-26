@@ -22,22 +22,22 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 9 | 0 | 0 | 2 |
 | 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 59 | 0 | 0 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 97 | 0 | 0 | 23 |
-| 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 40 | 1 | 0 | 4 |
+| 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 41 | 0 | 0 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 24 | 0 | 0 | 19 |
-| **Total** | **661** | **545** | **5** | **0** | **111** |
+| **Total** | **661** | **546** | **4** | **0** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 5 | 0 | 5 |
+| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 4 | 0 | 4 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 0 | 0 | 0 |
 | FU — Fundações | 0 | 0 | 0 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 0 | 0 | 0 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 0 | 0 | 0 |
-| **Total** | **5** | **0** | **5** |
+| **Total** | **4** | **0** | **4** |
 
 ## Divergências de premissa
 
@@ -766,7 +766,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.13.2.3-2 | Radiers: mesmo critério de armadura das lajes maciças. | Feito | — | radier pelo critério das lajes maciças: Wood-Armer na faixa de 1 m (ELU), ρmín 0,15 %, fissuração na frequente (`dimensionarBaseElastica`) |
 | | **1.13.2.4 Armadura transversal** | | | |
 | K1.13.2.4-1 | Punção: verificação em superfícies paralelas às faces dos apoios (pilares, pilares-parede, vigas, paredes) à distância 0,5d. | Feito | — | contornos C (face), C′ (2d) e C″ da NBR 6118, 19.5, no lugar das superfícies a 0,5d (a norma é exigência), recortados pela laje, pelas bordas livres e pelos furos a menos de 8d: pilar interno, de borda, de canto, circular e pilar-parede (`puncao.ts`) [N2d] |
-| K1.13.2.4-2 | Punção tratada como verificação de tensão tangencial: tensões a partir dos cortantes dos nós vizinhos, interpoladas linearmente nos pontos do perímetro. | Parcial | N | τSd = FSd/(u·d) + ΣK·MSd1/(Wp·d) no contorno, com FSd (reação do pilar na grelha) e o momento das molas no lugar da interpolação dos cortantes dos nós; método da NBR 6118, 19.5.2 [N2d]. Parcial: Wp de borda e canto e K da Tabela 19.2 pendentes do texto da norma (razão medida em `puncao.test.ts`, conservadora) — Resíduo [N4b]: ábacos da NBR 6123 (vizinhança e Ca) e Wp/K da punção (Tabela 19.2), com o material do usuário. |
+| K1.13.2.4-2 | Punção tratada como verificação de tensão tangencial: tensões a partir dos cortantes dos nós vizinhos, interpoladas linearmente nos pontos do perímetro. | Feito | — | τSd = FSd/(u·d) + ΣK·MSd1/(Wp·d) no contorno, com FSd (reação do pilar na grelha) e o momento das molas no lugar da interpolação dos cortantes dos nós; método da NBR 6118, 19.5.2 [N2d]. Borda e canto pela NBR 6118, 19.5.2.3 e 19.5.2.4 (opção puncaoWpBorda, padrão ligada; 0 = critério anterior): u* do pilar reduzido a = mín(1,5d; 0,5c), e* do centroide de u*, Wp do perímetro total em torno do centro do pilar, K1 = K(C1/C2) e K2 = K(C2/(2C1)) da Tabela 19.2, canto com a maior das duas bordas (apoioReduzido, fatoresKNBR, tensaoBordaNBR em src/core/building/puncao.ts; memória em src/core/memoria/puncao.ts); transcrição a confirmar (pendencias-usuario.md) [N4b, parte da punção; os ábacos da NBR 6123 seguem no N4b] |
 | K1.13.2.4-3 | O manual registra que a abordagem é geral e difere das normas (fórmulas simplificadas com normal e momento desequilibrado). | Fora | — | comentário do manual |
 | K1.13.2.4-4 | Tensão máxima de punção excedida → linha vermelha; aumentar espessura ou resistência do concreto. | Feito | — | τSd > τRd2 no contorno C: erro PUNCAO_BIELA; contornos que excedem a resistência em vermelho na janela da laje e na camada Punção e cortante da planta [N2d] |
 | K1.13.2.4-5 | Tensão sem armadura excedida → armadura transversal indicada (número de barras e diâmetro) na forma de grampos verticais, com espaçamento conforme a quantidade num dado comprimento. | Feito | — | armadura de punção calculada: estribos (grampos verticais) ou conectores em linhas radiais, número de linhas, barras por linha, φ e espaçamento, até o contorno C″ dispensar armadura (`ArmaduraPuncao`, opção `puncaoTipoArmadura`) [N2d] |
@@ -1045,3 +1045,6 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **24/10/2026 — fatia V7g (cobrimento do estado do pilar retangular).** K1.11.30 segue Feito: `estadoDoPilar` passa a usar o d' do dimensionamento (cobrimento da obra ou do pilar + 5 mm + φ/2) no pilar retangular, no lugar de 0,04 m fixo + estribo + φ/2 (inconsistência apontada na V7c); teste em `v7g.test.ts` com cobrimentos de 2,5, 4 e 6 cm.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: sem mudança.
+- **26/10/2026 — fatias E6b e N4b (parte da punção).** K1.13.2.4-2 passa a Feito: punção de borda e de canto pela NBR 6118, 19.5.2.3 e 19.5.2.4 (u* do pilar reduzido, e* do centroide de u*, Wp do perímetro total em torno do centro do pilar, K1/K2 da Tabela 19.2, canto pela maior das duas bordas; opção `puncaoWpBorda`, 0 = critério anterior), validada à mão e pelas fórmulas fechadas em `puncao.test.ts` e refeita na memória detalhada (`memoria/puncao.test.ts`); transcrição a confirmar em `pendencias-usuario.md`.
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: N diminui (1 item a Feito); N4b fica só com os ábacos da NBR 6123.

@@ -20,7 +20,7 @@ import { conjuntoVigotas, ehNervurada, FAMILIAS_VIGOTA, geometriaNervurada, trel
 import { armaduraEquivalente, dadosBranson } from './vigotasFlecha';
 import { casosDaObra, pavimentosDoGrupo, type BuildingModel, type EdicaoVigota, type Laje } from './types';
 import {
-  ADICIONAIS, alcance, arred, faixasDaGrelha, fmt, fphi, listaDeVigotas, momentoLimite, pesoTrelica, prepararVigotas, r3, vrd1, vrd2, deltaMinVigotas,
+  ADICIONAIS, alcance, arred, faixasDaGrelha, fmt, fphi, listaDeVigotas, momentoLimite, pesoTrelica, prepararVigotas, aplicarSuperiorEntrePanos, superiorEntrePanos, r3, vrd1, vrd2, deltaMinVigotas,
   type DadosFichaGrupo, type EsforcosVigota, type FaixaVigota, type GrupoVigotas, type NegativoVigota, type ParcelaVigota, type PosicaoVigota, type ResultadoVigotas,
 } from './vigotas';
 import { esforcosDoGrupo, pontasContinuas, posicionarVigotas, redistribuirNegativos } from './vigotasEsforcos';
@@ -101,6 +101,7 @@ export function dimensionarVigotasFichas(b: BuildingModel, an: AnaliseEdificio, 
     const conv = conversaoDaLaje(b, l, g0, op);
     const prep = prepararVigotas(b, an, l, intereixo, op, conv);
     if (!prep) continue;
+    aplicarSuperiorEntrePanos(prep, superiorEntrePanos(b, an, op).get(l.id));
     const { faixas, mins, idxGr, u, nomesPav } = prep, pavs = pavimentosDoGrupo(b, l.grupo);
     const msgs: Msg[] = prep.avisos.map((texto) => ({ texto, erro: false }));
     const erro = (texto: string, v?: number[]) => { msgs.push({ texto, erro: true }); if (v) for (const i of v) { falhas.add(i); porVigota.set(i, [...(porVigota.get(i) ?? []), texto]); } };

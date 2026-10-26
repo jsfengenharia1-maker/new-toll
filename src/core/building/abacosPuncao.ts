@@ -133,7 +133,7 @@ export function puncaoAbacos(b: BuildingModel, an: AnaliseEdificio, nervs: Resul
       const manual = gruposDoPilar(b, p.id), pernasM = op.puncaoTipoArmadura ? 1 : 2;
       const parInt: ParametrosPuncao = { ...parBase, rho: rhoInt, bitolas: BITOLAS_PUNCAO.filter((x) => x <= (hInt * 1000) / 20 + 1e-9),
         ...(manual.length ? { manual: { Asw: Math.max(...manual.map((q) => q.linhas * pernasM * barArea(q.phi) * 1e4)), aneis: Math.min(...manual.map((q) => q.barras)) } } : {}) };
-      const entInt: EntradaPuncao = { ap, reg, d: dInt, h: hInt, F, M, qd, excluir: cubetas, ...(regP ? { detalhar: true } : {}) };
+      const entInt: EntradaPuncao = { ap, reg, d: dInt, h: hInt, F, M, qd, excluir: cubetas, metodoBorda: op.puncaoWpBorda ? 'nbr' : 'anterior', ...(regP ? { detalhar: true } : {}) };
       const vi = verificarPuncao(entInt, parInt);
       const prefixo = ef ? ' (ábaco)' : ' (sem ábaco)';
       const msgs = vi.mensagens.map((m) => m.replace(/^(Punção|Cortante da laje)/, `$1 em ${p.nome}${prefixo}`));
@@ -142,7 +142,7 @@ export function puncaoAbacos(b: BuildingModel, an: AnaliseEdificio, nervs: Resul
       if (ef && rect) {
         apAb = { centro: rect.centro, c1: rect.c1, c2: rect.c2, circular: false, angulo: rect.angulo };
         const parExt: ParametrosPuncao = { ...parBase, rho: tx.rhoLaje, bitolas: BITOLAS_PUNCAO.filter((x) => x <= (hLaje * 1000) / 20 + 1e-9) };
-        entExt = { ap: apAb, reg, d: dLaje, h: hLaje, F, M, qd, excluir: cubetas, ...(regP ? { detalhar: true } : {}) };
+        entExt = { ap: apAb, reg, d: dLaje, h: hLaje, F, M, qd, excluir: cubetas, metodoBorda: op.puncaoWpBorda ? 'nbr' : 'anterior', ...(regP ? { detalhar: true } : {}) };
         parExtMem = parExt;
         ve = verificarPuncao(entExt, parExt);
         msgs.push(...ve.mensagens.map((m) => m.replace(/^(Punção|Cortante da laje)/, `$1 em ${p.nome} (fora do ábaco, C″ a 2d da borda)`)));

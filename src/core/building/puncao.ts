@@ -159,12 +159,18 @@ export function propriedadesContorno(pecas: Seg[], angulo: number): PropsContorn
   const u = pecas.reduce((s, p) => s + comp(p), 0);
   if (u < 1e-9) return { u: 0, centroide: [0, 0], Wp: [0, 0] };
   const cent: P = [pecas.reduce((s, p) => s + comp(p) * meio(p)[0], 0) / u, pecas.reduce((s, p) => s + comp(p) * meio(p)[1], 0) / u];
-  const ax = eixos(angulo);
-  const Wp = ax.map((e) => pecas.reduce((s, p) => {
-    const e1 = (p[0][0] - cent[0]) * e[0] + (p[0][1] - cent[1]) * e[1], e2 = (p[1][0] - cent[0]) * e[0] + (p[1][1] - cent[1]) * e[1], L = comp(p);
+  return { u, centroide: cent, Wp: wpEmTorno(pecas, angulo, cent) };
+}
+
+/**
+ * Wp = ∫|e| dℓ nas direções u e v (eixos do pilar), com e medido a partir do ponto `ref` (integral exata em cada segmento reto).
+ * Com `ref` no centroide do contorno é a definição de 19.5.2.2; com `ref` no centro do pilar, o Wp de 19.5.2.3 (borda e canto).
+ */
+export function wpEmTorno(pecas: Seg[], angulo: number, ref: P): [number, number] {
+  return eixos(angulo).map((e) => pecas.reduce((s, p) => {
+    const e1 = (p[0][0] - ref[0]) * e[0] + (p[0][1] - ref[1]) * e[1], e2 = (p[1][0] - ref[0]) * e[0] + (p[1][1] - ref[1]) * e[1], L = comp(p);
     return s + (e1 * e2 >= 0 ? (L * (Math.abs(e1) + Math.abs(e2))) / 2 : (L * (e1 * e1 + e2 * e2)) / (2 * (Math.abs(e1) + Math.abs(e2))));
   }, 0)) as [number, number];
-  return { u, centroide: cent, Wp };
 }
 
 /** Polilinhas contínuas a partir dos segmentos (para desenhar). */
@@ -203,6 +209,73 @@ export function fatoresK(ap: Apoio, livres: Lado[]): [number, number] {
   return [coefK(ap.c1 / ap.c2 / (livreV ? 2 : 1)), coefK(ap.c2 / ap.c1 / (livreU ? 2 : 1))];
 }
 
+// ---------------------------------------------------------------- borda e canto pela NBR 6118 (19.5.2.3 e 19.5.2.4)
+
+/**
+ * Bordas livres por eixo para o método da NBR (opção `puncaoWpBorda`): sinal do lado livre em u e em v (+1, −1 ou 0).
+ * null quando o método não se aplica: pilar interno, circular, ou com os dois lados opostos de um eixo livres (fica o critério anterior).
+ */
+export function bordasNBR(ap: Apoio, livres: Lado[]): [number, number] | null {
+  if (ap.circular || !livres.length) return null;
+  const s = (e: 'u' | 'v') => { const m = livres.includes(`${e}-` as Lado), p = livres.includes(`${e}+` as Lado); return m && p ? NaN : m ? -1 : p ? 1 : 0; };
+  const r: [number, number] = [s('u'), s('v')];
+  return r.some(Number.isNaN) ? null : r;
+}
+
+/**
+ * Pilar reduzido que gera o perímetro crítico reduzido u* (NBR 6118, 19.5.2.3, Figura 19.6 [a confirmar a transcrição]): em cada
+ * direção perpendicular a uma borda livre, o pilar passa a ter a = mín(1,5d; 0,5·c) junto à borda (c = lado do pilar nessa direção).
+ */
+export function apoioReduzido(ap: Apoio, sinais: [number, number], d: number): { ap: Apoio; a: [number, number] } {
+  const c: [number, number] = [ap.c1, ap.c2], a: [number, number] = [0, 0], [ux, vx] = eixos(ap.angulo);
+  let du = 0, dv = 0;
+  for (const i of [0, 1] as const) {
+    if (!sinais[i]) continue;
+    a[i] = Math.min(1.5 * d, 0.5 * c[i]);
+    const desl = sinais[i] * (c[i] / 2 - a[i] / 2);
+    if (i === 0) du = desl; else dv = desl;
+  }
+  const centro: P = [ap.centro[0] + du * ux[0] + dv * vx[0], ap.centro[1] + du * ux[1] + dv * vx[1]];
+  return { ap: { ...ap, centro, c1: sinais[0] ? a[0] : ap.c1, c2: sinais[1] ? a[1] : ap.c2 }, a };
+}
+
+/**
+ * K de borda e canto pela NBR 6118: borda, K1 = K(C1/C2) com C1 perpendicular à borda (19.5.2.3 a) e K2 = K(C2/(2·C1)) na direção
+ * paralela (19.5.2.3 b); canto, cada direção como borda, K = K(C1/C2) com C1 perpendicular à borda adotada (19.5.2.4).
+ */
+export function fatoresKNBR(ap: Apoio, sinais: [number, number]): [number, number] {
+  const c: [number, number] = [ap.c1, ap.c2];
+  return [0, 1].map((i) => {
+    const j = 1 - i;
+    if (sinais[i]) return coefK(c[i] / c[j]);
+    return sinais[j] ? coefK(c[i] / (2 * c[j])) : coefK(c[i] / c[j]);
+  }) as [number, number];
+}
+
+/** Fórmulas fechadas (contorno a `a` das faces, cantos em arco), para conferência: borda com C1 perpendicular à borda e C2 paralelo. */
+export const fechadasBorda = (C1: number, C2: number, a: number, d: number) => {
+  const ar = Math.min(1.5 * d, 0.5 * C1), uRed = 2 * ar + C2 + Math.PI * a;
+  // centroide de u* medido da borda: lados (ar), arcos de raio a com centro a ar da borda, trecho paralelo a ar + a
+  const xRed = (ar * ar + Math.PI * a * ar + 2 * a * a + C2 * (ar + a)) / uRed;
+  return {
+    u: 2 * C1 + C2 + Math.PI * a, uRed, eRed: xRed - C1 / 2,
+    /** Wp1 (momento no plano perpendicular à borda), em torno do eixo do pilar paralelo à borda. */
+    Wp1: (C1 * C1) / 2 + (C1 * C2) / 2 + C2 * a + 2 * a * a + (Math.PI * a * C1) / 2,
+    /** Wp2 (momento no plano paralelo à borda), em torno do eixo de simetria. */
+    Wp2: (C2 * C2) / 4 + C1 * C2 + 2 * C1 * a + 2 * a * a + (Math.PI * a * C2) / 2,
+  };
+};
+/** Idem, pilar de canto (C1 perpendicular à borda adotada, C2 paralelo). */
+export const fechadasCanto = (C1: number, C2: number, a: number, d: number) => {
+  const a1 = Math.min(1.5 * d, 0.5 * C1), a2 = Math.min(1.5 * d, 0.5 * C2), uRed = a1 + a2 + (Math.PI * a) / 2;
+  // centroide de u* medido da borda adotada (a1 na direção perpendicular a ela)
+  const xRed = (a2 * (a1 + a) + (a1 * a1) / 2 + (Math.PI * a / 2) * a1 + a * a) / uRed;
+  return {
+    u: C1 + C2 + (Math.PI * a) / 2, uRed, eRed: xRed - C1 / 2,
+    Wp1: (C1 * C1) / 4 + (C1 * C2) / 2 + C2 * a + a * a + (Math.PI * a * C1) / 4,
+  };
+};
+
 /** τRd2 = 0,27·αv2·fcd (MPa), NBR 6118, 19.5.3.1. */
 export const tauRd2 = (c: Concrete) => 0.27 * c.av2 * c.fcd;
 const base1 = (d: number, rho: number, fck: number) => (1 + Math.sqrt(20 / (d * 100))) * Math.cbrt(100 * rho * fck);
@@ -230,6 +303,11 @@ export interface EntradaPuncao {
   excluir?: P[][];
   /** Memória detalhada (MD4): `verificarPuncao` devolve em `det` os intermediários que o cálculo não guarda. Só com a memória ligada. */
   detalhar?: boolean;
+  /**
+   * Pilares de borda e de canto (K1.13.2.4-2, opção `puncaoWpBorda`): 'nbr' = u*, e* e Wp de 19.5.2.3 e 19.5.2.4 com o K da
+   * Tabela 19.2 pelas regras de borda e canto; ausente ou 'anterior' = contorno recortado, Wp e e* em torno do seu centroide.
+   */
+  metodoBorda?: 'nbr' | 'anterior';
 }
 
 export interface ParametrosPuncao {
@@ -280,15 +358,67 @@ export function tirarDentro(pecas: Seg[], polis: P[][]): Seg[] {
   return out;
 }
 
-export interface Tensao { a: number; u: number; tau: number; Wp: [number, number]; K: [number, number]; M1: [number, number]; e: [number, number]; pecas: Seg[] }
+/**
+ * Borda e canto pela NBR 6118 (19.5.2.3 e 19.5.2.4): `u` e `pecas` da Tensao são o perímetro reduzido u*; aqui ficam o contorno
+ * total (Wp), o centroide de u*, os lados reduzidos a e, no canto, as duas verificações (uma por borda livre) e a que governa.
+ */
+export interface TensaoNBR {
+  tipo: 'borda' | 'canto'; sinais: [number, number]; aRed: [number, number]; uTotal: number; pecasTotal: Seg[]; centroideRed: P;
+  /** Canto: τSd (MPa) de cada verificação (borda livre perpendicular a u; a v) e a que governa. */
+  tauDir?: [number, number]; governa?: 0 | 1;
+}
+export interface Tensao { a: number; u: number; tau: number; Wp: [number, number]; K: [number, number]; M1: [number, number]; e: [number, number]; pecas: Seg[]; nbr?: TensaoNBR }
+
+/** Trechos de um contorno dentro da laje, sem furos próximos e sem cubetas. */
+function pecasDoContorno(ent: EntradaPuncao, apC: Apoio, a: number, furoDist: number): Seg[] {
+  let pecas = recortar(curvaAfastada(apC, a), ent.reg);
+  pecas = descontarFuros(pecas, ent.ap, ent.reg.furos, furoDist * ent.d);
+  if (ent.excluir?.length) pecas = tirarDentro(pecas, ent.excluir);
+  return pecas;
+}
+
+/**
+ * Tensão no contorno de pilar de borda ou de canto pela NBR 6118:
+ *   borda (19.5.2.3): τSd = FSd/(u*·d) + K1·MSd1/(Wp1·d) + K2·MSd2/(Wp2·d), MSd1 = máx(0; MSd − FSd·e*);
+ *   canto (19.5.2.4): para cada borda livre, τSd = FSd/(u*·d) + K1·MSd1/(Wp1·d) com o momento do plano perpendicular a ela; vale a maior.
+ * u* do pilar reduzido (`apoioReduzido`), e* = distância do centroide de u* ao centro do pilar (positiva para o interior da laje) e
+ * Wp = ∫|e|dℓ do perímetro total u em torno do eixo que passa pelo centro do pilar (as fórmulas fechadas de `fechadasBorda`/`fechadasCanto`).
+ */
+function tensaoBordaNBR(ent: EntradaPuncao, sinais: [number, number], a: number, furoDist: number, F: number): Tensao {
+  const { ap, d } = ent;
+  const pecasTotal = pecasDoContorno(ent, ap, a, furoDist), red = apoioReduzido(ap, sinais, d), pecas = pecasDoContorno(ent, red.ap, a, furoDist);
+  const prR = propriedadesContorno(pecas, ap.angulo), uTotal = pecasTotal.reduce((s, p) => s + comp(p), 0);
+  const Wp = wpEmTorno(pecasTotal, ap.angulo, ap.centro), K = fatoresKNBR(ap, sinais);
+  const ax = eixos(ap.angulo), dc: P = [prR.centroide[0] - ap.centro[0], prR.centroide[1] - ap.centro[1]];
+  // e* com sinal: positivo quando o centroide de u* está do lado do interior da laje (oposto à borda livre)
+  const e = [0, 1].map((i) => (sinais[i] && prR.u ? -sinais[i] * (dc[0] * ax[i][0] + dc[1] * ax[i][1]) : 0)) as [number, number];
+  const M1 = [0, 1].map((i) => (sinais[i] ? Math.max(0, ent.M[i] - F * e[i]) : ent.M[i])) as [number, number];
+  const canto = !!(sinais[0] && sinais[1]);
+  const nbr: TensaoNBR = { tipo: canto ? 'canto' : 'borda', sinais, aRed: red.a, uTotal, pecasTotal, centroideRed: prR.centroide };
+  if (prR.u < 1e-6) return { a, u: 0, tau: 0, Wp, K, M1, e, pecas, nbr };
+  const tF = F / (prR.u * d), tM = [0, 1].map((i) => (Wp[i] > 1e-9 ? (K[i] * M1[i]) / (Wp[i] * d) : 0));
+  let tau: number;
+  if (canto) {
+    nbr.tauDir = [(tF + tM[0]) / 1000, (tF + tM[1]) / 1000];
+    nbr.governa = nbr.tauDir[1] > nbr.tauDir[0] ? 1 : 0;
+    tau = nbr.tauDir[nbr.governa];
+  } else tau = (tF + tM[0] + tM[1]) / 1000;
+  return { a, u: prR.u, tau, Wp, K, M1, e, pecas, nbr };
+}
+
+/**
+ * Perímetro total do contorno: nos pilares de borda e de canto pela NBR, u (não u*) entra na armadura de punção (τRd3, 19.5.3.3),
+ * no espaçamento tangencial e na varredura de cortante [a confirmar: a norma não diz qual perímetro usar em τRd3 na borda].
+ */
+export const uTotal = (t: Pick<Tensao, 'u' | 'nbr'>) => t.nbr?.uTotal ?? t.u;
 
 /** Tensão de cisalhamento de cálculo (MPa) no contorno afastado de `a`. */
 export function tensaoNoContorno(ent: EntradaPuncao, livres: Lado[], a: number, furoDist: number): Tensao {
   const { ap, reg, d } = ent;
-  let pecas = recortar(curvaAfastada(ap, a), reg);
   const F = ent.descontar ? Math.max(0, ent.F - ent.qd * areaDentro(curvaAfastada(ap, a), reg)) : ent.F;
-  pecas = descontarFuros(pecas, ap, reg.furos, furoDist * d);
-  if (ent.excluir?.length) pecas = tirarDentro(pecas, ent.excluir);
+  const sinais = ent.metodoBorda === 'nbr' ? bordasNBR(ap, livres) : null;
+  if (sinais) return tensaoBordaNBR(ent, sinais, a, furoDist, F);
+  const pecas = pecasDoContorno(ent, ap, a, furoDist);
   const pr = propriedadesContorno(pecas, ap.angulo);
   const K = fatoresK(ap, livres);
   const [ux, vx] = eixos(ap.angulo);
@@ -406,12 +536,12 @@ export function verificarPuncao(ent: EntradaPuncao, par: ParametrosPuncao): Resu
   const D: DetVerificacao | undefined = ent.detalhar ? { vRd2, vc, vR1, s0, sr, pernas, tentativas: [], precisaPunc: false, nb: 0, nbCort: 0, nbMax: 0, nbTot: 0, verifC3: [], AswPunc: 0, AswCort: 0, AswReq: 0, manAsw: 0, manAneis: 0, AswAuto: 0, u1: 0, aUlt: 0, sT: 0, nMinT: 0, nCap: 0, bitolas: [], limiteLinhas: 0, AswEf: 0, desfecho: 'ok' } : undefined;
   if (par.passoCortante > 0 && F > 0) {
     for (let k = 0; k < 80; k++) {
-      const a = 2 * d + k * par.passoCortante * d, t = k === 0 ? C2 : tens(a), A = areaDentro(curvaAfastada(ap, a), reg), V = F - ent.qd * A;
-      if (t.u < 0.05 || V <= 0) break;
-      const v = V / t.u, ok = v <= vR1 + 1e-9;
+      const a = 2 * d + k * par.passoCortante * d, t = k === 0 ? C2 : tens(a), A = areaDentro(curvaAfastada(ap, a), reg), V = F - ent.qd * A, ut = uTotal(t);
+      if (ut < 0.05 || V <= 0) break;
+      const v = V / ut, ok = v <= vR1 + 1e-9;
       // armadura transversal por anel (cm²): (V − Vc·u)·sr/(0,9·d·fywd)
-      const Asw = ok ? 0 : (Math.max(0, V - vc * t.u) * sr * 1e4) / (0.9 * d * par.fywd * 1000);
-      sup.push({ a, u: t.u, A, V, v, vRd1: vR1, ok, Asw });
+      const Asw = ok ? 0 : (Math.max(0, V - vc * ut) * sr * 1e4) / (0.9 * d * par.fywd * 1000);
+      sup.push({ a, u: ut, A, V, v, vRd1: vR1, ok, Asw });
       if (!ok) { falha = true; aFalha = a; AswCort = Math.max(AswCort, Asw); }
     }
   }
@@ -442,7 +572,7 @@ export function verificarPuncao(ent: EntradaPuncao, par: ParametrosPuncao): Resu
     }
     if (!nb) { msgs.push('Punção sem solução: a tensão no contorno C″ não cai a τRd1 com até 14 linhas de armadura; aumente a espessura da laje, a seção do pilar ou o fck.'); return sai('fail', {}, 'semSolucaoC3'); }
   }
-  const AswPunc = precisaPunc ? (Math.max(0, C2.tau - t3c) * C2.u * sr * 1e4) / (1.5 * par.fywd) : 0; // cm² por anel
+  const AswPunc = precisaPunc ? (Math.max(0, C2.tau - t3c) * uTotal(C2) * sr * 1e4) / (1.5 * par.fywd) : 0; // cm² por anel
   const nbCort = falha ? Math.max(1, Math.ceil((aFalha - s0) / sr) + 1) : 0;
   const nbMax = Math.max(nb, nbCort), AswReq = Math.max(AswPunc, AswCort);
   let nbTot = nbMax;
@@ -476,11 +606,11 @@ export function verificarPuncao(ent: EntradaPuncao, par: ParametrosPuncao): Resu
       return sai('ok', {}, 'vcCobre');
     }
     msgs.push('Armadura de punção informada atende; nenhuma armadura calculada foi acrescentada.');
-    return sai('armadura', { tauRd3: t3c + (1.5 * manAsw * par.fywd) / (sr * C2.u * 1e4) }, 'informadaAtende');
+    return sai('armadura', { tauRd3: t3c + (1.5 * manAsw * par.fywd) / (sr * uTotal(C2) * 1e4) }, 'informadaAtende');
   }
-  const aUlt = s0 + (nbTot - 1) * sr, u1 = tens(s0).u;
+  const aUlt = s0 + (nbTot - 1) * sr, u1 = uTotal(tens(s0));
   const sT = C.tau <= 0.63 * t2 ? 2 * d : 1.5 * d; // espaçamento tangencial máximo no contorno C′ [a confirmar]
-  const nMinT = Math.max(2, Math.ceil(C2.u / sT - 1e-9)), nCap = Math.max(nMinT, Math.floor(u1 / 0.05));
+  const nMinT = Math.max(2, Math.ceil(uTotal(C2) / sT - 1e-9)), nCap = Math.max(nMinT, Math.floor(u1 / 0.05));
   // menor bitola que resolve com poucas linhas (até 16); senão a maior bitola permitida que cabe no perímetro da primeira linha
   const nrDe = (phi: number) => Math.max(nMinT, Math.ceil(AswAuto / (pernas * barArea(phi) * 1e4) - 1e-9));
   let escolha: { phi: number; n: number } | null = null;
@@ -492,7 +622,7 @@ export function verificarPuncao(ent: EntradaPuncao, par: ParametrosPuncao): Resu
   const AswEf = escolha.n * pernas * barArea(escolha.phi) * 1e4 + (manAneis >= nbTot ? manAsw : 0);
   const arm: ArmaduraPuncao = { tipo: par.tipoArm, phi: escolha.phi, linhas: escolha.n, barras: nbTot, s0, sr, pernas, AswAnel: AswEf, total: escolha.n * nbTot, posicoes: [] };
   arm.posicoes = posicoesPuncao(ent, arm, par.furoDist);
-  const tauRd3 = t3c + (1.5 * AswEf * par.fywd) / (sr * C2.u * 1e4);
+  const tauRd3 = t3c + (1.5 * AswEf * par.fywd) / (sr * uTotal(C2) * 1e4);
   if (D) D.AswEf = AswEf;
   msgs.push(`${precisaPunc ? 'Punção' : 'Cortante da laje (armadura transversal)'}: armadura de ${arm.linhas} linhas radiais com ${arm.barras} ${par.tipoArm === 'estribo' ? 'estribos (grampos)' : 'conectores'} de φ${String(arm.phi).replace('.', ',')} (primeira a ${Math.round(s0 * 100)} cm da face, entre barras ${Math.round(sr * 100)} cm).`);
   return sai('armadura', { armadura: arm, C3, tauRd3 }, 'armadura');
@@ -834,7 +964,7 @@ export function puncaoEdificio(b: BuildingModel, an: AnaliseEdificio, lajesRes: 
         bitolas: BITOLAS_PUNCAO.filter((x) => x <= h * 1000 / 20 + 1e-9),
         ...(manual.length ? { manual: { Asw: Math.max(...manual.map((q) => q.linhas * pernasM * barArea(q.phi) * 1e4)), aneis: Math.min(...manual.map((q) => q.barras)) } } : {}) };
       const qd = gm.g * (laje.tipo.tipo === 'macica' ? GAMA_CONCRETO * laje.tipo.h : 0) + gm.g * (grupo?.gRev ?? 0) + gm.q * (grupo?.q ?? 0);
-      const ent: EntradaPuncao = { ap, reg, d, h, F, M, qd, ...(regP ? { detalhar: true } : {}) };
+      const ent: EntradaPuncao = { ap, reg, d, h, F, M, qd, metodoBorda: op.puncaoWpBorda ? 'nbr' : 'anterior', ...(regP ? { detalhar: true } : {}) };
       const v = verificarPuncao(ent, par);
       if (regP && detS) {
         registrarSolicitacaoPuncao(regP, elP, detS);
@@ -849,7 +979,7 @@ export function puncaoEdificio(b: BuildingModel, an: AnaliseEdificio, lajesRes: 
       if (st.avisoViga) msgs.unshift(st.avisoViga);
       if (!g.momentos && ((an.vento?.casos.length ?? 0) > 0 || (an.desaprumo?.casos.length ?? 0) > 0)) msgs.push(`Punção em ${p.nome}: no modelo separado a laje não recebe o momento do vento nem do desaprumo global (só o modelo integrado transmite as ações horizontais à laje); considerar o modelo integrado [a confirmar].`);
       for (const g2 of manual) if (g2.s > 0.75 * d + 1e-9) msgs.push(`Punção em ${p.nome}: espaçamento informado de ${(g2.s * 100).toFixed(0)} cm maior que 0,75d = ${(0.75 * d * 100).toFixed(1).replace('.', ',')} cm (NBR 6118, 19.5.3.5).`);
-      if (v.tipo !== 'interno' && !st.viga) { /* borda e canto: contorno reduzido u* */ }
+      if (v.tipo !== 'interno' && op.puncaoWpBorda && !v.C.nbr) msgs.push(`Punção em ${p.nome}: ${circular ? 'pilar circular' : 'apoio com faces opostas livres'} de ${v.tipo}: as regras de borda e canto da NBR 6118 (19.5.2.3 e 19.5.2.4: u*, e* e Wp) não se aplicam; contorno recortado com Wp e e* em torno do seu centroide [a confirmar].`);
       if (Math.max(w, hh) > 5 * Math.min(w, hh)) msgs.push(`Pilar-parede ${p.nome} (${(w * 100).toFixed(0)}×${(hh * 100).toFixed(0)} cm): a distribuição de tensões no contorno não é uniforme; punção verificada no contorno completo [a confirmar].`);
       const mk = (nome: 0 | 1 | 2, t: Tensao, lim: number, limNome: string) => ({ nome: NOMES_C[nome], a: t.a, u: t.u, tau: t.tau, limite: lim, limiteNome: limNome, ok: t.tau <= lim + 1e-9, Wp: t.Wp, e: t.e, M1: t.M1, pontos: polilinhas(t.pecas) });
       const r: ResultadoPuncao = {
@@ -904,7 +1034,7 @@ export function puncaoRadier(b: BuildingModel, an: AnaliseEdificio, radiers: Res
         if (F <= 0) continue;
         const Mu = Mx * co + My * si, Mv = -Mx * si + My * co; // momento em torno de u tem excentricidade ao longo de v
         const q = perto.length ? perto.reduce((s, n) => s + f.reduce((t, fi, ic) => t - fi * n.k * desl[ic][n.no * 6 + 2], 0), 0) / perto.length : 0;
-        const ent: EntradaPuncao = { ap, reg, d, h: rad.h, F, M: [Math.abs(Mv), Math.abs(Mu)], qd: Math.max(0, q), descontar: true };
+        const ent: EntradaPuncao = { ap, reg, d, h: rad.h, F, M: [Math.abs(Mv), Math.abs(Mu)], qd: Math.max(0, q), descontar: true, metodoBorda: op.puncaoWpBorda ? 'nbr' : 'anterior' };
         const tau = tensaoNoContorno(ent, livres, 2 * d, op.puncaoFuroDist).tau;
         if (regR) taus.push({ nome: cb.nome, tau });
         if (!melhor || tau > melhor.tau) {
