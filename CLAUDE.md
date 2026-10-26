@@ -145,7 +145,7 @@ Veja a tabela no `README.md`. Resumo:
 - Spec das próximas fases: `docs/spec-proximas-fases.md`.
 
 ## Publicação como artifact do claude.ai
-- O app foi publicado como artifact privado do usuário: https://claude.ai/artifact/EG1GFPozyKaHddVko8BzAw (versão 4).
+- O app foi publicado como artifact privado do usuário: https://claude.ai/artifact/EG1GFPozyKaHddVko8BzAw (versão 5, 26/10/2026).
 - Capabilities declaradas: `db`, `user`, `downloads`.
 - Para republicar:
   1. Rodar `npm run build:artifact` (gera `dist-artifact/index.html` único, com tudo embutido, inclusive o worker do cálculo; o import() dos módulos pesados só adia a execução).
