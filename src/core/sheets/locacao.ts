@@ -2,6 +2,7 @@
 // (hachurados) com o rótulo "Pn / b×h", tabela de cargas por pilar com valores característicos (combinação rara
 // de maior N, como as cargas enviadas a Fundações) e de cálculo (ELU de maior Nd), em kN e kN·m, e notas gerais
 // do modelo (concreto, aço, cobrimentos, CAA, γ, normas).
+import { primitivasMarcasCorte } from './cortes';
 import { primitivasEscadas } from './escadasPrancha';
 import { opcoesEmUso, perfilDe } from '../building/opcoes';
 import { pontoRef, refDe } from '../building/vistaObra';
@@ -124,6 +125,7 @@ export function montarPranchaLocacao(b: BuildingModel, an: AnaliseEdificio | nul
   modelo.push(...primitivasEscadas(b, k));
   const centros = [...pils.map(({ c }) => c), ...paredes.map((w) => w.cs.flat())].map((c) => { const [a0, b0, a1, b1] = caixa(c); return [(a0 + a1) / 2, (b0 + b1) / 2] as P; });
   eixosECotas(modelo, b.eixos, centros, cx, k);
+  modelo.push(...primitivasMarcasCorte(b, k, cx)); // marcas dos cortes ativos (V6a)
   // cotas do usuário (L6) que só ligam pilares, paredes, eixos e pontos livres (a locação não tem vigas nem lajes)
   if ({ ...ARMACAO_PADRAO, ...(b.prancha?.armacao ?? {}) }.cotasUsuario) cotasDoUsuario(b, modelo, k, (c) => c.refs.every((r) => !r.elem || ['pilar', 'parede', 'eixo'].includes(r.elem.tipo)));
   const tabelas: BlocoTabela[] = [notas(notasGerais(b), 'NOTAS GERAIS')];

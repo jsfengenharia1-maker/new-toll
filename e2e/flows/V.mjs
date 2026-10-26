@@ -1281,3 +1281,109 @@ export const f_V7h = {
       assert.ok(Math.abs((await ler()).secoes[0].Mz - c0.secoes[0].Mz) < 1e-3);
     },
   };
+
+export const f_V6a = {
+    name: 'V6a: cortes do edifício nas pranchas — ativar o corte, marca nas plantas de formas, folha de cortes (escala configurável) e marca com tamanho próprio',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await cmd('corte.criar {"nome": "Corte AA", "pontos": [[-1, 2.5], [7, 2.5]], "sentido": "esq"}');
+      const abas = page.locator('.edif-tabs');
+      await abas.getByRole('tab', { name: 'Pranchas', exact: true }).click();
+      const prev = page.locator('.prancha-prev');
+      await prev.waitFor();
+      await page.waitForFunction(() => document.querySelector('.prancha-prev')?.getAttribute('data-estado') === 'pronto', null, { timeout: 60000 });
+      // sem corte ativo, a planta de formas não leva marca
+      assert.equal(await prev.locator('svg').evaluate((s) => s.textContent.includes('Corte AA')), false);
+      await page.getByText(/^Cortes nas pranchas \(0 de 1\)/).click();
+      await page.getByLabel('Corte na prancha: Corte AA', { exact: true }).check();
+      await page.getByText(/^Cortes nas pranchas \(1 de 1\)/).waitFor();
+      const ativo = await page.locator('[data-cortes-pranchas]').getAttribute('data-cortes-pranchas');
+      assert.ok(ativo && ativo.length > 0, 'um corte ativo');
+      // planta de formas: marca de corte (nome nas duas pontas)
+      await page.waitForFunction(() => (document.querySelector('.prancha-prev svg')?.textContent.match(/Corte AA/g) ?? []).length >= 2, null, { timeout: 60000 });
+      // marca maior (a tela guarda no modelo)
+      const marca = page.getByLabel(/^Tamanho da marca de corte/);
+      await marca.fill('16');
+      await marca.press('Enter');
+      await page.waitForFunction(() => document.querySelector('.prancha-prev')?.getAttribute('data-estado') === 'pronto');
+      assert.equal(await marca.inputValue(), '16');
+      // folha de cortes
+      await page.getByLabel(/^Tipo de prancha/).selectOption({ label: 'Cortes do edifício' });
+      await page.waitForFunction(() => document.querySelector('.prancha-prev')?.getAttribute('data-tipo') === 'cortes', null, { timeout: 60000 });
+      await page.locator('[data-lista-folhas="1"]').waitFor();
+      const auto = Number(await prev.getAttribute('data-escala'));
+      assert.ok([50, 75, 100, 125, 200].includes(auto), String(auto));
+      const txt = await prev.locator('svg').evaluate((s) => s.textContent);
+      assert.match(txt, /CORTES DO EDIFÍCIO/);
+      assert.match(txt, /CORTE AA/);
+      assert.match(txt, /SCT/);
+      assert.ok(await prev.locator('svg').evaluate((s) => s.querySelectorAll('path, polygon, polyline').length) > 10);
+      // escala da folha configurável
+      await page.getByLabel(/^Escala da folha de cortes/).selectOption({ label: '1:100' });
+      await page.waitForFunction(() => document.querySelector('.prancha-prev')?.getAttribute('data-escala') === '100', null, { timeout: 60000 });
+      // desativar: a folha some
+      await page.getByLabel('Corte na prancha: Corte AA', { exact: true }).uncheck();
+      await page.getByText(/^Cortes nas pranchas \(0 de 1\)/).waitFor();
+      await page.locator('[data-lista-folhas]').waitFor({ state: 'detached' });
+    },
+  };
+
+export const f_V6c = {
+    webgl: true,
+    name: 'V6c: vista 3D isolada da viga de fundação — botão na janela da viga, janela própria com a viga e as duas sapatas das pontas, canvas (ou isométrico sem WebGL)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [7, 0], [7, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [7, 0]], [[0, 5], [7, 5]], [[0, 0], [0, 5]], [[7, 0], [7, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      const grupo = await grupoEdif(page, /^Fundação \(/);
+      const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
+      await sigma.fill('300');
+      await sigma.press('Enter');
+      await page.getByRole('radio', { name: 'Fundação' }).click();
+      await grupo.getByLabel('Posição no pilar').selectOption('divisa');
+      await page.mouse.click(...(await telaDe(page, -0.07, 0)));
+      await page.locator('.statusbar .msg', { hasText: 'S1 (sapata) lançado sob P1' }).waitFor();
+      await grupo.getByLabel('Posição no pilar').selectOption('centrada');
+      await page.mouse.click(...(await telaDe(page, 7, 0)));
+      await page.locator('.statusbar .msg', { hasText: 'S2 (sapata) lançado sob P2' }).waitFor();
+      await page.locator('.planta-st').click();
+      await page.keyboard.press('b');
+      await page.mouse.click(...(await telaDe(page, 0, 0)));
+      await page.mouse.click(...(await telaDe(page, 7, 0)));
+      await page.locator('.statusbar .msg', { hasText: 'VF1 (equilíbrio) lançada' }).waitFor();
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      const cardV = page.locator('[data-card-vigas-fundacao]');
+      await cardV.waitFor();
+      await cardV.locator('tbody tr', { hasText: 'VF1' }).dblclick();
+      const jf = page.getByRole('dialog', { name: /Resultados do elemento — Viga de fundação VF1/ });
+      await jf.waitFor();
+      await jf.getByRole('button', { name: 'Vista 3D da viga', exact: true }).click();
+      const j3 = page.getByRole('dialog', { name: 'Vista 3D — VF1', exact: true });
+      await j3.waitFor();
+      const info = JSON.parse(await j3.locator('[data-vf3d]').getAttribute('data-vf3d'));
+      assert.deepEqual(info.apoios, ['S1', 'S2']);
+      assert.equal(info.objetos, 3);
+      assert.ok(info.hAdot > 0 && info.bAdot > 0, JSON.stringify(info));
+      await page.waitForFunction(() => document.querySelector('.armadura3d-cv')?.getAttribute('data-status') !== 'carregando');
+      const status = await j3.locator('.armadura3d-cv').getAttribute('data-status');
+      if (status === 'pronto') {
+        await j3.locator('.armadura3d-cv[data-status="pronto"] canvas').waitFor();
+        await page.waitForFunction(() => Number(document.querySelector('.armadura3d-cv')?.getAttribute('data-frame-ms')) >= 0);
+      } else {
+        assert.equal(await j3.locator('.armadura3d-cv svg').count() > 0, true);
+      }
+      await j3.getByLabel('Elementos da fundação translúcidos', { exact: true }).uncheck();
+      await page.keyboard.press('Escape');
+      assert.equal(await j3.count(), 0);
+    },
+  };

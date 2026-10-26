@@ -1,7 +1,7 @@
 // Cortes do edifício e linhas de seção dos pavimentos (V2): só dados de vista que vão para o arquivo e para as pranchas;
 // não mudam o cálculo (`calculo: false`).
 import type { Draft } from 'immer';
-import type { BuildingModel } from '../building/types';
+import { CORTES_PRANCHA_PADRAO, PRANCHA_PADRAO, type BuildingModel } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { registrar } from './registry';
 import type { JsonSchema } from './schema';
@@ -117,4 +117,33 @@ registrar<{ ids: string[] }>({
   schema: { type: 'object', additionalProperties: false, required: ['ids'], properties: { ids: { type: 'array', items: { type: 'string' }, minItems: 1 } } },
   validar(b, p) { const f = p.ids.filter((id) => !b.secoes?.some((c) => c.id === id)); return f.length ? err('SECAO_INEXISTENTE', `Seção(ões) inexistente(s): ${f.join(', ')}.`) : []; },
   aplicar(d, p) { const s = new Set(p.ids); d.secoes = (d.secoes ?? []).filter((c) => !s.has(c.id)); return `${p.ids.length} seção(ões) removida(s).`; },
+});
+
+const ESCALAS_FOLHA_CORTES = [0, 20, 25, 50, 75, 100, 125, 200];
+registrar<{ ids?: string[]; todos?: boolean; plantas?: string[]; escala?: number; marca?: number; padrao?: boolean }>({
+  nome: 'prancha.cortes',
+  descricao: 'Ativa cortes do edifício nas pranchas (V6a): `ids` = cortes ativados (substitui a lista; [] desativa todos) ou `todos` (true ativa todos os cortes; false desativa); `plantas` = grupos cujas plantas levam as marcas de corte (formas e locação; [] = todos); `escala` = denominador da folha de cortes (0 = automática: a maior em que todos cabem numa folha); `marca` = tamanho da marca de corte nas plantas (mm no papel, 4 a 30); `padrao` volta tudo ao padrão. Os cortes ativos saem como marcas nas plantas e como a folha "cortes" (SCT, a confirmar) do conjunto.',
+  risco: 'escrita',
+  mcp: false,
+  calculo: false,
+  schema: { type: 'object', additionalProperties: false, properties: {
+    ids: { type: 'array', items: { type: 'string' } }, todos: { type: 'boolean' }, plantas: { type: 'array', items: { type: 'string' }, description: 'ids de grupos' },
+    escala: { type: 'number', enum: ESCALAS_FOLHA_CORTES }, marca: { type: 'number', minimum: 4, maximum: 30 }, padrao: { type: 'boolean' } } },
+  validar(b, p) {
+    const fc = (p.ids ?? []).filter((id) => !b.cortes?.some((c) => c.id === id));
+    if (fc.length) return err('CORTE_INEXISTENTE', `Corte(s) inexistente(s): ${fc.join(', ')}.`);
+    const fg = (p.plantas ?? []).filter((id) => !b.grupos.some((g) => g.id === id));
+    return fg.length ? err('GRUPO_INEXISTENTE', `Grupo(s) inexistente(s): ${fg.join(', ')}.`) : [];
+  },
+  aplicar(d, p) {
+    d.prancha ??= { ...PRANCHA_PADRAO, carimbo: {} };
+    const c = p.padrao ? {} : { ...(d.prancha.cortes ?? {}) };
+    if (p.todos !== undefined) { if (p.todos) c.ids = (d.cortes ?? []).map((x) => x.id); else delete c.ids; }
+    if (p.ids) { if (p.ids.length) c.ids = [...new Set(p.ids)]; else delete c.ids; }
+    if (p.plantas) { if (p.plantas.length) c.plantas = [...new Set(p.plantas)]; else delete c.plantas; }
+    if (p.escala !== undefined) { if (p.escala === CORTES_PRANCHA_PADRAO.escala) delete c.escala; else c.escala = p.escala; }
+    if (p.marca !== undefined) { if (p.marca === CORTES_PRANCHA_PADRAO.marca) delete c.marca; else c.marca = p.marca; }
+    if (Object.keys(c).length) d.prancha.cortes = c; else delete d.prancha.cortes;
+    return `${c.ids?.length ?? 0} corte(s) ativo(s) nas pranchas.`;
+  },
 });

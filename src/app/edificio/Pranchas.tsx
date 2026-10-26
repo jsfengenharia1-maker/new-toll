@@ -8,6 +8,7 @@ import { PRECISA_CALCULO, TIPOS_PRANCHA, tiposDe, type TipoSaida } from '../../c
 import { siglaDe } from '../../core/sheets/prancha';
 import { RotulosLajes } from './EdicaoLajes';
 import { ResultadosPranchas } from './ResultadosPranchas';
+import { CortesPranchas } from './CortesPranchas';
 import { EstiloPranchas } from './EstiloPranchas';
 import { nf } from '../../core/sheets/armacao';
 import { zip } from '../../core/zip';
@@ -25,6 +26,7 @@ const CAMPOS: [keyof Carimbo, string][] = [
   ['desenho', 'Desenho'], ['revisao', 'Revisão'], ['data', 'Data'],
 ];
 const ROTULO_TIPO: Record<TipoSaida, string> = {
+  cortes: 'Cortes do edifício',
   formas: 'Formas', locacao: 'Locação e cargas', fundacao: 'Fundação (locação, detalhes e quantitativos)', vigas: 'Armação de vigas', pilares: 'Armação de pilares', lajes: 'Armação de lajes', paredes: 'Armação de paredes e pilares-parede', escadas: 'Detalhamento das escadas', cargas: 'Cargas por caso e grupo', perspectiva: 'Perspectiva axonométrica', resultados: 'Resultados (mapa de isovalores por pavimento)', todas: 'Conjunto completo',
 };
 const FORMATOS = (['auto', 'A0', 'A1', 'A2', 'A3', 'A4', 'livre'] as const).map((f) => ({ v: f, label: f === 'auto' ? 'automático' : f === 'livre' ? 'livre (folha do usuário)' : f }));
@@ -159,6 +161,7 @@ export function Pranchas() {
           )}
         </div>
         {tipo === 'resultados' && <ResultadosPranchas />}
+        {(tipo === 'cortes' || tipo === 'formas' || tipo === 'locacao' || tipo === 'todas') && <CortesPranchas />}
         <EstiloPranchas />
         {precisa && !dim && <Hint><span data-aviso-calculo="sem">As pranchas de armação e a tabela de cargas da locação exigem o cálculo. Calcule e dimensione o edifício na aba Dimensionamento.</span></Hint>}
         {precisa && dim && !atual && <p className="hint bad" data-aviso-calculo="desatualizado">O dimensionamento é de uma revisão anterior do modelo. Recalcule na aba Dimensionamento para gerar as pranchas de armação e a locação com cargas.</p>}
