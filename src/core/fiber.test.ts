@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { barArea, circleWidth, concrete, momentCapacity } from './concrete';
 import { designColumnGeneral } from './columnGeneral';
-import { cPolygon, circlePolygon, doubleAnglePolygon, fiberCapacity, fiberMesh, lPolygon, polyProps, zPolygon, type FiberSection, type Pt } from './fiber';
+import { cPolygon, circlePolygon, doubleAnglePolygon, fiberCapacity, fiberMesh, fiberSolve, limparMemoCapacidade, lPolygon, polyProps, zPolygon, type FiberSection, type Pt } from './fiber';
 
 const c30 = concrete(30), fyd = 500 / 1.15;
 
@@ -75,5 +75,33 @@ describe('perfis paramétricos por polígono', () => {
     expect(z.A).toBeCloseTo(2 * (0.08 * 0.01) + 0.006 * 0.18, 9);
     const d = polyProps(doubleAnglePolygon(0.1, 0.01, 0.008));
     expect(d.A).toBeCloseTo(2 * (2 * 0.1 * 0.01 - 0.01 * 0.01), 12);
+  });
+});
+
+describe('memória de fiberCapacity (chave por conteúdo da seção)', () => {
+  // a chave guarda o resultado por seção; seções diferentes (barras, concreto, fyd) nunca podem trocar resultados
+  const sec = (fck: number, fyd: number, phiCanto: number): FiberSection => {
+    const poly: Pt[] = [[0, 0], [0.3, 0], [0.3, 0.5], [0, 0.5]], A = barArea(phiCanto) / 1e4;
+    return { mesh: fiberMesh(poly, 28), bars: [[0.04, 0.04], [0.26, 0.04], [0.26, 0.46], [0.04, 0.46]].map(([x, y]) => ({ x, y, A })), cx: 0.15, cy: 0.25, c: concrete(fck), fyd, poly };
+  };
+  it('seções iguais em conteúdo compartilham o resultado; mudar barra, fck ou fyd muda o resultado', () => {
+    limparMemoCapacidade();
+    const a = fiberCapacity(sec(30, 434.8, 16), 1.0, 1, 0.3)!;
+    // objeto novo, mesmo conteúdo: mesmo valor (vindo da memória)
+    expect(fiberCapacity(sec(30, 434.8, 16), 1.0, 1, 0.3)).toBe(a);
+    // conteúdo diferente: valor recalculado e igual ao de fiberSolve
+    for (const S of [sec(30, 434.8, 20), sec(40, 434.8, 16), sec(30, 500 / 1.15 * 0.9, 16)]) {
+      const r = fiberSolve(S, 1.0, 1, 0.3)!, v = fiberCapacity(S, 1.0, 1, 0.3)!;
+      expect(v).toBe(Math.hypot(r.Mx, r.My));
+      expect(v).not.toBe(a);
+    }
+  });
+  it('esforços diferentes (inclusive −0 no momento) não colidem', () => {
+    limparMemoCapacidade();
+    const S = sec(30, 434.8, 16);
+    for (const [N, mx, my] of [[1.0, 1, 0], [1.0, 1, -0], [1.0, 0, 1], [0.5, 1, 0], [1.0, -1, 0]] as const) {
+      const r = fiberSolve(S, N, mx, my);
+      expect(fiberCapacity(S, N, mx, my)).toBe(r ? Math.hypot(r.Mx, r.My) : null);
+    }
   });
 });
