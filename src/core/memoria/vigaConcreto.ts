@@ -42,6 +42,8 @@ export interface CtxMemoriaViga {
     metodo: 'fator' | 'etapas'; L: number; balanco: boolean; dG: number; dQ: number; dQqp: number; af: number; rho: number; afR: number;
     total: number; limite: number; limiteTxt: string; flechaQ: number; limiteQ: number; limiteQTxt: string; AsMont: number; homogeneizada: boolean;
     inst: FlechasInstantaneas; comp: ComposicaoEtapas; qInst: 'total' | 'qp';
+    /** Vão que governa a flecha ativa (pode não ser o da total): composição própria, limite e opção de truncamento. */
+    ativa?: { L: number; balanco: boolean; valor: number; limite: number; limiteTxt: string; comp: ComposicaoEtapas; truncada: boolean };
   } | null;
 }
 
@@ -140,6 +142,7 @@ export function registrarViga(mem: Registrador, x: CtxMemoriaViga) {
     P('dimensionamento', tf, { descricao: 'Coeficiente de fluência', formula: 'αf = Δξ/(1 + 50·ρ′), Δξ = ξ(∞) − ξ(t0)', expressao: `αf = ${fm(f.af)}/(1 + 50·${fm(f.rho)}) = ${fm(f.afR)}`, resultado: f.afR, unidade: '', norma: `${NBR}, 17.3.2.1.2`, entradas: { dxi: f.af, rho: f.rho } });
     if (f.metodo === 'fator') P('dimensionamento', tf, { descricao: 'Flecha total (quase permanente com fluência)', formula: 'f∞ = (fG + fψ2Q)·(1 + αf) ≤ limite', expressao: `f∞ = (${fm(f.dG * 1000)} + ${fm(f.dQqp * 1000)})·(1 + ${fm(f.afR)}) = ${fm(f.total * 1000)} mm ${f.total <= f.limite ? '≤' : '>'} ${f.limiteTxt} = ${fm(f.limite * 1000)} mm`, resultado: f.total, unidade: 'm', norma: `${NBR}, 13.3 (Tabela 13.3) e 17.3.2.1.2`, entradas: { dG: f.dG, dQqp: f.dQqp, afR: f.afR, limite: f.limite } });
     else passosEtapasFlecha(mem, el, tf, f);
+    if (f.ativa) passosFlechaAtiva(mem, el, tf, f.ativa, f.rho);
     P('dimensionamento', tf, { descricao: 'Flecha das cargas variáveis', formula: 'fQ ≤ limite', expressao: `fQ = ${fm(f.flechaQ * 1000)} mm ${f.flechaQ <= f.limiteQ ? '≤' : '>'} ${f.limiteQTxt} = ${fm(f.limiteQ * 1000)} mm`, resultado: f.flechaQ, unidade: 'm', norma: `${NBR}, 13.3 (Tabela 13.3)`, entradas: { limiteQ: f.limiteQ } });
   }
 }
@@ -213,6 +216,21 @@ export function passosEtapasFlecha(mem: Registrador, el: string, tf: string, f: 
     P('dimensionamento', tf, { descricao: 'Flecha total por etapas de carga', formula: 'f∞ = fi + fd ≤ limite', expressao: `f∞ = ${fm(k.instantanea * 1000)} + ${fm(k.diferida * 1000)} = ${fm(f.total * 1000)} mm ${f.total <= f.limite ? '≤' : '>'} ${f.limiteTxt} = ${fm(f.limite * 1000)} mm`, resultado: f.total, unidade: 'm', norma: `${NBR}, 13.3 (Tabela 13.3) e 17.3.2.1.2`, entradas: { fi: k.instantanea, fd: k.diferida, limite: f.limite } });
 }
 
+
+/**
+ * Flecha ativa (NBR 6118, 13.3, Tabela 13.3: efeito em paredes, ℓ/500 e 10 mm): parcela que ocorre depois da execução das
+ * alvenarias (t ≥ tp, primeira etapa com alvenaria). fA = instantânea das cargas aplicadas depois de tp + diferida
+ * Σ Pi·[ξ(∞) − ξ(máx(ti, tp))]/(1 + 50ρ′). Etapas, limites e truncamento são opções editáveis; o critério da variável
+ * inteira ou quase permanente segue a opção da flecha instantânea [a confirmar].
+ */
+export function passosFlechaAtiva(mem: Registrador, el: string, tf: string, a: { L: number; balanco: boolean; valor: number; limite: number; limiteTxt: string; comp: ComposicaoEtapas; truncada: boolean }, rho: number) {
+  const k = a.comp, den = 1 + 50 * Math.max(0, rho), soma = k.porEtapa.reduce((t, e) => t + e.carga * e.dXiAtiva, 0), dif = soma / den;
+  const P = (q: Omit<Parameters<Registrador['passo']>[0], 'elemento' | 'etapa' | 'topico'>) => mem.passo({ etapa: 'dimensionamento', elemento: el, topico: tf, ...q });
+  if (k.tParedes <= 0) { P({ descricao: 'Flecha ativa: sem etapa de alvenaria nas etapas de carga, todas as cargas contam como posteriores à execução das paredes (ativa = total)', formula: 'fA = f∞', expressao: `fA = ${fm(a.valor * 1000)} mm`, resultado: a.valor, unidade: 'm', norma: `${NBR}, 13.3 (Tabela 13.3)`, entradas: { tp: 0 }, observacao: 'a confirmar' }); }
+  P({ descricao: `Flecha ativa do vão ℓ = ${fm(a.L, 3)} m${a.balanco ? ' (balanço)' : ''}: instantânea das cargas aplicadas depois das paredes (tp = ${fm(k.tParedes)} dias)`, formula: 'fiA = Σ G (ti ≥ tp) + variável', expressao: `fiA = ${fm(k.instAtiva * 1000)} mm`, resultado: k.instAtiva, unidade: 'm', norma: `${NBR}, 13.3 (Tabela 13.3) e 17.3.2.1.2`, entradas: { tp: k.tParedes, instAtiva: k.instAtiva } });
+  P({ descricao: 'Flecha diferida da ativa (fluência contada a partir de máx(ti, tp))', formula: 'fdA = Σ Pi·Δξi,A/(1 + 50·ρ′), Δξi,A = ξ(∞) − ξ(máx(ti, tp))', expressao: `fdA = ${fm(soma * 1000)}/(1 + 50·${fm(rho)}) = ${fm(dif * 1000)} mm`, resultado: dif, unidade: 'm', norma: `${NBR}, 17.3.2.1.2 (Tabela 17.1)`, entradas: { soma, den, rho } });
+  P({ descricao: 'Flecha ativa', formula: 'fA = fiA + fdA ≤ limite (ℓ/500 e 10 mm)', expressao: `fA = ${fm(k.instAtiva * 1000)} + ${fm(dif * 1000)}${a.truncada ? ' (fatores truncados a duas casas, a confirmar)' : ''} = ${fm(a.valor * 1000)} mm ${a.valor <= a.limite + 1e-12 ? '≤' : '>'} ${a.limiteTxt} = ${fm(a.limite * 1000)} mm`, resultado: a.valor, unidade: 'm', norma: `${NBR}, 13.3 (Tabela 13.3)`, entradas: { fiA: k.instAtiva, fdA: dif, limite: a.limite, truncada: a.truncada ? 1 : 0 }, observacao: a.truncada ? 'Truncamento de fatores a confirmar (K1.15.4-22).' : undefined });
+}
 
 /** Torção da viga: seção vazada equivalente (he, Ae, ue, TRd2) e a decomposição do Asw/s por estação em cortante e torção. */
 function passosTorcao(P: (etapa: 'esforcos' | 'dimensionamento' | 'detalhamento', topico: string, p: Omit<Parameters<Registrador['passo']>[0], 'elemento' | 'etapa' | 'topico'>) => number | string, x: CtxMemoriaViga, t: TorcaoMemoria) {

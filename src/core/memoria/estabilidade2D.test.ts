@@ -13,22 +13,31 @@ const num = (p: PassoMemoria, k: string) => p.entradas[k] as number;
 describe('Pórtico 2D: desaprumo, γz e P-Δ', () => {
   const m = samplePortico(), a = analyze(m);
   const sem = runDesign(m, a), { passos, relatorio: com } = memoriaPortico2D(m, a);
-  const T = (t: string) => passos.filter((p) => p.elemento === 'Pórtico 2D' && p.topico === t);
+  const T = (t: string) => passos.filter((p) => p.elemento === 'Pórtico' && p.topico === t);
 
   it('relatório idêntico com a memória ligada (toEqual)', () => {
     expect(com).toEqual(sem);
   });
 
+  it('cada passo global é registrado uma só vez: nada no elemento antigo, 2 de desaprumo, 1 de rigidez + 1 por combinação + 1 de classe do γz', () => {
+    expect(passos.some((p) => p.elemento === 'Pórtico 2D')).toBe(false);
+    expect(T('Desaprumo global (θa)').filter((p) => p.descricao.startsWith('Altura da estrutura'))).toHaveLength(1);
+    expect(T('Desaprumo global (θa)').filter((p) => p.descricao.startsWith('Desaprumo de uma prumada'))).toHaveLength(1);
+    expect(T('Desaprumo global (θa)')).toHaveLength(2); // a regra dos 30 % tem tópico próprio
+    expect(T('Estabilidade global (γz)').filter((p) => p.descricao.startsWith('Análise com rigidez reduzida'))).toHaveLength(1);
+    expect(T('Estabilidade global (γz)')).toHaveLength(sem.gammaZ.rows.length + 1 + (sem.gammaZ.cls === 'none' ? 0 : 1));
+    // ids únicos e sequenciais
+    expect(new Set(passos.map((p) => p.id)).size).toBe(passos.length);
+  });
+
   it('θ1 (limitado entre 1/300 e 1/200) e θa = θ1·√((1 + 1/n)/2) das entradas', () => {
-    const ps = T('Desaprumo global (11.3.3.4.1)');
-    expect(ps).toHaveLength(4);
-    const [pH, pn, p1, pa] = ps;
+    const [pH, pa] = T('Desaprumo global (θa)');
     const theta1 = Math.min(1 / 200, Math.max(1 / 300, 1 / (100 * Math.sqrt(pH.resultado as number))));
-    expect(rel(theta1, p1.resultado as number)).toBeLessThan(1e-9);
-    expect(num(p1, 'H')).toBe(pH.resultado);
+    expect(rel(theta1, num(pa, 'theta1'))).toBeLessThan(1e-9);
+    expect(num(pa, 'H')).toBe(pH.resultado);
     expect(rel(num(pa, 'theta1') * Math.sqrt((1 + 1 / num(pa, 'n')) / 2), pa.resultado as number)).toBeLessThan(1e-9);
     expect(pa.resultado).toBe(sem.imperfection!.thetaA);
-    expect(pn.resultado).toBe(sem.imperfection!.n);
+    expect(num(pa, 'n')).toBe(sem.imperfection!.n);
     expect(pH.resultado).toBe(sem.imperfection!.H);
   });
 
@@ -55,7 +64,7 @@ describe('Pórtico 2D: desaprumo, γz e P-Δ', () => {
   });
 
   it('γz = 1/(1 − ΔM/M1) por combinação das entradas', () => {
-    const ps = T('Estabilidade global (γz)').filter((p) => p.formula.startsWith('γz'));
+    const ps = T('Estabilidade global (γz)').filter((p) => p.formula.startsWith('M1,tot,d'));
     expect(ps).toHaveLength(sem.gammaZ.rows.length);
     ps.forEach((p, i) => {
       expect(rel(1 / (1 - num(p, 'dM') / num(p, 'M1')), p.resultado as number)).toBeLessThan(1e-9);
@@ -68,7 +77,7 @@ describe('Pórtico 2D: desaprumo, γz e P-Δ', () => {
     const mp = { ...m, design: { ...(m.design ?? {}), secondOrder: 'pdelta' } as typeof m.design };
     const rel2 = runDesign(mp, a), { passos: ps2, relatorio } = memoriaPortico2D(mp, a);
     expect(relatorio).toEqual(rel2);
-    const linhas = ps2.filter((p) => p.topico === '2ª ordem global (P-Δ)');
+    const linhas = ps2.filter((p) => p.elemento === 'Pórtico' && p.topico === 'Análise P-Δ');
     expect(linhas).toHaveLength(rel2.secondOrder.rows.length);
     linhas.forEach((p, i) => { expect(p.resultado).toBe(rel2.secondOrder.rows[i].amplification); expect(num(p, 'iteracoes')).toBe(rel2.secondOrder.rows[i].iterations); expect(num(p, 'convergiu')).toBe(rel2.secondOrder.rows[i].converged ? 1 : 0); });
   });

@@ -337,7 +337,7 @@ describe('comparação com o Pórtico 2D (mesmos θa, Md e decisões)', () => {
     })!;
     expect(d.thetaA).toBe(imp.thetaA);
     const { passos } = memoriaPortico2D(m, a);
-    const regra = passos.filter((p) => p.elemento === 'Pórtico 2D' && p.topico === 'Desaprumo global – regra dos 30 % do vento');
+    const regra = passos.filter((p) => p.elemento === 'Pórtico' && p.topico === 'Desaprumo global – regra dos 30 % do vento');
     expect(regra.length).toBeGreaterThan(0);
     const lista = runDesign(m, a).elu.length;
     expect(lista).toBeGreaterThan(0);

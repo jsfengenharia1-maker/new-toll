@@ -90,6 +90,8 @@ export interface ComposicaoEtapas {
   xiMedio: number; lambda: number; xiMedioAtiva: number; lambdaAtiva: number;
   /** Coeficientes da ativa sobre as instantâneas: αg sobre G (todas as categorias) e αq sobre Q. */
   alfaG: number; alfaQ: number;
+  /** Instantânea das cargas aplicadas a partir das paredes (G com t ≥ tp + variável, se aplicada depois delas); sem truncamento. */
+  instAtiva: number;
   /** Fatores sobre a instantânea total: total/inst e ativa/inst. */
   fatorTotal: number; fatorAtiva: number;
   porEtapa: { nome: string; dias: number; carga: number; dXi: number; dXiAtiva: number }[];
@@ -133,7 +135,7 @@ export function composicaoEtapas(etapas: EtapaCarga[], d: FlechasInstantaneas, o
   return {
     instantanea, diferida, total, ativa, antes: total - ativa, tParedes: tp,
     xiMedio, lambda: xiMedio / den, xiMedioAtiva, lambdaAtiva: xiMedioAtiva / den,
-    alfaG: gTot > 0 ? ativaG / gTot : 0, alfaQ: d.q > 0 ? ativaQ / d.q : 0,
+    alfaG: gTot > 0 ? ativaG / gTot : 0, alfaQ: d.q > 0 ? ativaQ / d.q : 0, instAtiva: instGAtiva + qAtiva,
     fatorTotal: instantanea > 0 ? total / instantanea : 0, fatorAtiva: instantanea > 0 ? ativa / instantanea : 0, porEtapa,
   };
 }
