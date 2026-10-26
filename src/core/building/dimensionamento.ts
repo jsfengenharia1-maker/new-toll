@@ -171,12 +171,16 @@ function nomesDosCasos(an: AnaliseEdificio): Map<string, number> {
 
 // ---------------- vigas ----------------
 
+export interface FlechaVaoViga { L: number; balanco: boolean; total: number; ativa: number; variavel: number; instantanea: number; limites: Record<TipoFlecha, number>; ok: boolean }
+
 export interface ResultadoViga {
   viga: string; nome: string; grupo: string; b: number; h: number; L: number;
   /** Maior flecha total (quase permanente, Branson por seção, com fluência) e da carga variável, e limites (m). */
   flecha: number; limite: number; flechaQ: number; limiteQ: number;
   /** Flechas por tipo (N2f): instantâneas por categoria, diferida, total, ativa e da variável, com os limites. */
   flechas?: FlechasElemento;
+  /** Flechas por vão da viga (K1.11.46): total, ativa (após as paredes), variável e instantânea, com os limites (m). */
+  flechasVaos?: FlechaVaoViga[];
   Mpos: number; Mneg: number; V: number;
   /** Envoltória ELU ao longo da viga (todos os pavimentos do grupo), em faixas de 0,25 m, com as combinações determinantes. */
   envoltoria: EnvoltoriaViga;
@@ -736,6 +740,11 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
     const fv = resumoFlechas({ metodo: op.flechaEtapas ? 'etapas' : 'fator', instantaneas: cT?.inst ?? instantaneasPorCategoria(0, frV, 0, 0), instantanea: cI?.comp.instantanea ?? 0, diferida: cT ? cT.total - cT.comp.instantanea : 0, total: flecha, ativa: cA?.comp.ativa ?? 0, variavel: flechaQ, vao: vaoT, balanco: balT, ...(cT && op.flechaEtapas ? { etapas: cT.comp } : {}), rho: rhoL }, limsV);
     fv.limites.ativa = cA ? limiteFlecha(cA.L, limsV.ativa, cA.balanco) : Infinity; fv.limites.instantanea = cI ? limiteFlecha(cI.L, limsV.instantanea, cI.balanco) : Infinity;
     fv.limites.variavel = limiteQ;
+    const flechasVaos: FlechaVaoViga[] = cands.map((k) => {
+      const limites = { total: limiteFlecha(k.L, limsV.total, k.balanco), ativa: limiteFlecha(k.L, limsV.ativa, k.balanco), variavel: limiteFlecha(k.L, limsV.variavel, k.balanco), instantanea: limiteFlecha(k.L, limsV.instantanea, k.balanco) };
+      const t = k.total, a = k.comp.ativa, q = k.inst.q, i = k.comp.instantanea;
+      return { L: k.L, balanco: k.balanco, total: t, ativa: a, variavel: q, instantanea: i, limites, ok: !(t > limites.total + 1e-12 || a > limites.ativa + 1e-12 || q > limites.variavel + 1e-12 || i > limites.instantanea + 1e-12) };
+    });
     if (flecha > limite) msgs.push(`Flecha total ${(flecha * 1000).toFixed(1)} mm > ${textoLimite(limsV.total, balT)} = ${(limite * 1000).toFixed(1)} mm (Branson por seção, ${op.flechaEtapas ? `por etapas: ${(cT!.comp.fatorTotal).toFixed(2).replace('.', ',')} × instantânea, ξ médio ${cT!.comp.xiMedio.toFixed(2).replace('.', ',')}` : `× (1 + αf = ${(1 + afR).toFixed(2).replace('.', ',')})`}).`);
     if (flechaQ > limiteQ) msgs.push(`Flecha das variáveis ${(flechaQ * 1000).toFixed(1)} mm > ${textoLimite(limsV.variavel, balQ).replace('2ℓ', 'ℓ')} = ${(limiteQ * 1000).toFixed(1)} mm.`);
     msgs.push(...mensagensFlechasNovas(fv));
@@ -813,14 +822,14 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
         comp: { Mpos: compor(Mpos, 'M'), ...(Mneg < 0 ? { Mneg: compor(Mneg, 'M') } : {}), V: compor(V, 'V') },
         env: { asw: env.asw, T: env.T, biela: env.biela, Asl: env.Asl }, ...(tor && env.T > 0 ? { torcao: estacoesTorcao() } : {}), AsNec: AsFlex, AsInf, AsSup, bi, bs, bloq,
         VRd2, Vc0, aswMin, aswS, smax, est, al, MkPos, MkNeg, wk: [wkI, wkS], wkLim, caa,
-        flecha: cT ? { metodo: op.flechaEtapas ? 'etapas' : 'fator', L: cT.L, balanco: cT.balanco, dG: cadF[cands.indexOf(cT)].d[0], dQ: cadF[cands.indexOf(cT)].d[1], dQqp: cadF[cands.indexOf(cT)].d[2], af, rho: rhoL, afR, total: flecha, limite, limiteTxt: textoLimite(limsV.total, balT), flechaQ, limiteQ, limiteQTxt: textoLimite(limsV.variavel, balQ), AsMont, homogeneizada: !!op.inerciaHomogeneizada, inst: cT.inst, comp: cT.comp, qInst } : null,
+        flecha: cT ? { metodo: op.flechaEtapas ? 'etapas' : 'fator', L: cT.L, balanco: cT.balanco, dG: cadF[cands.indexOf(cT)].d[0], dQ: cadF[cands.indexOf(cT)].d[1], dQqp: cadF[cands.indexOf(cT)].d[2], af, rho: rhoL, afR, total: flecha, limite, limiteTxt: textoLimite(limsV.total, balT), flechaQ, limiteQ, limiteQTxt: textoLimite(limsV.variavel, balQ), AsMont, homogeneizada: !!op.inerciaHomogeneizada, inst: cT.inst, comp: cT.comp, qInst, ...(cA ? { ativa: { L: cA.L, balanco: cA.balanco, valor: cA.comp.ativa, limite: fv.limites.ativa, limiteTxt: textoLimite(limsV.ativa, cA.balanco), comp: cA.comp, truncada: !!op.flechaAtivaTruncada } } : {}) } : null,
       });
     }
     if (!bi && AsInf > 0) msgs.push('Armadura inferior não cabe na largura.');
     if ((aPos.aco === 'CA-60' && (bi?.phi ?? 0) > 10) || (aNeg.aco === 'CA-60' && (bs?.phi ?? 0) > 10)) msgs.push(AVISO_CA60);
     out.push({
       viga: v.id, nome: v.nome, grupo: v.grupo, b: v.secao.b, h: v.secao.h, L: comprimentoPolilinha(v.pontos),
-      flecha, limite, flechaQ, limiteQ, flechas: fv,
+      flecha, limite, flechaQ, limiteQ, flechas: fv, flechasVaos,
       Mpos, Mneg, V, envoltoria: envolt, facesPilar, ...(vaos.some((x) => x.Lc !== undefined) ? { vaosParede: vaos.filter((x) => x.Lc !== undefined).map((x) => ({ L: x.L, Lc: x.Lc! })) } : {}), origens: [
         origem('Armadura inferior', envolt.determinantes.Mmax, 'flexao'),
         ...(AsSup ? [origem('Armadura superior', envolt.determinantes.Mmin, 'flexao')] : []),

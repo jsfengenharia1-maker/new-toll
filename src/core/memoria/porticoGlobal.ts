@@ -1,6 +1,6 @@
 // Memória detalhada do pórtico 2D (MD8): passos globais (cargas por caso, modelo, combinações NBR 8681, desaprumo, γz, P-Δ,
 // equilíbrio, deslocamentos e cargas na fundação). Chamada por `runDesign` ao fim, só com a memória ligada.
-import type { DesignReport, FoundationRow, GammaZRow, ImperfectionDecision, NamedCombo } from '../design';
+import type { DesignReport, FoundationRow, GammaZRow, NamedCombo } from '../design';
 import { sectionProps } from '../section';
 import type { Load, Model } from '../types';
 import { fm, fp, type Registrador, type ValorMemoria } from './registrador';
@@ -12,7 +12,6 @@ export const GLOBAL = 'Pórtico';
 export interface GzNo { no: number; y: number; H: number; V: number; u: number }
 export interface GzDetalhe { combo: string; ybase: number; nos: GzNo[]; desap: number; thetaA: number }
 export const detalheGamaZ = new WeakMap<object, GzDetalhe[]>();
-export const decisoesDesaprumo = new WeakMap<object, ImperfectionDecision[]>();
 
 type Ch = Omit<Parameters<Registrador['passo']>[0], 'elemento' | 'etapa' | 'topico'>;
 
@@ -96,9 +95,7 @@ export function registrarGlobalPortico(mem: Registrador, c: CtxPortico, d: Dados
     const t = 'Desaprumo global (θa)';
     P_('analise', t, { descricao: 'Altura da estrutura e número de prumadas de pilares', formula: 'H = ymáx − ymín; n = pilares que chegam aos apoios (ou informado)', expressao: `H = ${fm(imp.H)} m; n = ${imp.n} (automático: ${imp.nAuto})`, resultado: imp.H, unidade: 'm', norma: 'NBR 6118:2023, 11.3.3.4.1', entradas: { H: imp.H, n: imp.n, nAuto: imp.nAuto } });
     P_('analise', t, { descricao: 'Desaprumo de uma prumada e da estrutura', formula: 'θ1 = 1/(100·√H), 1/300 ≤ θ1 ≤ 1/200; θa = θ1·√((1 + 1/n)/2)', expressao: `θ1 = ${fm(imp.theta1)} (1/${fm(1 / imp.theta1)}); θa = ${fm(imp.theta1)}·√((1 + 1/${imp.n})/2) = ${fm(imp.thetaA)} (1/${fm(1 / imp.thetaA)})`, resultado: imp.thetaA, unidade: 'rad', norma: 'NBR 6118:2023, 11.3.3.4.1', entradas: { H: imp.H, n: imp.n, theta1: imp.theta1, thetaA: imp.thetaA } });
-    for (const dc of decisoesDesaprumo.get(d.eluDesap) ?? []) {
-      P_('analise', t, { descricao: `Combinação ${dc.combo}: ${dc.regra}`, formula: 'compara 0,3·Mvento com Mdesaprumo (momentos na base): se 0,3·Mw ≥ Md só vento; se Mw < 0,3·Md só desaprumo; senão ambos', expressao: `Mvento = ${fm(dc.Mw)} kN·m; Mdesaprumo = ${fm(dc.Md)} kN·m → ${dc.regra}`, resultado: dc.regra, unidade: '', norma: 'NBR 6118:2023, 11.3.3.4.1', entradas: { Mw: dc.Mw, Md: dc.Md, temVento: dc.temVento ? 1 : 0 } });
-    }
+    // a regra dos 30 % do vento por combinação é registrada por `design.ts` (registrarRegra30), no elemento GLOBAL
   }
   const det = detalheGamaZ.get(d.gammaZObj) ?? [];
   const red = d.modulus;

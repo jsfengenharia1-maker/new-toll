@@ -13,18 +13,17 @@ import {
 import { designSteel, type SteelCombo, type SteelDesign } from './steel';
 import { memoriaAtiva } from './memoria/registrador';
 import { anguloDesaprumo, decidirRegra30 } from './desaprumo';
-import { registrarDesaprumo2D, registrarGamaZ2D, registrarPDelta2D, registrarRegra30, type DetRegra30 } from './memoria/estabilidade2D';
+import { registrarRegra30, type DetRegra30 } from './memoria/estabilidade2D';
 import { defaultDesign, type ComboKind, type DesignSettings, type Model } from './types';
 import type { CtxPortico } from './memoria/porticoBase';
 import { registrarVigaPortico } from './memoria/porticoViga';
 import { registrarPilarPortico } from './memoria/porticoPilar';
 import { registrarAcoEsforcos } from './memoria/porticoAco';
-import { detalheGamaZ, decisoesDesaprumo, registrarGlobalPortico, type GzDetalhe, type GzNo } from './memoria/porticoGlobal';
+import { detalheGamaZ, registrarGlobalPortico, type GzDetalhe, type GzNo } from './memoria/porticoGlobal';
 
 export interface NamedCombo { name: string; factors: Record<number, number>; kind: ComboKind; auto?: boolean; windAmp?: number; /** desaprumo: +1 / −1 (sentido de x) ou ausente */ desap?: number }
 
 /** Decisão da regra dos 30 % do vento para o desaprumo numa combinação (só para a memória detalhada). */
-export interface ImperfectionDecision { combo: string; Mw: number; Md: number; temVento: boolean; regra: string }
 export interface Imperfection { H: number; n: number; nAuto: number; theta1: number; thetaA: number }
 export interface SecondOrderRow { combo: string; amplification: number; iterations: number; converged: boolean; error?: string }
 
@@ -220,8 +219,6 @@ function withImperfection(model: Model, elu: NamedCombo[], imp: Imperfection, eq
     return m;
   };
   const out: NamedCombo[] = [], reg = memoriaAtiva();
-  const decisoes: ImperfectionDecision[] = [];
-  const memOn = !!memoriaAtiva();
   for (const cb of elu) {
     let Mw = 0, Md = 0, hasW = false;
     const termos: DetRegra30['termos'] = [];
@@ -238,12 +235,10 @@ function withImperfection(model: Model, elu: NamedCombo[], imp: Imperfection, eq
     if (dec === 'sem-desaprumo') { nota('sem desaprumo (sem carga vertical)'); out.push(cb); continue; }
     if (dec === 'sem-vento') {
       nota('sem vento: desaprumo nos dois sentidos (+x e −x)');
-      if (memOn) decisoes.push({ combo: cb.name, Mw, Md, temVento: hasW, regra: 'sem vento: desaprumo nos dois sentidos' });
       out.push({ ...cb, name: `${cb.name} · desaprumo +x`, desap: 1 }, { ...cb, name: `${cb.name} · desaprumo −x`, desap: -1 });
       continue;
     }
     const sign = Math.sign(Mw);
-    if (memOn) decisoes.push({ combo: cb.name, Mw, Md, temVento: true, regra: 0.3 * Math.abs(Mw) >= Md ? 'só vento (30 % do vento ≥ desaprumo)' : Math.abs(Mw) < 0.3 * Md ? 'só desaprumo (vento < 30 % do desaprumo)' : 'vento e desaprumo no mesmo sentido' });
     if (dec === 'so-vento') { nota('só vento (0,3·|Mw| ≥ Md)'); out.push(cb); }
     else if (dec === 'so-desaprumo') {
       nota('só desaprumo (|Mw| < 0,3·Md)');
@@ -252,7 +247,6 @@ function withImperfection(model: Model, elu: NamedCombo[], imp: Imperfection, eq
       out.push({ ...cb, name: `${cb.name} · só desaprumo (vento < 30%)`, factors: f, desap: sign });
     } else { nota('vento + desaprumo no mesmo sentido'); out.push({ ...cb, name: `${cb.name} + desaprumo`, desap: sign }); }
   }
-  if (memOn) decisoesDesaprumo.set(out, decisoes);
   return out;
 }
 
@@ -318,11 +312,9 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
   const mode = settings.secondOrder ?? 'gammaZ';
   const eq = new Map(model.cases.map((c) => [c.id, equivalentNodal(a, c.id)]));
   const imp = imperfectionOf(model, settings);
-  { const reg = memoriaAtiva(); if (reg && imp) registrarDesaprumo2D(reg, imp, settings.imperfectionColumns !== undefined); }
   const elu1 = imp ? withImperfection(model, elu0, imp, eq) : elu0;
   if (imp) warnings.push(`Desaprumo global θa = 1/${Math.round(1 / imp.thetaA)} (H = ${imp.H.toFixed(2)} m, n = ${imp.n} prumadas) nas combinações ELU (NBR 6118, 11.3.3.4.1).`);
   const gz = gammaZ(model, elu1, modulus, imp, eq);
-  { const reg = memoriaAtiva(); if (reg) registrarGamaZ2D(reg, gz.rows, modulus); }
   let elu = elu1;
   const soRows: SecondOrderRow[] = [];
   let eluResults: (CaseResult | null)[];
@@ -340,7 +332,6 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
       soRows.push({ combo: cb.name, amplification: r.amplification, iterations: r.iterations, converged: r.converged, error: r.error });
       return r.result;
     });
-    { const reg = memoriaAtiva(); if (reg) registrarPDelta2D(reg, soRows.map((r) => ({ combo: r.combo, amplification: r.amplification, iterations: r.iterations, converged: r.converged, error: r.error }))); }
     const bad = soRows.filter((r) => !r.converged);
     warnings.push(`Efeitos globais de 2ª ordem por análise P-Δ (matriz geométrica, rigidez reduzida 0,4/0,8·${modulus}·Ic). Amplificação máxima dos deslocamentos horizontais: ${Math.max(1, ...soRows.map((r) => (Number.isFinite(r.amplification) ? r.amplification : 1))).toFixed(3)}.`);
     if (bad.length) warnings.push(`P-Δ sem convergência em ${bad.length} combinação(ões): ${bad[0].error ?? ''}`);
