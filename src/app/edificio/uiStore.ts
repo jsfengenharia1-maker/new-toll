@@ -20,7 +20,11 @@ interface UiState {
   cfg: string | null;
   /** Paleta de comandos (Ctrl+K) aberta. */
   paleta: boolean;
+  /** Opção da etapa Calcular: calcula a obra sem as fundações lançadas (vale para todo botão Calcular). */
+  semFundacao: boolean;
+  /** Memória de cálculo detalhada aberta (botão da vista Dimensionamento e da etapa Pranchas e memorial). */
+  memoria: boolean;
   set(p: Partial<Omit<UiState, 'set'>>): void;
 }
 
-export const useEdifUI = create<UiState>((set) => ({ aba: 'planta', memo: false, l1: null, l2: null, l4: null, jan: null, cfg: null, paleta: false, set: (p) => set(p) }));
+export const useEdifUI = create<UiState>((set) => ({ aba: 'planta', memo: false, l1: null, l2: null, l4: null, jan: null, cfg: null, paleta: false, semFundacao: false, memoria: false, set: (p) => set(p) }));

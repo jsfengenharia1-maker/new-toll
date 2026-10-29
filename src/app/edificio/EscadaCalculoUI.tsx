@@ -60,7 +60,7 @@ function JanelaCalculo({ onClose }: { onClose: () => void }) {
     <Modal titulo="Cálculo das escadas" onClose={onClose} larga ajuda="Cada lance é calculado à parte por elementos finitos de casca espessa, só com G e Q. As reações viram cargas lineares nas vigas e lajes de apoio quando a obra é calculada.">
       <div data-escada-calculo>
         {!temEscadas && <Note>A obra não tem escadas. Lance uma escada para calculá-la.</Note>}
-        {aviso && <Note tone="bad"><span data-escada-recalcular>{aviso}</span>{' '}<Button disabled={calculando} onClick={() => { void calcular(); }}>Calcular obra</Button></Note>}
+        {aviso && <Note tone="bad"><span data-escada-recalcular>{aviso}</span>{' '}<Button disabled={calculando} onClick={() => { void calcular(); }}>Calcular</Button></Note>}
         {ocupado && <p className="small" data-escada-calculando>Calculando as escadas…</p>}
         {res && !ocupado && res.avisos.filter((a) => !lances.some((l) => l.avisos.includes(a))).map((a, i) => <Note key={i} tone="bad">{a}</Note>)}
         {lances.map((l) => (

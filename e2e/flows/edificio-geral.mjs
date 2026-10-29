@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { NO_PICKERS, fileMenu, grupoEdif, tab, downloadText, num, telaDe, importarMascara } from './helpers.mjs';
+import { NO_PICKERS, fileMenu, grupoEdif, tab, downloadText, num, telaDe, importarMascara, botaoCalcular } from './helpers.mjs';
 
 export const f_edificio = {
     name: 'edifício: pavimentos por comando, verificação, desfazer, salvar e reabrir',
@@ -186,7 +186,7 @@ export const f_analise_do_edificio_no_worker = {
       await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Análise' }).click();
-      await page.getByRole('button', { name: 'Calcular', exact: true }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'Análise concluída' }).waitFor();
       const txt = await page.locator('.edif-out').textContent();
       assert.match(txt, /equilíbrio \(reações − cargas\): G -?0,000, Q -?0,000 kN/);
@@ -208,7 +208,7 @@ export const f_dimensionamento_do_edificio = {
       await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 60000 });
       const card = (t) => page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: t }) });
       assert.equal(await card(/^Vigas$/).locator('tbody tr').count(), 4);
@@ -393,7 +393,7 @@ export const f_casos_de_carga = {
       assert.equal(await page.getByRole('button', { name: /^Remover carga/ }).count(), 1);
       // análise: o quadro de combinações lista o novo caso
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Análise' }).click();
-      await page.getByRole('button', { name: 'Calcular', exact: true }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'Análise concluída' }).waitFor();
       await page.locator('summary', { hasText: /^Combinações \(\d+\)$/ }).click();
       const quadro = page.locator('.edif-out .card', { hasText: 'Exportar CSV' });

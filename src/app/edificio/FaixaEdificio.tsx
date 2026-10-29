@@ -17,6 +17,8 @@ import { importarMascara } from './mascaraImportar';
 import { useStore } from '../store';
 import { importarCargasDoEdificio } from '../Fundacoes';
 import { abrirJanela } from './Revisao';
+import { carregarEdificio } from './ponte';
+import type { AcoesArquivo } from '../FaixaArquivo';
 import { useAlvoSelecionado } from './alvo';
 import { mascaraNoGrupo, pavimentosOrdenados } from '../../core/building/types';
 
@@ -50,7 +52,6 @@ function Gabarito() {
       <RibbonButton icon="gabarito" label="Gabaritos e vistas…" onClick={() => ui({ l2: { tipo: 'gabaritos' } })} />
       <RibbonButton icon="gabarito" label="Vistas por pavimento…" onClick={() => ui({ l2: { tipo: 'vistas' } })} />
       <RibbonButton icon="gabarito" label="Capturas…" onClick={() => pl.set({ janelaCapturas: true })} />
-      <Ferr f="vigaGabarito" icon="viga" />
     </RibbonGroup>
   );
 }
@@ -70,61 +71,94 @@ function Abacos() {
   );
 }
 
-function Lancamento() {
+const cfg = (id: string) => () => ui({ cfg: id });
+const Selecao = () => <RibbonGroup label="Seleção" radios="Ferramenta"><Ferr f="selecionar" icon="selecionar" /></RibbonGroup>;
+
+/** 1. Obra: dados gerais, normas e materiais, pavimentos e grupos, arquivo da obra. */
+function Obra({ acoes }: { acoes: AcoesArquivo }) {
   return (
     <>
-      <RibbonGroup label="Seleção" radios="Ferramenta"><Ferr f="selecionar" icon="selecionar" /></RibbonGroup>
-      <RibbonGroup label="Elementos" radios="Ferramenta">
-        <Ferr f="pilar" icon="pilar" /><Ferr f="pilarParede" icon="pilarParede" /><Ferr f="viga" icon="viga" /><Ferr f="laje" icon="laje" /><Ferr f="parede" icon="parede" />
-        <Ferr f="diagonal" icon="vigaInclinada" /><Ferr f="consolo" icon="viga" />
-        <RibbonButton icon="vigaInclinada" label="Vigas inclinadas" onClick={() => useInclinadasUI.getState().abrir()} />
-        <RibbonButton icon="escada" label="Escada" title="Escada (Shift+E): lança a escada na planta" onClick={() => escolherEscada()} />
-        <RibbonButton icon="escada" label="Escadas…" onClick={() => useEscadaUI.getState().abrir()} />
+      <RibbonGroup label="Obra">
+        <RibbonButton icon="novo" label="Nova obra…" onClick={() => ui({ l1: 'nova' })} />
+        <RibbonButton icon="obra" label="Obras recentes…" onClick={() => ui({ l1: 'recentes' })} />
+        <RibbonButton icon="novo" label="Novo padrão" onClick={() => { void carregarEdificio().then((m) => m.useBuilding.getState().novo(false)); }} />
+        <RibbonButton icon="novo" label="Novo vazio" onClick={() => { void carregarEdificio().then((m) => m.useBuilding.getState().novo(true)); }} />
+        <RibbonButton icon="importar" label="Importar de texto…" onClick={() => ui({ l1: 'texto' })} />
       </RibbonGroup>
+      <RibbonGroup label="Dados e normas">
+        <RibbonButton icon="obra" label="Dados gerais…" onClick={() => ui({ l1: 'gerais' })} />
+        <RibbonButton icon="config" label="Configuração da obra…" onClick={cfg('dados')} />
+        <RibbonButton icon="config" label="Materiais e segurança…" onClick={cfg('materiais')} />
+        <RibbonButton icon="config" label="Biblioteca de normas…" onClick={cfg('normas')} />
+        <RibbonButton icon="config" label="Tabelas de armadura…" onClick={cfg('tabelas')} />
+      </RibbonGroup>
+      <RibbonGroup label="Pavimentos e grupos">
+        <RibbonButton icon="pavimento" label="Novo pavimento…" onClick={() => ui({ jan: 'novoPavimento' })} />
+        <RibbonButton icon="copiarGrupo" label="Copiar de outro grupo…" onClick={() => ui({ l4: 'copiarGrupo' })} />
+        <RibbonButton icon="unirPavimentos" label="Unir pavimentos…" onClick={() => ui({ l4: 'unirPavimentos' })} />
+      </RibbonGroup>
+      <RibbonGroup label="Arquivo da obra">
+        <RibbonButton icon="abrir" label="Abrir trabalho do computador…" title="Abrir trabalho do computador… (Ctrl+O)" onClick={acoes.abrir} />
+        <RibbonButton icon="salvar" label="Salvar no computador" title="Salvar no computador (Ctrl+S)" onClick={() => acoes.salvar(false)} />
+        {acoes.podeSalvarComo && <RibbonButton icon="salvar" label="Salvar como…" title="Salvar como… (Ctrl+Shift+S)" onClick={() => acoes.salvar(true)} />}
+        <RibbonButton icon="biblioteca" label="Biblioteca e histórico…" onClick={acoes.biblioteca} />
+        <RibbonButton icon="versoes" label="Versões do arquivo…" onClick={cfg('arquivo')} />
+      </RibbonGroup>
+    </>
+  );
+}
+
+/** 2. Pilares: eixos e malha, gabarito (DXF, DWG), pilares, pilares-parede e arranques. */
+function Pilares() {
+  const pl = usePlanta();
+  return (
+    <>
+      <Selecao />
       <RibbonGroup label="Eixos" radios="Ferramenta">
         <Ferr f="eixo" icon="eixo" />
         <RibbonButton icon="malha" label="Malha de eixos…" onClick={() => ui({ jan: 'malha' })} />
       </RibbonGroup>
-      <RibbonGroup label="Cargas" radios="Ferramenta"><Ferr f="carga" icon="carga" /><Ferr f="cargaLaje" icon="cargaLaje" /><Ferr f="cargaViga" icon="cargaViga" /></RibbonGroup>
       <Gabarito />
+      <RibbonGroup label="Pilares" radios="Ferramenta">
+        <Ferr f="pilar" icon="pilar" /><Ferr f="pilarParede" icon="pilarParede" />
+        <RibbonButton icon="pilar" label="Pilar como arranque" title="Lança o pilar como arranque (altura zero: só leva cargas à fundação); mesma opção da ferramenta Pilar" pressed={pl.arranque} onClick={() => { irFerramenta('pilar'); pl.set({ arranque: !pl.arranque }); }} />
+      </RibbonGroup>
+    </>
+  );
+}
+
+/** 3. Vigas e lajes: vigas, paredes e muros, lajes e tipos de laje, ábacos, escadas, planos. */
+function VigasLajes() {
+  return (
+    <>
+      <Selecao />
+      <RibbonGroup label="Vigas" radios="Ferramenta">
+        <Ferr f="viga" icon="viga" /><Ferr f="vigaGabarito" icon="viga" /><Ferr f="diagonal" icon="vigaInclinada" /><Ferr f="consolo" icon="viga" />
+        <RibbonButton icon="vigaInclinada" label="Vigas inclinadas" onClick={() => useInclinadasUI.getState().abrir()} />
+      </RibbonGroup>
+      <RibbonGroup label="Muros e paredes" radios="Ferramenta"><Ferr f="parede" icon="parede" /></RibbonGroup>
+      <RibbonGroup label="Lajes" radios="Ferramenta">
+        <Ferr f="laje" icon="laje" />
+        <RibbonButton icon="laje" label="Tipos de laje…" title="Abre a Configuração da obra em Tipos de laje" onClick={cfg('tiposLaje')} />
+        <Ferr f="direcaoPano" icon="laje" /><Ferr f="insercaoPano" icon="laje" />
+      </RibbonGroup>
       <RibbonGroup label="Lançamento rápido" radios="Ferramenta"><Ferr f="contornoRet" icon="contorno" /><Ferr f="aberturaRet" icon="abertura" /></RibbonGroup>
       <Abacos />
-      <RibbonGroup label="Cortes" radios="Ferramenta"><Ferr f="corte" icon="corte" /><Ferr f="secao" icon="secao" /></RibbonGroup>
-      <RibbonGroup label="Pavimentos"><RibbonButton icon="pavimento" label="Novo pavimento…" onClick={() => ui({ jan: 'novoPavimento' })} /></RibbonGroup>
-    </>
-  );
-}
-
-function Edicao() {
-  const dim = useBuilding((s) => s.dim);
-  const pl = usePlanta();
-  return (
-    <>
-      <RibbonGroup label="Modificar" radios="Ferramenta">
-        <Ferr f="mover" icon="mover" /><Ferr f="copiar" icon="copiar" /><Ferr f="girar" icon="girar" /><Ferr f="espelhar" icon="espelhar" />
-        <Ferr f="dividir" icon="dividir" /><Ferr f="unir" icon="unir" /><Ferr f="prolongar" icon="prolongar" />
+      <RibbonGroup label="Escadas">
+        <RibbonButton icon="escada" label="Escada" title="Escada (Shift+E): lança a escada na planta" onClick={() => escolherEscada()} />
+        <RibbonButton icon="escada" label="Escadas…" onClick={() => useEscadaUI.getState().abrir()} />
       </RibbonGroup>
-      <RibbonGroup label="Grupos">
-        <RibbonButton icon="copiarGrupo" label="Copiar de outro grupo…" onClick={() => ui({ l4: 'copiarGrupo' })} />
-        <RibbonButton icon="unirPavimentos" label="Unir pavimentos…" onClick={() => ui({ l4: 'unirPavimentos' })} />
-      </RibbonGroup>
-      <RibbonGroup label="Referências" radios="Ferramenta"><Ferr f="moverRef" icon="referencia" /><Ferr f="contaGotas" icon="contaGotas" /></RibbonGroup>
       <PlanosFaixa><Ferr f="plano" icon="laje" /></PlanosFaixa>
-      <RibbonGroup label="Lajes" radios="Ferramenta">
-        <RibbonButton icon="laje" label="Tipos de laje…" title="Abre a Configuração da obra em Tipos de laje" onClick={() => ui({ cfg: 'tiposLaje' })} />
-        <Ferr f="puncao" icon="puncao" disabled={!dim?.puncao?.length} />
-        <Ferr f="zonaLaje" icon="zona" /><Ferr f="linhaDobra" icon="dobra" /><Ferr f="direcaoPano" icon="laje" /><Ferr f="insercaoPano" icon="laje" />
-        <RibbonButton icon="zona" label="Editar armaduras das lajes" title="Abre o painel de edição das armaduras sob a planta" onClick={() => { ui({ aba: 'planta' }); pl.set({ camadaPuncao: false, painelLajes: true, armaduraLajes: pl.armaduraLajes === 'nenhuma' ? 'ambas' : pl.armaduraLajes }); }} />
-      </RibbonGroup>
     </>
   );
 }
 
-const cfg = (id: string) => () => ui({ cfg: id });
-
-function CargasEAcoes() {
+/** 4. Cargas: cargas lançadas e casos, estados-limite, vento, empuxo, etapas de carga e incêndio. */
+function Cargas() {
   return (
     <>
+      <Selecao />
+      <RibbonGroup label="Cargas lançadas" radios="Ferramenta"><Ferr f="carga" icon="carga" /><Ferr f="cargaLaje" icon="cargaLaje" /><Ferr f="cargaViga" icon="cargaViga" /></RibbonGroup>
       <RibbonGroup label="Casos e combinações">
         <RibbonButton icon="casos" label="Casos de carga" onClick={cfg('casos')} />
         <RibbonButton icon="estados" label="Estados-limite e combinações" onClick={cfg('estados')} />
@@ -136,62 +170,19 @@ function CargasEAcoes() {
       <RibbonGroup label="Outras ações">
         <RibbonButton icon="empuxo" label="Empuxo de terra" onClick={cfg('empuxo')} />
         <RibbonButton icon="casos" label="Etapas de carga (flechas)" onClick={cfg('etapasFlecha')} />
-        <RibbonButton icon="fogo" label="Incêndio" onClick={cfg('incendio')} />
+        <RibbonButton icon="fogo" label="Incêndio" title="Resistência ao fogo (TRRF): parâmetros e verificação por elemento" onClick={cfg('incendio')} />
       </RibbonGroup>
     </>
   );
 }
 
-function Analise() {
-  const { calcular, calculando } = useBuilding();
-  return (
-    <>
-      <RibbonGroup label="Cálculo">
-        <RibbonButton icon="calcular" label="Calcular obra" title="Mesma ação de Calcular e dimensionar (aba Dimensionamento)" disabled={calculando} onClick={() => { void calcular(); }} />
-        <RibbonButton icon="modos" label="2ª ordem global…" title="Abre a vista Análise (P-Δ no lugar do γz)" onClick={() => ui({ aba: 'analise' })} />
-        <RibbonButton icon="calcular" label="Calcular escadas…" title="Cálculo individual de cada lance de escada (reações, esforços e deslocamentos), antes do cálculo da obra" onClick={() => useEscadaCalculoUI.getState().abrir()} />
-        <RibbonButton icon="calcular" label="Armadura das escadas…" title="Armadura e detalhamento de cada lance de escada: posições, ancoragens, esperas e passadores, com edição e bloqueio" onClick={() => useEscadaArmaduraUI.getState().abrir()} />
-      </RibbonGroup>
-      <RibbonGroup label="Resultados">
-        <RibbonButton icon="resultados" label="Ver Análise" onClick={() => ui({ aba: 'analise' })} />
-        <RibbonButton icon="modos" label="Ver Deslocamentos" onClick={() => ui({ aba: 'deslocamentos' })} />
-        <RibbonButton icon="camadas" label="Ver Isovalores" onClick={() => ui({ aba: 'isovalores' })} />
-        <RibbonButton icon="resultados" label="Ver Esforços" onClick={() => ui({ aba: 'esforcos' })} />
-        <RibbonButton icon="verificacao" label="Ver Verificação" onClick={() => ui({ aba: 'verificacao' })} />
-      </RibbonGroup>
-      <RibbonGroup label="Consultas" radios="Ferramenta"><Ferr f="flecha" icon="medir" /></RibbonGroup>
-      <RibbonGroup label="Opções"><RibbonButton icon="config" label="Opções de cálculo…" onClick={cfg('opcoes')} /></RibbonGroup>
-    </>
-  );
-}
-
-function Dimensionamento() {
-  const { calcular, calculando, dim } = useBuilding();
-  const alvo = useAlvoSelecionado();
-  return (
-    <>
-      <RibbonGroup label="Calcular">
-        <RibbonButton icon="calcular" label="Calcular obra" disabled={calculando} onClick={() => { void calcular(); }} />
-        <RibbonButton icon="calcular" label="Calcular obra sem fundações" disabled={calculando} onClick={() => { void calcular(true); }} />
-        <RibbonButton icon="dimensionamento" label="Ver Dimensionamento" onClick={() => ui({ aba: 'dimensionamento' })} />
-      </RibbonGroup>
-      <RibbonGroup label="Relatórios">
-        <RibbonButton icon="memorial" label="Memorial da obra" onClick={() => ui({ memo: true })} />
-        <RibbonButton icon="relatorio" label="Resultados do elemento" title={dim ? 'Resultados do elemento selecionado' : 'Calcule o dimensionamento primeiro'} disabled={!alvo || !dim} onClick={() => alvo && abrirJanela(alvo)} />
-      </RibbonGroup>
-      <RibbonGroup label="Proteção ao fogo"><RibbonButton icon="fogo" label="Resistência ao fogo…" onClick={cfg('incendio')} /></RibbonGroup>
-      <RibbonGroup label="Fundações">
-        <RibbonButton icon="enviar" label="Cargas para o módulo Fundações" disabled={!dim?.fundacao.length} onClick={() => { importarCargasDoEdificio(dim!.fundacao); useStore.getState().set({ module: 'fundacoes' }); }} />
-      </RibbonGroup>
-    </>
-  );
-}
-
-function Fundacoes() {
-  const { calcularFundacao, calculandoFund, dim } = useBuilding();
+/** 5. Fundação: elementos, vigas, radier, limites, nível de fundação e configuração. */
+function Fundacao() {
+  const dim = useBuilding((s) => s.dim);
   const pl = usePlanta();
   return (
     <>
+      <Selecao />
       <RibbonGroup label="Elementos" radios="Ferramenta">
         <Ferr f="fundacao" icon="fundacao" /><Ferr f="vigaFund" icon="vigaFund" /><Ferr f="radier" icon="radier" /><Ferr f="vigaElastica" icon="vigaElastica" /><Ferr f="corrida" icon="corrida" />
       </RibbonGroup>
@@ -199,16 +190,76 @@ function Fundacoes() {
         <Ferr f="girarFund" icon="girarFund" /><Ferr f="insFund" icon="pontoIns" />
       </RibbonGroup>
       <RibbonGroup label="Limites" radios="Ferramenta"><Ferr f="limite" icon="limite" /><Ferr f="limiteMascara" icon="limite" /></RibbonGroup>
-      <RibbonGroup label="Cálculo">
+      <RibbonGroup label="Nível e dados">
         <RibbonButton icon="fundacao" label="Nível de fundação" title="Planta de fundação (U)" onClick={() => { ui({ aba: 'planta' }); pl.set({ pavimento: 'fundacao', ferramenta: 'fundacao', selecao: new Set() }); }} />
-        <RibbonButton icon="calcular" label="Calcular as fundações" title="Calcula só as fundações, com a análise em vigor" disabled={!dim || calculandoFund} onClick={() => { void calcularFundacao(); }} />
-        <RibbonButton icon="config" label="Configuração das fundações…" onClick={() => ui({ cfg: 'fundacao' })} />
+        <RibbonButton icon="config" label="Configuração das fundações…" onClick={cfg('fundacao')} />
+      </RibbonGroup>
+      <RibbonGroup label="Módulo Fundações">
+        <RibbonButton icon="enviar" label="Cargas para o módulo Fundações" disabled={!dim?.fundacao.length} onClick={() => { importarCargasDoEdificio(dim!.fundacao); useStore.getState().set({ module: 'fundacoes' }); }} />
       </RibbonGroup>
     </>
   );
 }
 
+/** 6. Calcular: UM botão principal (com ou sem fundação); 2ª ordem, opções, escadas e só as fundações como secundários. */
+function Calcular() {
+  const { calcular, calculando, calcularFundacao, calculandoFund, dim } = useBuilding();
+  const semFundacao = useEdifUI((s) => s.semFundacao);
+  const temFund = useBuilding((s) => !!s.sessao.modelo.fundacao?.elementos.length);
+  return (
+    <>
+      <RibbonGroup label="Calcular">
+        <RibbonButton icon="calcular" label="Calcular" title="Analisa e dimensiona a obra (esforços, deslocamentos, armaduras e, se marcado, as fundações)" disabled={calculando} onClick={() => { void calcular(); }} />
+        <div className="rstack">
+          <label className="check small" title={temFund ? 'Desmarque para analisar e dimensionar a estrutura sem calcular as fundações lançadas' : 'Não há fundações lançadas: o cálculo só tem a estrutura'}>
+            <Input type="checkbox" checked={!semFundacao} disabled={!temFund} onChange={(e) => ui({ semFundacao: !e.target.checked })} /> <span>Com fundações</span>
+          </label>
+        </div>
+      </RibbonGroup>
+      <RibbonGroup label="Análise">
+        <RibbonButton icon="modos" label="2ª ordem global…" title="Abre a vista Análise (P-Δ no lugar do γz)" onClick={() => ui({ aba: 'analise' })} />
+        <RibbonButton icon="config" label="Opções de cálculo…" onClick={cfg('opcoes')} />
+      </RibbonGroup>
+      <RibbonGroup label="Parciais">
+        <RibbonButton icon="calcular" label="Calcular escadas…" title="Cálculo individual de cada lance de escada (reações, esforços e deslocamentos), antes do cálculo da obra" onClick={() => useEscadaCalculoUI.getState().abrir()} />
+        <RibbonButton icon="calcular" label="Recalcular só as fundações" title="Calcula só as fundações, com a análise em vigor" disabled={!dim || calculandoFund} onClick={() => { void calcularFundacao(); }} />
+      </RibbonGroup>
+    </>
+  );
+}
+
+/** 7. Resultados: esforços, deslocamentos, isovalores, verificação, dimensionamento, flecha entre pontos e relatórios. */
+function Resultados() {
+  const dim = useBuilding((s) => s.dim);
+  const alvo = useAlvoSelecionado();
+  const pl = usePlanta();
+  return (
+    <>
+      <RibbonGroup label="Vistas">
+        <RibbonButton icon="resultados" label="Ver Esforços" onClick={() => ui({ aba: 'esforcos' })} />
+        <RibbonButton icon="modos" label="Ver Deslocamentos" onClick={() => ui({ aba: 'deslocamentos' })} />
+        <RibbonButton icon="camadas" label="Ver Isovalores" onClick={() => ui({ aba: 'isovalores' })} />
+        <RibbonButton icon="verificacao" label="Ver Verificação" onClick={() => ui({ aba: 'verificacao' })} />
+        <RibbonButton icon="dimensionamento" label="Ver Dimensionamento" onClick={() => ui({ aba: 'dimensionamento' })} />
+        <RibbonButton icon="resultados" label="Ver Análise" onClick={() => ui({ aba: 'analise' })} />
+      </RibbonGroup>
+      <RibbonGroup label="Consultas" radios="Ferramenta"><Ferr f="flecha" icon="medir" /></RibbonGroup>
+      <RibbonGroup label="Armaduras" radios="Ferramenta">
+        <Ferr f="puncao" icon="puncao" disabled={!dim?.puncao?.length} />
+        <Ferr f="zonaLaje" icon="zona" /><Ferr f="linhaDobra" icon="dobra" />
+        <RibbonButton icon="zona" label="Editar armaduras das lajes" title="Abre o painel de edição das armaduras sob a planta" onClick={() => { ui({ aba: 'planta' }); pl.set({ camadaPuncao: false, painelLajes: true, armaduraLajes: pl.armaduraLajes === 'nenhuma' ? 'ambas' : pl.armaduraLajes }); }} />
+        <RibbonButton icon="calcular" label="Armadura das escadas…" title="Armadura e detalhamento de cada lance de escada: posições, ancoragens, esperas e passadores, com edição e bloqueio" onClick={() => useEscadaArmaduraUI.getState().abrir()} />
+      </RibbonGroup>
+      <RibbonGroup label="Relatórios">
+        <RibbonButton icon="relatorio" label="Resultados do elemento" title={dim ? 'Resultados do elemento selecionado' : 'Calcule o dimensionamento primeiro'} disabled={!alvo || !dim} onClick={() => alvo && abrirJanela(alvo)} />
+      </RibbonGroup>
+    </>
+  );
+}
+
+/** 8. Pranchas e memorial: pranchas, estilo, cortes nas pranchas, memorial do edifício e memória detalhada. */
 function Pranchas() {
+  const analise = useBuilding((s) => s.analise);
   return (
     <>
       <RibbonGroup label="Folhas">
@@ -218,6 +269,24 @@ function Pranchas() {
       <RibbonGroup label="Estilo">
         <RibbonButton icon="config" label="Estilo de desenho e símbolos…" title="Abre a vista Pranchas no bloco de estilo de desenho, símbolos dos pilares e DXF importados" onClick={() => { ui({ aba: 'pranchas' }); requestAnimationFrame(() => document.querySelector('[data-estilo-pranchas]')?.scrollIntoView({ block: 'nearest' })); }} />
       </RibbonGroup>
+      <RibbonGroup label="Cortes" radios="Ferramenta"><Ferr f="corte" icon="corte" /><Ferr f="secao" icon="secao" /></RibbonGroup>
+      <RibbonGroup label="Memorial">
+        <RibbonButton icon="memorial" label="Memorial da obra" onClick={() => ui({ memo: true })} />
+        <RibbonButton icon="memorial" label="Memória detalhada…" title="Registro passo a passo de todas as contas (fórmulas, valores, normas) e exportação dos dados da análise e do modelo para o OpenSees" disabled={!analise || !!analise.erro} onClick={() => ui({ memoria: true })} />
+      </RibbonGroup>
+    </>
+  );
+}
+
+/** Utilitária: modificar elementos, referências. */
+function Edicao() {
+  return (
+    <>
+      <RibbonGroup label="Modificar" radios="Ferramenta">
+        <Ferr f="mover" icon="mover" /><Ferr f="copiar" icon="copiar" /><Ferr f="girar" icon="girar" /><Ferr f="espelhar" icon="espelhar" />
+        <Ferr f="dividir" icon="dividir" /><Ferr f="unir" icon="unir" /><Ferr f="prolongar" icon="prolongar" />
+      </RibbonGroup>
+      <RibbonGroup label="Referências" radios="Ferramenta"><Ferr f="moverRef" icon="referencia" /><Ferr f="contaGotas" icon="contaGotas" /></RibbonGroup>
     </>
   );
 }
@@ -300,16 +369,18 @@ function Contexto() {
   );
 }
 
-/** Corpo da aba `aba` da faixa do Edifício. Os cartões 03 a 05 acrescentam as demais abas. */
-export function FaixaEdificio({ aba }: { aba: string }): ReactNode {
-  if (aba === 'lancamento') return <Lancamento />;
-  if (aba === 'edicao') return <Edicao />;
-  if (aba === 'fundacoes') return <Fundacoes />;
+/** Corpo da aba `aba` da faixa do Edifício: uma aba por etapa da obra (mesmos ids da barra de etapas), mais Edição e Vista. */
+export function FaixaEdificio({ aba, acoes }: { aba: string; acoes: AcoesArquivo }): ReactNode {
+  if (aba === 'obra') return <Obra acoes={acoes} />;
+  if (aba === 'pilares') return <Pilares />;
+  if (aba === 'vigasLajes') return <VigasLajes />;
+  if (aba === 'cargas') return <Cargas />;
+  if (aba === 'fundacao') return <Fundacao />;
+  if (aba === 'calcular') return <Calcular />;
+  if (aba === 'resultados') return <Resultados />;
   if (aba === 'pranchas') return <Pranchas />;
+  if (aba === 'edicao') return <Edicao />;
   if (aba === 'vista') return <Vista />;
   if (aba === 'ctx') return <Contexto />;
-  if (aba === 'cargas') return <CargasEAcoes />;
-  if (aba === 'analise') return <Analise />;
-  if (aba === 'dimensionamento') return <Dimensionamento />;
   return null;
 }

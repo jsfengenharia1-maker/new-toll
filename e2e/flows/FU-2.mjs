@@ -1,7 +1,7 @@
 // Fluxos de interface — FU (parte 2/2).
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { fecharCfg, grupoEdif, tab, telaDe, reenquadrarAte } from './helpers.mjs';
+import { fecharCfg, grupoEdif, tab, telaDe, reenquadrarAte, botaoCalcular } from './helpers.mjs';
 
 export const f_FU8 = {
     name: 'FU8: cintas da sapata corrida de aba única (lançadas no editor, alavanca, alívio no elemento interno, janela e pranchas), radier sem carga (definir e seguir) e ligação com o módulo Fundações (sondagens nos dois sentidos, abrir no Edifício)',
@@ -49,7 +49,7 @@ export const f_FU8 = {
       assert.equal(await cintas.locator('[data-cinta-id]').count(), 2);
       // calcular: cintas na janela da sapata corrida, com alavanca e alívio
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
       const card = page.locator('[data-card-corridas]');
       await card.waitFor();
@@ -115,7 +115,7 @@ export const f_FU7b = {
       const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 120000 });
       const calcular = async () => {
         await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-        await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+        await botaoCalcular(page).click();
         await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 180000 });
         await livre();
       };
@@ -275,7 +275,7 @@ export const f_FU7c = {
       const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 120000 });
       const calcular = async () => {
         await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-        await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+        await botaoCalcular(page).click();
         await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 180000 });
         await livre();
       };
@@ -357,7 +357,7 @@ export const f_FU7d = {
       const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 120000 });
       const calcular = async () => {
         await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-        await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+        await botaoCalcular(page).click();
         await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 180000 });
         await livre();
       };
@@ -473,7 +473,7 @@ export const f_E5k = {
       await page.waitForFunction(() => /contato com o solo 140 cm/.test(document.querySelector('[data-editor-viga-elastica] [data-forma-resumo]')?.textContent ?? ''));
       // calcular
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
       const cardV = page.locator('[data-card-vigas-fundacao]');
       await cardV.waitFor();

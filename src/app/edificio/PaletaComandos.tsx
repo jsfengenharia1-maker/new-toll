@@ -43,7 +43,7 @@ function itensDaPaleta(b: BuildingModel, ctx: { exec: (n: string, p: Record<stri
     out.push({ id: `f:${f}`, tipo: 'Ferramenta', rotulo: ROTULO_FERRAMENTA[f], detalhe: TECLA_FERRAMENTA[f] ? `tecla ${TECLA_FERRAMENTA[f]}` : undefined, repetivel: true, executar: () => naPlanta({ ferramenta: f, ...aoEscolher(f) }) });
   }
   out.push(
-    { id: 'a:calcular', tipo: 'Ação', rotulo: 'Calcular e dimensionar', repetivel: true, executar: ctx.calcular },
+    { id: 'a:calcular', tipo: 'Ação', rotulo: 'Calcular', detalhe: 'analisa e dimensiona a obra', repetivel: true, executar: ctx.calcular },
     { id: 'a:desfazer', tipo: 'Ação', rotulo: 'Desfazer', detalhe: 'Ctrl+Z', repetivel: true, executar: ctx.desfazer },
     { id: 'a:refazer', tipo: 'Ação', rotulo: 'Refazer', detalhe: 'Ctrl+Y', repetivel: true, executar: ctx.refazer },
     { id: 'a:limpar', tipo: 'Ação', rotulo: 'Limpar a seleção', repetivel: true, executar: () => usePlanta.getState().set({ selecao: new Set() }) },

@@ -1,6 +1,6 @@
 // Fluxos de interface — E (parte 3/3): planos inclinados, rampas e desníveis (E3f).
 import assert from 'node:assert/strict';
-import { faixaAba, fileMenu, grupoEdif, telaDe, enquadrarEstavel } from './helpers.mjs';
+import { faixaAba, fileMenu, grupoEdif, telaDe, enquadrarEstavel, botaoCalcular } from './helpers.mjs';
 
 export const f_E3f = {
   name: 'E3f: planos inclinados (novo plano, árvore, atribuir, propriedades, vigas incoerentes, tipo de pano e pano a definir, cobertura em duas águas, memorial, diafragma)',
@@ -11,14 +11,14 @@ export const f_E3f = {
     const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
     const esperar = (fn, arg) => page.waitForFunction(fn, arg, { timeout: 20000 });
     const aba = (nome) => page.locator('.edif-tabs').getByRole('tab', { name: nome });
-    const calcular = async () => { await aba('Dimensionamento').click(); await page.getByRole('button', { name: 'Calcular e dimensionar' }).click(); };
+    const calcular = async () => { await aba('Dimensionamento').click(); await botaoCalcular(page).click(); };
     // um pano 6 × 4,5 m, vigas de 20 × 50
     await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 4.5], [0, 4.5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
     await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 4.5], [6, 4.5]], [[0, 0], [0, 4.5]], [[6, 0], [6, 4.5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
     await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
     await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.length === 1, null);
     // 1) novo plano: máxima declividade de (0; 0) a (0; 4,5), desnível 0, 30 %; a árvore do Navegador mostra o plano
-    await faixaAba(page, 'Edição');
+    await faixaAba(page, 'Vigas e lajes');
     await page.getByRole('button', { name: 'Novo plano', exact: true }).click();
     const dlg = page.getByRole('dialog', { name: 'Novo plano' });
     const y2 = dlg.getByLabel(/^y2/); await y2.fill('4,5'); await y2.press('Enter');
@@ -113,7 +113,7 @@ export const f_E5d = {
     await abrir('mansarda com águas-furtadas');
     await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.planos?.length === 6, null);
     await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-    await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+    await botaoCalcular(page).click();
     await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 240000 });
     await page.getByRole('button', { name: 'Memorial do edifício' }).click();
     const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
@@ -124,7 +124,7 @@ export const f_E5d = {
     await memo.getByRole('button', { name: 'Fechar' }).click();
     // ajuda da janela Novo plano: sequência recomendada
     await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
-    await faixaAba(page, 'Edição');
+    await faixaAba(page, 'Vigas e lajes');
     await page.getByRole('button', { name: 'Novo plano', exact: true }).click();
     const dlg = page.getByRole('dialog', { name: 'Novo plano' });
     await dlg.getByRole('button', { name: 'Ajuda de Novo plano', exact: true }).click();
@@ -150,7 +150,7 @@ export const f_E5h = {
     await cmd(`laje.editar {"id": "${id}", "insercaoPonto": [6, 5]}`);
     await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.[0]?.insercao === 2, null);
     await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-    await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+    await botaoCalcular(page).click();
     await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
     await page.getByRole('button', { name: 'Memorial do edifício' }).click();
     const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
@@ -213,7 +213,7 @@ export const f_E5b = {
     await cmd('viga.tracar {"grupo": "g_3", "pontos": [[12.15, 2], [15, 2]], "secao": {"b": 0.15, "h": 0.45}}');
     await enquadrarEstavel(page);
     // 1) diagonal: dois cliques nos pilares (0; 0) e (8; 5), a ponta final no pavimento de cima
-    await faixaAba(page, 'Lançamento');
+    await faixaAba(page, 'Vigas e lajes');
     await page.getByRole('radio', { name: 'Diagonal por dois pontos', exact: true }).click();
     await page.locator('[data-diagonal-menu]').waitFor();
     await clicarE5b(page, 0, 0); await clicarE5b(page, 8, 5);
@@ -235,7 +235,7 @@ export const f_E5b = {
     // 3) planos: z = 0,05·x e z = 0,5 − 0,05·x; a ferramenta mostra as linhas magenta (1 interseção e 2 máximas declividades)
     await cmd('plano.criar {"grupo": "g_3", "tipo": "tresPontos", "pontos": [[0, 0, 0], [8, 0, 0.4], [0, 2.5, 0]]}');
     await cmd('plano.criar {"grupo": "g_3", "tipo": "tresPontos", "pontos": [[0, 5, 0.5], [8, 5, 0.1], [4, 2.5, 0.3]]}');
-    await faixaAba(page, 'Edição');
+    await faixaAba(page, 'Vigas e lajes');
     await page.getByRole('radio', { name: 'Definir plano na planta', exact: true }).click();
     await page.waitForFunction(() => document.querySelector('.planta-cv')?.getAttribute('data-linhas-magenta') === 'idd', null, { timeout: 20000 });
     // cursor sobre o eixo e sobre a face da viga y = 0 (b = 0,15: face em y = 0,075)
@@ -283,7 +283,7 @@ export const f_E5b_abaco = {
   async run({ newPage }) {
     const page = await newPage();
     await porticoE5b(page, '{"tipo": "nervurada", "forma": "cat:rec-60-30", "hTotal": 0.35, "capa": 0.05}');
-    await faixaAba(page, 'Lançamento');
+    await faixaAba(page, 'Vigas e lajes');
     await page.getByRole('radio', { name: 'Ábaco', exact: true }).click();
     const menu = page.locator('[data-abaco-menu]');
     await menu.waitFor();
@@ -334,14 +334,12 @@ export const f_E5c = {
     }
     await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.length === 2, null);
     let m = await modelo();
-    // 1) etapa Muros e paredes (C1.29): pendente e opcional; a primeira parede a marca como feita
-    const etapa = page.locator('[data-etapa="muros"]');
-    assert.match(await etapa.innerText(), /pendente/);
-    assert.match(await etapa.innerText(), /Opcional/);
+    // 1) muros e paredes (C1.29) são opcionais na etapa Vigas e lajes da barra de etapas: o detalhe conta as paredes e a primeira parede lançada aparece nele
+    const etapa = page.locator('[data-etapa="vigasLajes"]');
+    assert.match(await etapa.getAttribute('title'), /0 parede\(s\), 0 muro\(s\) de arrimo, 0 escada\(s\) \(opcionais\)/);
     await cmd(`parede.criar {"pontos": [[0, 0], [3, 0]], "espessura": 0.2, "tipo": "concreto", "nasce": "${m.pavimentos[0].id}", "morre": "${m.pavimentos[1].id}"}`);
     await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.paredes?.length === 1, null);
-    await etapa.getByText('feito', { exact: true }).waitFor();
-    assert.match(await etapa.innerText(), /1 parede\(s\), 0 muro\(s\) de arrimo/);
+    await page.locator('[data-etapa="vigasLajes"][title*="1 parede(s), 0 muro(s) de arrimo"]').waitFor();
     // 2) redimensionar todos os consolos (C6.101): o botão só vale com armadura fixada
     const v1 = m.vigas.find((v) => v.nome === 'V1').id, p1 = m.pilares.find((p) => p.nome === 'P1').id;
     await cmd(`consolo.criar {"viga": "${v1}", "ponta": "ini", "pilar": "${p1}"}`);
@@ -441,7 +439,7 @@ export const f_E5m = {
     await cmd(`viga.editar {"id": "${id}", "nivel": -1.5}`);
     await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas?.[0]?.nivel === -1.5, null);
     await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-    await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+    await botaoCalcular(page).click();
     await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
     // janela do pilar: lance do Tipo 1 dividido em dois trechos pela viga 1,5 m abaixo do pavimento
     const cardP = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: 'Pilares (por lance)' }) });

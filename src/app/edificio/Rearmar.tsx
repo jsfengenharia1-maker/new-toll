@@ -30,7 +30,7 @@ export function RearmarCard() {
       <div className="row wrap">
         <Button disabled={calculando || !pode || (!velhaAnalise && emDia)} data-rearmar-alterados title="Refaz só os elementos alterados desde o último dimensionamento (seção modificada, armadura desbloqueada, tabela ou cobrimento próprios), com os esforços da análise guardada" onClick={() => rearmar('alterados')}>Rearmar alterados ({alt?.globais.length ? 'todos' : alt ? alt.elementos.filter((x) => x.tipo !== 'laje').length : 0})</Button>
         <Button disabled={calculando || !pode} data-rearmar-todos title="Refaz o dimensionamento e o detalhamento de todos os elementos com a análise guardada (a análise não é refeita)" onClick={() => rearmar('todos')}>Rearmar todos</Button>
-        {velhaAnalise && <Button variant="primary" disabled={calculando} onClick={() => calcular()}>Refazer a análise</Button>}
+        {velhaAnalise && <Button variant="primary" disabled={calculando} onClick={() => calcular()}>Calcular</Button>}
       </div>
       {velhaAnalise && pode && <Note tone="bad" data-esforcos-antigos>Seções alteradas depois da análise ({n} elemento(s) alterado(s)): rearmar usa os esforços guardados (revisão {st.revAnalise}); elementos com a rigidez muito diferente recebem o aviso ESFORCO_ANTIGO. Refaça a análise para esforços corretos.</Note>}
       {velhaAnalise && !pode && <Note tone="bad">Algo além de seções e detalhes mudou depois da análise: refaça a análise antes de rearmar.</Note>}

@@ -1,7 +1,7 @@
 // Fluxos de interface — FU (parte 1/2).
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { fileMenu, faixaAba, faixaCtx, grupoEdif, tab, num, telaDe, reenquadrarAte, importarMascara } from './helpers.mjs';
+import { fileMenu, faixaAba, faixaCtx, grupoEdif, tab, num, telaDe, reenquadrarAte, importarMascara, botaoCalcular } from './helpers.mjs';
 
 export const f_FU1 = {
     name: 'FU1: fundação no edifício — divisa e centrada lançadas na planta, cálculo, janela do elemento, FUND_EXC_SEM_VIGA, σadm sem refazer a análise e aba Fundações em leitura',
@@ -49,7 +49,7 @@ export const f_FU1 = {
 
       // calcular o edifício (as fundações vão junto) e ver os erros: divisa sem viga de equilíbrio
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 60000 });
       const lista = page.locator('[data-lista-erros]');
       await lista.getByLabel('Tipo').selectOption('fundacao');
@@ -158,14 +158,19 @@ export const f_FU1_2 = {
       await page.locator('.statusbar .msg', { hasText: 'Carga no pilar P1' }).waitFor();
       // sem estrutura para analisar, o cálculo traz só as fundações
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'Obra só com arranques: 1 fundação' }).waitFor({ timeout: 60000 });
       const cardF = page.locator('[data-card-fundacoes]');
       assert.equal(await cardF.locator('tbody tr').count(), 1);
       assert.match(await cardF.innerText(), /S1: \d,\d\d × \d,\d\d m/);
       // as duas formas de calcular: sem fundação e com fundação
-      await page.getByRole('button', { name: 'Calcular sem fundação' }).click();
+      // (a opção "Com fundações" fica na etapa Calcular; desmarcada, todo botão Calcular analisa só a estrutura)
+      await faixaAba(page, 'Calcular');
+      const barraCalc = page.getByRole('toolbar', { name: /^Comandos: Calcular/ });
+      await barraCalc.getByLabel('Com fundações').uncheck();
+      await barraCalc.getByRole('button', { name: 'Calcular', exact: true }).click();
       await page.locator('.statusbar .msg', { hasText: /Análise|Obra só/ }).waitFor();
+      await barraCalc.getByLabel('Com fundações').check();
     },
   };
 
@@ -219,7 +224,7 @@ export const f_FU2 = {
 
       // calcular: a divisa passa a ter viga de equilíbrio
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 60000 });
       const lista = page.locator('[data-lista-erros]');
       await lista.getByLabel('Tipo').selectOption('fundacao');
@@ -314,7 +319,7 @@ export const f_FU4 = {
       assert.equal(await grupo.locator('[data-gerar-fundacoes]').isDisabled(), true);
       // calcular: nenhum elemento fica excêntrico sem viga
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 60000 });
       const lista = page.locator('[data-lista-erros]');
       await lista.getByLabel('Tipo').selectOption('fundacao');
@@ -389,7 +394,7 @@ export const f_FU3 = {
 
       // calcular o edifício (as fundações vão junto)
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 60000 });
       const cardF = page.locator('[data-card-fundacoes]');
       await cardF.waitFor();
@@ -516,7 +521,7 @@ export const f_FU3_3 = {
       await page.keyboard.press('Enter');
       await page.locator('.statusbar .msg', { hasText: 'B1 (bloco, 2 pilares) lançado sob P1, P2' }).waitFor();
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 60000 });
       const cardF = page.locator('[data-card-fundacoes]');
       await cardF.waitFor();
@@ -565,7 +570,7 @@ export const f_FU5 = {
       await page.locator('[data-aviso-calculo="sem"]').waitFor();
       assert.equal(await page.locator('[data-lista-folhas]').count(), 0);
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Pranchas' }).click();
       const prev = page.locator('.prancha-prev');
@@ -653,7 +658,7 @@ export const f_FU6 = {
       await cmd('carga.area {"grupo": "fundacao", "contorno": [[-0.4, -0.4], [7.4, -0.4], [7.4, 5.4], [-0.4, 5.4]], "valor": 5, "caso": "Q"}');
       // calcular: card da base elástica, sem FUND_PILAR_SEM_ELEMENTO
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
       const card = page.locator('[data-card-base-elastica]');
       await card.waitFor();
@@ -742,7 +747,7 @@ export const f_FU7a = {
       assert.equal(await tab.count(), 2);
       // calcular: card das sapatas corridas
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
       const card = page.locator('[data-card-corridas]');
       await card.waitFor();

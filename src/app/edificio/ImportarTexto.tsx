@@ -201,7 +201,7 @@ export function ImportarTexto({ onClose, onCriada }: { onClose(): void; onCriada
           onClick={() => {
             const r = useBuilding.getState().novaObraArranques(nome.trim(), res!);
             if (r.ok) {
-              void useBuilding.getState().calcular();
+              void useBuilding.getState().calcular(false);
               onCriada();
             }
           }}

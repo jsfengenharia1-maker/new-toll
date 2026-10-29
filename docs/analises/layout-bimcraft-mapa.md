@@ -8,7 +8,7 @@ Inventário de 23/10/2026 (Fase 1 da migração). Só leitura do código; nada f
 |---|---|
 | **QA** | Barra de acesso rápido (linha superior `.qbar`): marca, desfazer, refazer, salvar, nome da obra, ajuda, tema |
 | **MT** | Aba de módulo (`.modtabs`, `role=tab`, `aria-label="Módulo"`): Pórtico, Edifício, Fundações |
-| **RB:x** | Aba `x` da faixa de comandos (`aria-label="Faixa de comandos"`): `arquivo`, `lancamento`, `edicao`, `cargas`, `analise`, `dimensionamento`, `fundacoes`, `pranchas`, `vista`; `ctx` = aba contextual do elemento selecionado (aparece com seleção) |
+| **RB:x** | Aba `x` da faixa de comandos (`aria-label="Faixa de comandos"`): `arquivo`, `lancamento`, `edicao`, `cargas`, `analise`, `dimensionamento`, `fundacoes`, `pranchas`, `vista`; no Edifício (reorganizado por etapas em 29/10/2026, ver fluxo-etapas.md): `obra`, `pilares`, `vigasLajes`, `cargas`, `fundacao`, `calcular`, `resultados`, `pranchas`, `edicao`, `vista`; `ctx` = aba contextual do elemento selecionado (aparece com seleção) |
 | **OB** | Barra de opções do comando ativo: a `PlantaBarra` reduzida (classes `planta-barra optbar`), acima do canvas, dentro da vista Planta: pavimento da planta e as opções pequenas da ferramenta ativa (cópias, ângulo, h do radier, punção…) |
 | **NAV** | Doca esquerda, paleta Navegador (árvore: Obra, Pavimentos, Grupos, Eixos, Pilares, Vigas, Lajes, Fundação, Cargas, Vistas) |
 | **PROP:g** | Doca direita, paleta Propriedades; `g` = grupo recolhível (o `Group` atual, com o mesmo título) |
@@ -95,28 +95,28 @@ Regras gerais do mapa: (1) nenhum comando muda de nome, de rótulo acessível (`
 | E6 | Atalho aba Dimensionamento / Verificação | | atalhos.ts | E3 | seleciona a VT |
 | E7 | Etapas da obra (Dados gerais, Pavimentos, Gabarito, Pilares, Pilares-parede, Vigas, Lajes, Cargas, Cálculo; botão "Ir") | | EtapasObra.tsx `EtapasGrupo` | NAV, paleta "Etapas da obra" fixa abaixo da árvore | rótulo `Ir para <etapa>` preservado |
 | E8 | Arquivo e versões (versões no arquivo, resultados, Recuperar versão) | | EtapasObra.tsx `ArquivoGrupo` | RB:arquivo / Arquivo (botão "Versões do arquivo…" → CFG:Arquivo e versões) | |
-| E9 | Grupo "Obra" (Nova obra…, Obras recentes…, Dados gerais…, corpo `DadosGeraisCorpo`) | | Edificio.tsx | RB:arquivo / Obra (botões); CFG:Dados gerais (corpo) | `DadosGeraisJanela` (JAN) continua como a janela do botão "Dados gerais…" |
-| E10 | Nova obra (assistente `NovaObra`, passos) | | NovaObra.tsx, NovaObraPassos.tsx | JAN, aberto de RB:arquivo / Obra | |
-| E11 | Obras recentes | | ObrasRecentes.tsx | JAN, RB:arquivo / Obra | |
-| E12 | Importar de texto | | ImportarTexto.tsx | JAN, RB:arquivo / Obra | |
-| E13 | Pavimentos (tabela: nome, grupo, cota, pé-direito, +1, ×; NovoPavimento) | | Edificio.tsx `Pavimentos` + `NovoPavimento` | NAV (nó Pavimentos) e PROP:Pavimento (editor da linha selecionada); RB:lancamento / Pavimentos (Novo pavimento, +1 acima, Remover) | `aria-label="Nome de <pav>"`, `Remover <pav>` preservados |
+| E9 | Grupo "Obra" (Nova obra…, Obras recentes…, Dados gerais…, corpo `DadosGeraisCorpo`) | | Edificio.tsx | RB:obra / Obra (botões); CFG:Dados gerais (corpo) | `DadosGeraisJanela` (JAN) continua como a janela do botão "Dados gerais…" |
+| E10 | Nova obra (assistente `NovaObra`, passos) | | NovaObra.tsx, NovaObraPassos.tsx | JAN, aberto de RB:obra / Obra | |
+| E11 | Obras recentes | | ObrasRecentes.tsx | JAN, RB:obra / Obra | |
+| E12 | Importar de texto | | ImportarTexto.tsx | JAN, RB:obra / Obra | |
+| E13 | Pavimentos (tabela: nome, grupo, cota, pé-direito, +1, ×; NovoPavimento) | | Edificio.tsx `Pavimentos` + `NovoPavimento` | NAV (nó Pavimentos) e PROP:Pavimento (editor da linha selecionada); RB:obra / Pavimentos e grupos (Novo pavimento, +1 acima, Remover) | `aria-label="Nome de <pav>"`, `Remover <pav>` preservados |
 | E14 | Grupos (tabela: nome, uso NBR 6120, rev., q) | | Edificio.tsx `Grupos` | NAV (nó Grupos) e PROP:Grupo | |
-| E15 | Grupos: cópia, união e áreas | | GruposL4.tsx `GruposCopiaGrupo` | RB:edicao / Grupos (Copiar de outro grupo…, Unir pavimentos…); PROP:Áreas | diálogos `CopiarGrupoDialogo`, `UnirPavimentosDialogo` (JAN) |
-| E16 | Eixos (malha, lista, remover todos) | E (ferramenta) | Edificio.tsx `Malha` | NAV (nó Eixos); RB:lancamento / Eixos (Malha de eixos…, ferramenta Eixo) | |
+| E15 | Grupos: cópia, união e áreas | | GruposL4.tsx `GruposCopiaGrupo` | RB:obra / Pavimentos e grupos (Copiar de outro grupo…, Unir pavimentos…); PROP:Áreas | diálogos `CopiarGrupoDialogo`, `UnirPavimentosDialogo` (JAN) |
+| E16 | Eixos (malha, lista, remover todos) | E (ferramenta) | Edificio.tsx `Malha` | NAV (nó Eixos); RB:pilares / Eixos (Malha de eixos…, ferramenta Eixo) | |
 | E17 | Linha de comando (`LinhaComando`) | | Edificio.tsx | SB (entrada de comando à esquerda da mensagem; `aria-label` preservado) | |
-| E18 | Máscara — <grupo> (Importar DXF…, Alinhar por 2 pontos, Lançar por DXF/DWG…, Gabaritos e vistas…, Vistas por pavimento…, Capturas…, ajustar escala, camadas visíveis/capturáveis, Linha = face/eixo, Viga pelo gabarito) | | Edificio.tsx `MascaraGrupo` | RB:lancamento / Gabarito (botões); NAV (nó Gabaritos com as camadas); `<input type=file hidden aria-label="Arquivo DXF da máscara">` vai junto | |
+| E18 | Máscara — <grupo> (Importar DXF…, Alinhar por 2 pontos, Lançar por DXF/DWG…, Gabaritos e vistas…, Vistas por pavimento…, Capturas…, ajustar escala, camadas visíveis/capturáveis, Linha = face/eixo, Viga pelo gabarito) | | Edificio.tsx `MascaraGrupo` | RB:pilares / Gabarito (botões); NAV (nó Gabaritos com as camadas); `<input type=file hidden aria-label="Arquivo DXF da máscara">` vai junto | |
 | E19 | Pilares (lista, colar tabela, seção, ajuste, ângulo, arranque) | P | Edificio.tsx `PilaresGrupo` | NAV (nó Pilares); PROP:Pilar (sem seleção: parâmetros da ferramenta Pilar: seção, ajuste, ângulo, arranque); RB:lancamento / Elementos | |
 | E20 | Pilares-parede | | PilarParedeUI.tsx | NAV (nó Pilares-parede); PROP; RB:lancamento / Elementos (ferramenta) | `CartaoPilaresParede` fica em RB:dimensionamento (cartão da aba Dimensionamento) |
 | E21 | Paredes de concreto | | ParedesUI.tsx | NAV (nó Paredes); PROP; RB:lancamento | `CartaoParedes` idem |
 | E22 | Muros de arrimo | | MurosUI.tsx | NAV (nó Muros); PROP | |
 | E23 | Alvenaria estrutural | | AlvenariaUI.tsx | NAV (nó Alvenaria); PROP; CFG (tipos de bloco) | |
 | E24 | Vigas — <grupo> (lista, seção, alinhamento, passagem/curva, renumerar, detectar) | V | Edificio.tsx `VigasGrupo` | NAV (nó Vigas); PROP:Viga (sem seleção: parâmetros da ferramenta Viga: seção, alinhamento, curva) | |
-| E25 | Ferramentas de lançamento (modo simples, deslocamento, contorno retangular, abertura, direção do pano, cargas rápidas) | | LancamentoL5.tsx | PROP (sem seleção: grupo "Ferramentas de lançamento", mantido porque tem muitos campos) e RB:lancamento / Lançamento rápido | |
+| E25 | Ferramentas de lançamento (modo simples, deslocamento, contorno retangular, abertura, direção do pano, cargas rápidas) | | LancamentoL5.tsx | PROP (sem seleção: grupo "Ferramentas de lançamento", mantido porque tem muitos campos) e RB:vigasLajes / Lançamento rápido | |
 | E26 | Lajes — <grupo> (lista, tipo, detectar panos) | L | Edificio.tsx `LajesGrupo` | NAV (nó Lajes); PROP:Laje (sem seleção: tipo de laje da ferramenta) | |
 | E27 | Referências e dados (mover referência, conta-gotas, ponto fixo, dados do pano) | | DadosL4.tsx | RB:edicao / Referências; PROP | |
 | E28 | Fundação (grupo, elementos, parâmetros, sapatas, blocos, limites, base elástica, vigas, corridas, radier) | U B K N W X A T Q | Fundacao.tsx `FundacaoGrupo` + FundacaoGrupoUI, VigaFundacao, BaseElasticaUI, CorridaUI | RB:fundacoes (comandos), NAV (nó Fundação > elementos), PROP (elemento), CFG (Parâmetros do cálculo, premissas) | detalhado na seção 4 |
-| E29 | Cargas — <grupo> (lista, tipo, caso, valor) | C | Edificio.tsx `CargasGrupo` | NAV (nó Cargas); PROP:Carga (sem seleção: tipo, caso e valor da ferramenta Carga); RB:lancamento / Cargas | |
-| E30 | Cortes e seções | | CortesUI.tsx | NAV (nó Cortes); RB:lancamento / Cortes (ferramentas Corte, Seção) | `JanelaCorte` (JAN) |
+| E29 | Cargas — <grupo> (lista, tipo, caso, valor) | C | Edificio.tsx `CargasGrupo` | NAV (nó Cargas); PROP:Carga (sem seleção: tipo, caso e valor da ferramenta Carga); RB:cargas / Cargas lançadas | |
+| E30 | Cortes e seções | | CortesUI.tsx | NAV (nó Cortes); RB:pranchas / Cortes (ferramentas Corte, Seção) | `JanelaCorte` (JAN) |
 | E31 | Vento e combinações | | Edificio.tsx `VentoGrupo` | RB:cargas / Vento; CFG:Vento | |
 | E32 | Ábacos de vento (NBR 6123) | | AbacosVento.tsx | CFG:Vento | |
 | E33 | Casos de carga (+ arranjos) | | Casos.tsx, CasosArranjos.tsx | RB:cargas / Casos e combinações; CFG:Casos de carga | |
@@ -124,11 +124,11 @@ Regras gerais do mapa: (1) nenhum comando muda de nome, de rótulo acessível (`
 | E35 | Empuxo de terra | | Empuxo.tsx | RB:cargas / Outras ações; CFG:Empuxo | |
 | E36 | Opções de cálculo (perfis sistema/NBR) | | OpcoesCalculo.tsx | CFG:Opções de cálculo; RB:analise (botão) | |
 | E37 | Etapas de carga (flechas) | | EtapasFlecha.tsx | CFG:Etapas de carga | |
-| E38 | Incêndio | | Incendio.tsx | RB:dimensionamento / Proteção ao fogo; CFG:Incêndio | |
+| E38 | Incêndio | | Incendio.tsx | RB:cargas / Outras ações; CFG:Incêndio | |
 | E39 | Materiais e segurança (+ biblioteca) | | Materiais.tsx, MateriaisBiblioteca.tsx | CFG:Materiais e segurança | |
 | E40 | Tabelas de armadura | | TabelasArmadura.tsx | CFG:Tabelas de armadura | `tabelaFoco` (atalho da lista de erros) abre CFG na tabela |
 | E41 | Biblioteca de normas | | BibliotecaNormas.tsx | CFG:Biblioteca de normas | |
-| E42 | Tipos de laje (+ fichas/enchimentos) | | TiposLaje.tsx | CFG:Tipos de laje; RB:edicao / Lajes | |
+| E42 | Tipos de laje (+ fichas/enchimentos) | | TiposLaje.tsx | CFG:Tipos de laje; RB:vigasLajes / Lajes | |
 | E43 | Vínculos, flambagem e cobrimento (seleção) | | Vinculos.tsx | PROP:Vínculos (elemento selecionado) | |
 | E44 | Vigas inclinadas (janela e lista) | | InclinadasUI.tsx, `InclinadasHost` | RB:lancamento / Elementos (botão "Vigas inclinadas"); JAN | também item da paleta Ctrl+K |
 
@@ -142,49 +142,49 @@ Todas as 40 ferramentas de `Ferramenta` (plantaStore.ts) e a tecla de `TECLA_FER
 | T2 | Pilar | P | PlantaBarra | RB:lancamento / Elementos |
 | T3 | Viga | V (R: trecho reto/curvo; A: alinhamento) | PlantaBarra | RB:lancamento / Elementos |
 | T4 | Laje | L | PlantaBarra | RB:lancamento / Elementos |
-| T5 | Carga | C | PlantaBarra | RB:lancamento / Cargas |
-| T6 | Eixo | E | PlantaBarra | RB:lancamento / Eixos |
-| T7 | Fundação | U | PlantaBarra (nível de fundação) e grupo Fundação | RB:fundacoes / Elementos |
-| T8 | Viga de fundação | B | PlantaBarra, Fundacao.tsx | RB:fundacoes / Elementos |
-| T9 | Girar 2 pontos | K | PlantaBarra, Fundacao.tsx | RB:fundacoes / Modificar |
-| T10 | Ponto de inserção | N | PlantaBarra, FundacaoGrupoUI | RB:fundacoes / Modificar |
-| T11 | Limite da fundação | T | PlantaBarra | RB:fundacoes / Limites |
-| T12 | Limite pela máscara | Q | PlantaBarra | RB:fundacoes / Limites |
+| T5 | Carga | C | PlantaBarra | RB:cargas / Cargas lançadas |
+| T6 | Eixo | E | PlantaBarra | RB:pilares / Eixos |
+| T7 | Fundação | U | PlantaBarra (nível de fundação) e grupo Fundação | RB:fundacao / Elementos |
+| T8 | Viga de fundação | B | PlantaBarra, Fundacao.tsx | RB:fundacao / Elementos |
+| T9 | Girar 2 pontos | K | PlantaBarra, Fundacao.tsx | RB:fundacao / Modificar |
+| T10 | Ponto de inserção | N | PlantaBarra, FundacaoGrupoUI | RB:fundacao / Modificar |
+| T11 | Limite da fundação | T | PlantaBarra | RB:fundacao / Limites |
+| T12 | Limite pela máscara | Q | PlantaBarra | RB:fundacao / Limites |
 | T13 | Mover | M | PlantaBarra | RB:edicao / Modificar |
 | T14 | Medir | D | PlantaBarra | RB:vista / Navegação |
-| T15 | Alinhar máscara | (sem tecla; só com máscara) | MascaraGrupo | RB:lancamento / Gabarito |
-| T16 | Radier | W | Fundacao.tsx/BaseElasticaUI | RB:fundacoes / Elementos |
-| T17 | Viga sobre base elástica | X | BaseElasticaUI | RB:fundacoes / Elementos |
-| T18 | Sapata corrida | A (só no nível de fundação, fora de Viga e Pilar) | CorridaUI | RB:fundacoes / Elementos |
+| T15 | Alinhar máscara | (sem tecla; só com máscara) | MascaraGrupo | RB:pilares / Gabarito |
+| T16 | Radier | W | Fundacao.tsx/BaseElasticaUI | RB:fundacao / Elementos |
+| T17 | Viga sobre base elástica | X | BaseElasticaUI | RB:fundacao / Elementos |
+| T18 | Sapata corrida | A (só no nível de fundação, fora de Viga e Pilar) | CorridaUI | RB:fundacao / Elementos |
 | T19 | Dividir viga | I | PlantaBarra EDICAO | RB:edicao / Modificar |
 | T20 | Unir vigas | J | PlantaBarra | RB:edicao / Modificar |
 | T21 | Prolongar viga | O | PlantaBarra | RB:edicao / Modificar |
 | T22 | Copiar | Y | PlantaBarra | RB:edicao / Modificar |
 | T23 | Girar | G | PlantaBarra | RB:edicao / Modificar |
 | T24 | Espelhar | H | PlantaBarra | RB:edicao / Modificar |
-| T25 | Armadura de punção | Z | PlantaBarra (botão "Armadura de punção", só com punção calculada) | RB:edicao / Lajes |
-| T26 | Zona de uniformização | | EdicaoLajes.tsx | RB:edicao / Lajes |
-| T27 | Linha de dobra | | EdicaoLajes.tsx | RB:edicao / Lajes |
+| T25 | Armadura de punção | Z | PlantaBarra (botão "Armadura de punção", só com punção calculada) | RB:resultados / Armaduras |
+| T26 | Zona de uniformização | | EdicaoLajes.tsx | RB:resultados / Armaduras |
+| T27 | Linha de dobra | | EdicaoLajes.tsx | RB:resultados / Armaduras |
 | T28 | Pilar-parede | (R gira 90°) | PilarParedeUI | RB:lancamento / Elementos |
 | T29 | Parede de concreto | | ParedesUI | RB:lancamento / Elementos |
-| T30 | Corte do edifício | | CortesUI | RB:lancamento / Cortes |
-| T31 | Linha de seção | | CortesUI | RB:lancamento / Cortes |
-| T32 | Viga pelo gabarito | | MascaraGrupo | RB:lancamento / Gabarito |
+| T30 | Corte do edifício | | CortesUI | RB:pranchas / Cortes |
+| T31 | Linha de seção | | CortesUI | RB:pranchas / Cortes |
+| T32 | Viga pelo gabarito | | MascaraGrupo | RB:vigasLajes / Vigas |
 | T33 | Mover referência | | DadosL4 | RB:edicao / Referências |
 | T34 | Conta-gotas | | DadosL4 | RB:edicao / Referências |
-| T35 | Contorno retangular de vigas | | LancamentoL5 | RB:lancamento / Lançamento rápido |
-| T36 | Abertura retangular | | LancamentoL5 | RB:lancamento / Lançamento rápido |
-| T37 | Carga na laje inteira | | LancamentoL5 | RB:lancamento / Cargas |
-| T38 | Carga ao longo da viga | | LancamentoL5 | RB:lancamento / Cargas |
-| T39 | Direção do pano | | LancamentoL5 | RB:edicao / Lajes |
-| T40 | Inserção do pano (vértice) | | LancamentoL5 | RB:edicao / Lajes |
+| T35 | Contorno retangular de vigas | | LancamentoL5 | RB:vigasLajes / Lançamento rápido |
+| T36 | Abertura retangular | | LancamentoL5 | RB:vigasLajes / Lançamento rápido |
+| T37 | Carga na laje inteira | | LancamentoL5 | RB:cargas / Cargas lançadas |
+| T38 | Carga ao longo da viga | | LancamentoL5 | RB:cargas / Cargas lançadas |
+| T39 | Direção do pano | | LancamentoL5 | RB:vigasLajes / Lajes |
+| T40 | Inserção do pano (vértice) | | LancamentoL5 | RB:vigasLajes / Lajes |
 | T41 | Cota em série | | PlantaBarra | RB:lancamento / Anotação (L6; acrescentada após o mapa) |
-| T42 | Definir plano na planta | | PlanosUI | RB:edicao / Planos (E3f; acrescentada após o mapa) |
+| T42 | Definir plano na planta | | PlanosUI | RB:vigasLajes / Planos (E3f; acrescentada após o mapa) |
 | T43 | Escada | Shift+E | EscadaMenu.tsx, Planta.tsx | RB:lancamento / Elementos (E4b; acrescentada após o mapa) |
-| T44 | Flecha entre dois pontos | | Planta.tsx, AbaDeslocamentos.tsx | RB:analise / Consultas (V6d; acrescentada após o mapa) |
+| T44 | Flecha entre dois pontos | | Planta.tsx, AbaDeslocamentos.tsx | RB:resultados / Consultas (V6d; acrescentada após o mapa) |
 | T45 | Diagonal por dois pontos | | Planta.tsx, MenuFerramentaMouse.tsx | RB:lancamento / Elementos (E5b; acrescentada após o mapa) |
 | T46 | Consolo na face do pilar | | Planta.tsx | RB:lancamento / Elementos (E5b; acrescentada após o mapa) |
-| T47 | Ábaco | | Planta.tsx, MenuFerramentaMouse.tsx | RB:lancamento / Ábacos (E5b; acrescentada após o mapa) |
+| T47 | Ábaco | | Planta.tsx, MenuFerramentaMouse.tsx | RB:vigasLajes / Ábacos (E5b; acrescentada após o mapa) |
 
 Opções e botões da `PlantaBarra` (barra da planta hoje, `.planta-barra`):
 
@@ -204,12 +204,12 @@ Opções e botões da `PlantaBarra` (barra da planta hoje, `.planta-barra`):
 | B12 | Armadura das lajes na planta (não/inferior/superior/ambas/editar/punção) | | RB:vista / Camadas (`aria-label="Armadura das lajes na planta"` preservado) |
 | B13 | Armadura de punção (modo adicionar/apagar, linhas, barras/linha, φ, espaçamento, Apagar punção da seleção) | Z | OB |
 | B14 | Mostrar todas as faixas de vigotas | | RB:vista / Camadas |
-| B15 | Calcular fundações (nível de fundação) | | RB:fundacoes / Cálculo |
+| B15 | Calcular fundações (nível de fundação) | | RB:calcular / Parciais |
 | B16 | Girar 90° / Ao pilar / Remover (elementos de fundação selecionados) | R / Del | RB:ctx (aba "Fundação") e teclado inalterado |
 | B17 | Resultados do elemento | | RB:ctx (qualquer elemento) e RB:dimensionamento |
 | B18 | Tema da planta (Escuro/Claro/P&B) | | RB:vista / Camadas |
 | B19 | Cores (`CoresPlanta`, popover) | | RB:vista / Camadas |
-| B20 | Painel de edição de armadura das lajes (`PainelEdicaoLajes`, sob a planta; gerar, zonas, linhas) | | permanece sob a planta (dentro do centro); aberto por RB:edicao / Lajes |
+| B20 | Painel de edição de armadura das lajes (`PainelEdicaoLajes`, sob a planta; gerar, zonas, linhas) | | permanece sob a planta (dentro do centro); aberto por RB:resultados / Armaduras |
 | B21 | Linha de estado da planta (`.planta-st`: coordenadas, passo, tecla) | | permanece (classe `.planta-st` mantida); a SB não duplica |
 | B22 | Ajuda da ferramenta ativa (`AjudaFerramenta`) | F1 | permanece sobre o canvas |
 
@@ -238,14 +238,14 @@ Teclas da planta (Planta.tsx, `onKey`; só no módulo Edifício, com foco fora d
 
 | # | Item | Origem | Destino |
 |---|---|---|---|
-| F1 | Fundação: "Planta de fundação (U)" (botão primário) | Fundacao.tsx | RB:fundacoes / Elementos |
-| F2 | Fundação: Calcular fundações / Calcular sem fundação | Fundacao.tsx, Edificio `DimensionamentoAba`, Pranchas | RB:fundacoes / Cálculo (um botão; as outras ocorrências, ver seção 7) |
-| F3 | Fundação: Modo de cálculo (Dimensionar tudo / Só verificar / Redimensionar só erros) | Fundacao.tsx | RB:fundacoes / Cálculo (select) e PROP |
+| F1 | Fundação: "Planta de fundação (U)" (botão primário) | Fundacao.tsx | RB:fundacao / Elementos |
+| F2 | Fundação: Calcular fundações / Calcular sem fundação | Fundacao.tsx, Edificio `DimensionamentoAba`, Pranchas | RB:calcular / Parciais (um botão; as outras ocorrências, ver seção 7) |
+| F3 | Fundação: Modo de cálculo (Dimensionar tudo / Só verificar / Redimensionar só erros) | Fundacao.tsx | RB:fundacao / Nível e dados (select) e PROP |
 | F4 | Fundação: Terreno (σadm, σadm × vento, cota do terreno) | Fundacao.tsx | CFG:Terreno |
 | F5 | Fundação: Tipos de estaca (+ estaca) | Fundacao.tsx | CFG:Tipos de estaca |
 | F6 | Fundação: Sondagens SPT (+ furo) | SondagemEditor.tsx | CFG:Sondagens SPT |
 | F7 | Fundação: lista de elementos e editor (`ElementoGrupoEditor`: tipo, posição, dimensões impostas, estaca, associar pilares) | Fundacao.tsx, FundacaoGrupoUI | NAV (Fundação > elementos); PROP:Elemento de fundação |
-| F8 | Fundação: Opções de sapatas, Limites do bloco, Sobreposição | FundacaoGrupoUI | CFG:Sapatas; RB:fundacoes / Limites |
+| F8 | Fundação: Opções de sapatas, Limites do bloco, Sobreposição | FundacaoGrupoUI | CFG:Sapatas; RB:fundacao / Limites |
 | F9 | Fundação: Vigas de fundação (equilíbrio, travamento) | Fundacao.tsx, VigaFundacao.tsx | NAV; PROP:Viga de fundação |
 | F10 | Fundação: Base elástica (radier, viga elástica, tabela de k) | BaseElasticaUI.tsx | CFG:Base elástica (tabela de k); PROP |
 | F11 | Fundação: Sapatas corridas (parâmetros) | CorridaUI.tsx | CFG:Sapatas corridas |
@@ -262,7 +262,7 @@ Teclas da planta (Planta.tsx, `onKey`; só no módulo Edifício, com foco fora d
 | V9 | VT Pranchas (Tipo, Grupo, Formato, Escala, Calcular fundações, folhas, PDF, DXF, DWG, zips; Opções de armação e locação; Rótulos das barras; Ancoragem das vigas de fundação; Carimbo, logo) | Pranchas.tsx | VT (conteúdo); RB:pranchas traz atalhos (Ir para Pranchas, PDF (todas), DXF, DWG) |
 | V10 | VT Premissas (lista PREMISSAS) | Edificio.tsx | VT |
 | W1 | Janela do elemento (viga, pilar, laje, pilar-parede, parede, fundação: diagramas, armadura, detalhamento, 3D) | Revisao.tsx `JanelaElemento` | JAN; abre pelo PROP ("Resultados do elemento") |
-| W2 | Memorial do edifício | MemorialEdificio.tsx | JAN; RB:dimensionamento / Relatórios |
+| W2 | Memorial do edifício | MemorialEdificio.tsx | JAN; RB:pranchas / Memorial |
 | W3 | Paleta de comandos (Ctrl+K): ferramentas, ações, comandos sem parâmetros, abas, pavimentos, pilares, vigas, lajes | PaletaComandos.tsx | JAN; os itens "Aba" passam a mudar também a VT; itens de ferramenta mantêm os rótulos |
 | W4 | Guia rápido; Configurar atalhos; Painel de ajuda; ajuda por ferramenta | GuiaRapido.tsx, BarraAtalhos, ui/Ajuda | JAN |
 | W5 | Janela de capturas, Gerenciador de gabaritos, Vistas por pavimento, Lançamento por DXF/DWG | Gabaritos.tsx, LancamentoDxf.tsx | JAN |
@@ -303,7 +303,7 @@ Teclas da planta (Planta.tsx, `onKey`; só no módulo Edifício, com foco fora d
 | Calcular fundações | PlantaBarra; Fundacao.tsx; Pranchas; DimensionamentoAba ("Calcular sem fundação") | botões da OB (nível de fundação), da VT Pranchas e da VT Dimensionamento ficam (rótulos atuais); RB:fundacoes ganha o atalho "Calcular as fundações" |
 | Ferramentas de planta | PlantaBarra; BarraAtalhos; paleta; botões dos grupos (Fundação, Máscara, L5, Cortes, Paredes etc.) | RB (um botão por ferramenta); os botões dos grupos viram links "Ir para a faixa" só na ajuda; a paleta e os atalhos continuam executando |
 | Abas de vista | `.edif-tabs`; atalhos de aba; paleta ("Aba"); botão "Ir" das etapas | VT (os demais apenas mudam a VT) |
-| Memorial | botão Memorial (QA, pórtico/fundações) e "Memorial do edifício" (aba Dimensionamento) | os dois ficam (conteúdos diferentes); o do edifício vai a RB:dimensionamento / Relatórios |
+| Memorial | botão Memorial (QA, pórtico/fundações) e "Memorial do edifício" (aba Dimensionamento) | os dois ficam (conteúdos diferentes); o do edifício vai a RB:pranchas / Memorial |
 | Nome da obra | `NomeObra` no cabeçalho e campo "Nome da obra" no corpo de Dados gerais | QA (o campo do corpo permanece em CFG:Dados gerais, mesma ação `obra.definir`) |
 | Dados gerais | grupo "Obra" e `DadosGeraisJanela` (etapa "obra") | CFG:Dados gerais + janela do botão |
 | Enquadrar | tecla F; item da paleta; botão do 3D; botão do Pórtico | RB:vista / Navegação |
