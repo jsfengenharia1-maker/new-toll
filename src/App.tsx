@@ -19,6 +19,7 @@ import { adoptLaunchedFile, buildWorkspace, canPickFiles, launchQueue, currentFi
 import { logActivity } from './app/history';
 import { carregarEdificio, edificioCarregado, useEdificio } from './app/edificio/ponte';
 import { memo } from './app/design/tokens';
+import { useEdifUI } from './app/edificio/uiStore';
 
 // Partes fora da tela de abertura (módulo Pórtico) carregam sob demanda: cada import() vira um arquivo à parte no build
 // publicado (Netlify/PWA); no build do artifact tudo fica no mesmo HTML e o import() só adia a execução.
@@ -268,7 +269,7 @@ export default function App() {
 
   const alvo = useAlvoSelecionado();
   const acoes: AcoesArquivo = {
-    novo: () => { const m = emptyModel(); forgetFile(); load(m); logActivity('Novo modelo', m.name); },
+    novo: () => { const m = emptyModel(); forgetFile(); load(m); logActivity('Novo modelo', m.name); st.set({ message: 'Novo modelo vazio. Desenhe nós e barras na aba Estrutura.' }); },
     abrir: openWork, salvar: saveWork, biblioteca: () => st.set({ libraryOpen: true }),
     json: saveJSON, svg: exportSVG, png: exportPNG, copiar: copyPNG, dxf: exportDXF,
     importarTabelas: () => tablesRef.current?.click(),
@@ -303,7 +304,7 @@ export default function App() {
         </div>
         <button type="button" className={`tbtn memo-btn${st.unsaved ? ' unsaved' : ''}`} onClick={() => saveWork(false)} title={st.unsaved ? 'Há alterações não salvas no computador (Ctrl+S)' : 'Salvar no computador (Ctrl+S)'}>{st.unsaved ? '● ' : ''}Salvar</button>
         <button type="button" className="tbtn memo-btn" onClick={() => st.set({ libraryOpen: true })}>Biblioteca</button>
-        <button type="button" className="tbtn memo-btn" onClick={() => st.set({ memorialOpen: true })}>Memorial</button>
+        <button type="button" className="tbtn memo-btn" title={st.module === 'edificio' ? 'Memorial do edifício' : 'Memorial de cálculo'} onClick={() => (st.module === 'edificio' ? useEdifUI.getState().set({ memo: true }) : st.set({ memorialOpen: true }))}>Memorial</button>
         <BotaoAjuda />
         <ThemeSelect />
         <button type="button" className="tbtn panel-toggle" onClick={() => setPanelOpen(!panelOpen)}>{panelOpen ? 'Ocultar painel' : 'Painel'}</button>

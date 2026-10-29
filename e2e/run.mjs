@@ -100,10 +100,12 @@ async function main() {
       // pasta própria por fluxo: nomes fixos de arquivo não colidem entre workers
       const dir = join(tmp, f.name.replace(/\W+/g, '-'));
       mkdirSync(dir, { recursive: true });
-      const newPage = async (init, ctxOpts = {}) => {
+      const newPage = async (init, { linhaComando = true, ...ctxOpts } = {}) => {
         const navegador = f.webgl ? await gl() : browser;
         const ctx = await navegador.newContext({ baseURL, acceptDownloads: true, viewport: { width: 1400, height: 1080 }, locale: 'pt-BR', ...ctxOpts });
         contexts.push(ctx);
+        // a linha de comando do Edifício vem recolhida; os fluxos a usam aberta (linhaComando: false testa o padrão)
+        if (linhaComando) await ctx.addInitScript(() => { try { if (localStorage.getItem('statikos:linha-comando') === null) localStorage.setItem('statikos:linha-comando', '1'); } catch { /* sem armazenamento */ } });
         if (init) await ctx.addInitScript(init);
         const page = await ctx.newPage();
         page.on('pageerror', (e) => errors.push(e.message));

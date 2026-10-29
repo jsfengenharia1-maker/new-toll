@@ -20,7 +20,7 @@ import { PREMISSAS, TAXAS } from '../../core/building/premissas';
 import type { Diagnostico } from '../../core/building/verify';
 import { Navegador } from './Navegador';
 import { Propriedades } from './Propriedades';
-import { Button, Check, Dock, Dropdown, Group, Hint, Input, Modal, Note, NumField, Palette, Seg, Select, TextCell, TextField, Textarea, ViewTabs, dataAjuda, download, useAjuda } from '../ui';
+import { Button, Check, Chip, Dock, Dropdown, Group, Hint, Input, Modal, Note, NumField, Palette, Seg, Select, TextCell, TextField, Textarea, ViewTabs, dataAjuda, download, useAjuda } from '../ui';
 import { combinacoesEdificio } from '../../core/building/combinacoes';
 import { MemorialEdificio } from './MemorialEdificio';
 import { MemoriaDetalhadaUI } from './MemoriaDetalhadaUI';
@@ -224,7 +224,7 @@ export function Edificio() {
       </section>
 
       <Dock id="edificio-dir" lado="dir" rotulo="painel lateral direito" padrao={360}>
-        <Propriedades>
+        <Propriedades semElementos={aba === 'pranchas' || aba === 'premissas'}>
           <PilaresGrupo b={b} />
           <PilaresParedeGrupo b={b} onPlanta={() => setAba('planta')} />
           <ParedesGrupo b={b} onPlanta={() => setAba('planta')} />
@@ -307,13 +307,18 @@ export function Malha() {
         <TextField label="Espaçamentos horizontais A, B, C… (m)" value={dy} onChange={setDy} />
       </div>
       <div className="row"><Button onClick={() => exec('eixo.malha', { dx: lista(dx), dy: lista(dy), substituir: true })}>Criar malha de eixos</Button></div>
-      <Hint>Separe os espaçamentos com “;”. A malha substitui os eixos existentes; a planta para editá-los chega na próxima fatia.</Hint>
+      <Hint>Separe os espaçamentos com “;”. A malha substitui os eixos existentes; os eixos podem ser editados na planta.</Hint>
     </>
   );
 }
 
+const CHAVE_LINHA_COMANDO = 'statikos:linha-comando';
+function lerLinhaComando(): boolean { try { return localStorage.getItem(CHAVE_LINHA_COMANDO) === '1'; } catch { return false; } }
+
 export function LinhaComando() {
   const exec = useBuilding((s) => s.exec);
+  const [aberta, setAberta] = useState(lerLinhaComando);
+  const alternar = () => { const v = !aberta; setAberta(v); try { localStorage.setItem(CHAVE_LINHA_COMANDO, v ? '1' : '0'); } catch { /* sem armazenamento */ } };
   const [t, setT] = useState('');
   const [erro, setErro] = useState('');
   const nomes = listarComandos().map((c) => c.nome);
@@ -328,11 +333,12 @@ export function LinhaComando() {
   };
   return (
     <>
-      <form className="row" onSubmit={(e) => { e.preventDefault(); enviar(); }}>
+      <Chip on={aberta} aria-pressed={aberta} title="Mostra ou esconde a linha de comando (os mesmos comandos da interface, da CLI e do MCP)" onClick={alternar}>Linha de comando</Chip>
+      {aberta && <form className="row" onSubmit={(e) => { e.preventDefault(); enviar(); }}>
         <Input id="edcmd" className="cmdline" list="edcmds" aria-label="Linha de comando do edifício" title="Os mesmos comandos da interface, da linha de comando (statikos exec) e do servidor MCP. Ctrl+Z desfaz." placeholder='pavimento.criar {"nome": "Ático", "cota": 15}' value={t} onChange={(e) => setT(e.target.value)} />
         <datalist id="edcmds">{nomes.map((n) => <option key={n} value={n} />)}</datalist>
-      </form>
-      {erro && <span className="hint bad">{erro}</span>}
+      </form>}
+      {aberta && erro && <span className="hint bad">{erro}</span>}
     </>
   );
 }

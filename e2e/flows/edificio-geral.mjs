@@ -454,3 +454,42 @@ export const f_perfis_de_padroes = {
       assert.equal(await red.inputValue(), '15');
     },
   };
+
+export const f_usabilidade_memorial_linha_comando = {
+    name: 'usabilidade: Memorial do módulo ativo, linha de comando recolhida, Pranchas sem contexto antigo',
+    async run({ newPage }) {
+      const page = await newPage(NO_PICKERS, { linhaComando: false });
+      const modulo = (n) => page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: n, exact: true });
+      await modulo('Edifício').click();
+      await page.locator('table.edpav tbody tr').first().waitFor();
+
+      // linha de comando: recolhida por padrão, alternador visível, lembrada após recarregar
+      assert.equal(await page.locator('#edcmd').count(), 0);
+      await page.locator('.statusbar').getByRole('button', { name: 'Linha de comando', exact: true }).click();
+      await page.locator('#edcmd').waitFor();
+      await page.reload();
+      await modulo('Edifício').click();
+      await page.locator('#edcmd').waitFor();
+      await page.locator('.statusbar').getByRole('button', { name: 'Linha de comando', exact: true }).click();
+      await page.locator('#edcmd').waitFor({ state: 'detached' });
+
+      // Memorial da barra superior abre o do módulo ativo
+      await page.locator('header').getByRole('button', { name: 'Memorial', exact: true }).click();
+      await page.getByRole('dialog', { name: 'Memorial do edifício' }).waitFor();
+      assert.equal(await page.getByRole('dialog', { name: 'Memorial de cálculo' }).count(), 0);
+      await page.getByRole('dialog', { name: 'Memorial do edifício' }).getByRole('button', { name: /Fechar/ }).first().click();
+      await page.getByRole('dialog', { name: 'Memorial do edifício' }).waitFor({ state: 'detached' });
+      await modulo('Pórtico').click();
+      await page.locator('header').getByRole('button', { name: 'Memorial', exact: true }).click();
+      await page.getByRole('dialog', { name: 'Memorial de cálculo' }).waitFor();
+      await page.getByRole('dialog', { name: 'Memorial de cálculo' }).getByRole('button', { name: /Fechar/ }).first().click();
+
+      // Pranchas: estilo recolhido e propriedades sem os grupos de elemento
+      await modulo('Edifício').click();
+      await page.locator('.edif-tabs').getByRole('tab', { name: /Pranchas/ }).click();
+      const estilo = page.locator('details.group', { hasText: 'Estilo de desenho, símbolos e saídas' }).first();
+      await estilo.waitFor();
+      assert.equal(await estilo.evaluate((d) => d.open), false);
+      assert.equal(await page.getByLabel('Colar pilares do Excel').count(), 0);
+    },
+};

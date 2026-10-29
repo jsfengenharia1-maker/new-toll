@@ -48,8 +48,10 @@ export function useResumoSelecao() {
   return null;
 }
 
-export function Propriedades({ children }: { children: ReactNode }) {
-  const r = useResumoSelecao();
+/** `semElementos`: vistas que não editam elementos (Pranchas, Premissas) não mostram a seleção nem os grupos de elemento do contexto anterior. */
+export function Propriedades({ children, semElementos = false }: { children: ReactNode; semElementos?: boolean }) {
+  const r0 = useResumoSelecao();
+  const r = semElementos ? null : r0;
   const b = useBuilding((s) => s.sessao.modelo);
   const corpo = useRef<HTMLDivElement>(null);
   // abre e rola até o grupo do tipo do selecionado (Pilares, Vigas, Lajes)
@@ -65,7 +67,7 @@ export function Propriedades({ children }: { children: ReactNode }) {
       {r
         ? <TypeCard icone={r.icone} nome={r.nome} tipo={r.desc} contagem={r.contagem} onEditarTipo={r.tipo === 'escada' ? () => useEscadaUI.getState().abrir(r.id, 'tipos') : r.tipo === 'laje' ?() => useEdifUI.getState().set({ cfg: 'tiposLaje' }) : r.tipo === 'fundacao' ? () => useEdifUI.getState().set({ cfg: 'fundacao' }) : undefined} />
         : <TypeCard icone="obra" nome={b.obra.nome} tipo="Obra" contagem="Nada selecionado" />}
-      <div className="edif-in" ref={corpo}>{r?.tipo === 'escada' && b.escadas?.find((x) => x.id === r.id) && <EscadaPropriedades e={b.escadas.find((x) => x.id === r.id)!} />}{children}</div>
+      <div className="edif-in" ref={corpo}>{semElementos ? <p className="muted">Esta vista não edita elementos; volte à Planta para alterar a seleção.</p> : <>{r?.tipo === 'escada' && b.escadas?.find((x) => x.id === r.id) && <EscadaPropriedades e={b.escadas.find((x) => x.id === r.id)!} />}{children}</>}</div>
     </Palette>
   );
 }

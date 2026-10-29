@@ -27,6 +27,7 @@ export const flows = [
   m_portico.f_PWA,
   m_portico.f_PWA_2,
   m_edificio_geral.f_edificio,
+  m_edificio_geral.f_usabilidade_memorial_linha_comando,
   m_edificio_geral.f_planta,
   m_edificio_geral.f_planta_2,
   m_edificio_geral.f_planta_3,
