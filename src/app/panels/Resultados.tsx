@@ -29,7 +29,7 @@ export function ResultadosPanel() {
   const [table, setTable] = useState<'reac' | 'disp' | 'ends'>('reac');
 
   if (a.prep.error) {
-    return <div className="panel-body"><Alert>{a.prep.error}</Alert><Hint>Corrija na aba Estrutura (apoios, rótulas) e os resultados aparecem na hora.</Hint></div>;
+    return <div className="panel-body"><Alert>{a.prep.error}</Alert><Hint>Corrija na aba Estrutura (apoios, rótulas) e os resultados aparecem na hora.</Hint><div className="row"><Button variant="primary" onClick={() => st.set({ tab: 'estrutura' })}>Ir para Estrutura › Apoios</Button></div></div>;
   }
 
   const summary = (['N', 'V', 'M'] as Eff[]).map((e) => {

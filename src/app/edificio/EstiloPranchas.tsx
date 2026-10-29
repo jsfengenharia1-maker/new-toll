@@ -37,6 +37,16 @@ function SimboloPrevia({ simbolo, rotulo }: { simbolo: SimboloPilar; rotulo: str
 /** Teto do DXF importado como fundo (o texto fica no modelo; biblioteca e artifact aceitam 240 KB). */
 export const DXF_MAX_BYTES = 200 * 1024;
 
+let estiloAberto = false; // lembra o estado do grupo ao trocar de vista dentro da sessão
+/** O grupo abre recolhido; o botão "Estilo de desenho e símbolos…" da faixa chama scrollIntoView neste bloco, e aí o grupo se abre. */
+function abrirAoRolar(el: HTMLDivElement | null) {
+  if (!el) return;
+  const d = el.closest('details');
+  if (d) { d.open = estiloAberto; d.addEventListener('toggle', () => { estiloAberto = d.open; }); }
+  const nativo = el.scrollIntoView.bind(el);
+  el.scrollIntoView = (arg?: boolean | ScrollIntoViewOptions) => { if (d) d.open = true; nativo(arg); };
+}
+
 export function EstiloPranchas() {
   const { sessao, exec } = useBuilding();
   const msg = (m: string) => useStore.getState().set({ message: m });
@@ -59,8 +69,8 @@ export function EstiloPranchas() {
     ok(exec('prancha.definir', alvoDxf === 'moldura' ? { moldura: { dxf: t, nome: f.name, ...pos, modo: 'moldura' } } : { detalhe: { dxf: t, nome: f.name, ...pos } }));
   };
   return (
-    <Group title="Estilo de desenho, símbolos e saídas">
-      <div data-estilo-pranchas>
+    <Group title="Estilo de desenho, símbolos e saídas" open={false}>
+      <div data-estilo-pranchas ref={abrirAoRolar}>
         <div className="row wrap">
           <Select label="Símbolo do pilar que passa" value={simb.passa} options={SIMBOLOS.map((s) => ({ v: s.v, label: s.rotulo }))} onChange={(v) => ok(exec('prancha.definir', { simbolos: { passa: v } }))} />
           <Select label="Símbolo do pilar que nasce" value={simb.nasce} options={SIMBOLOS.map((s) => ({ v: s.v, label: s.rotulo }))} onChange={(v) => ok(exec('prancha.definir', { simbolos: { nasce: v } }))} />
