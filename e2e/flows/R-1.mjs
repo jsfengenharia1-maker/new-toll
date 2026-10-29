@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { faixaAba, faixaCtx, grupoEdif, tab, downloadText, num, JPEG_TESTE, telaDe } from './helpers.mjs';
+import { faixaAba, faixaCtx, grupoEdif, tab, downloadText, num, JPEG_TESTE, telaDe, botaoCalcular } from './helpers.mjs';
 
 export const f_R1 = {
     name: 'R1: erros na planta, lista clicável, janela do elemento com diagramas, deslocamentos e CSV',
@@ -14,7 +14,7 @@ export const f_R1 = {
       await cmd('lote {"comandos": [' + [[[0, 0], [7, 0]], [[0, 5], [7, 5]], [[0, 0], [0, 5]], [[7, 0], [7, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.25}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 60000 });
       // lista de erros: contagem e filtro por nível
       const lista = page.locator('[data-lista-erros]');
@@ -83,7 +83,7 @@ export const f_R1 = {
       assert.ok(linhas.some((l) => l.startsWith('Viga;')) && linhas.some((l) => l.startsWith('Pilar;')) && linhas.some((l) => l.startsWith('Laje;')));
       // deslocamentos na aba Análise
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Análise' }).click();
-      await page.getByRole('button', { name: 'Calcular', exact: true }).click();
+      await botaoCalcular(page).click();
       const dl = page.locator('[data-deslocamentos]');
       await dl.waitFor({ timeout: 60000 });
       assert.match(await dl.innerText(), /ψ1 = 0,3/);
@@ -112,11 +112,11 @@ export const f_R2 = {
       await cmd('lote {"comandos": [' + [[[0, 0], [5, 0]], [[0, 4], [5, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      const calcular = async (nome) => {
-        await page.getByRole('button', { name: nome }).click();
+      const calcular = async () => {
+        await botaoCalcular(page).click();
         await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
       };
-      await calcular('Calcular e dimensionar');
+      await calcular();
       const cardVigas = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Vigas$/ }) });
       const linhaOk = cardVigas.locator('tbody tr', { hasText: /ok$/ }).first();
       assert.ok(await linhaOk.count() >= 1, 'esperava uma viga que atende');
@@ -186,7 +186,7 @@ export const f_R3a = {
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
       const pronto = () => page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
-      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await botaoCalcular(page).click();
       await pronto();
       // resumo de aço: total > 0 e CSV
       const resumo = page.locator('[data-resumo-aco]');
@@ -267,7 +267,7 @@ export const f_R3b = {
       await cmd('lote {"comandos": [' + [[[0, 0], [5, 0]], [[0, 4], [5, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
       // resumo de aço: vigas, pilares e total geral
       const resumo = page.locator('[data-resumo-aco]');
@@ -323,7 +323,7 @@ export const f_R4 = {
       await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 4], [8, 4]], [[0, 0], [0, 4]], [[4, 0], [4, 4]], [[8, 0], [8, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
       // resumo de aço com lajes
       const resumo = page.locator('[data-resumo-aco]');
@@ -404,7 +404,7 @@ export const f_R5 = {
       assert.equal(await page.locator('[data-lista-folhas]').count(), 0);
       // calcular e dimensionar
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Pranchas' }).click();
       const prev = page.locator('.prancha-prev');
@@ -490,7 +490,7 @@ export const f_R6 = {
       await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 4], [8, 4]], [[0, 0], [0, 4]], [[4, 0], [4, 4]], [[8, 0], [8, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "trelicada", "modelo": "H12", "capa": 0.04}}');
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
       // resumo de aço: vigotas e treliças
       const resumo = page.locator('[data-resumo-aco]');
@@ -691,7 +691,7 @@ export const f_R7_0 = {
       await vigas(5);
       // janela da viga: origem dos resultados e momento na face dos pilares
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
       await page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Vigas$/ }) }).locator('tbody tr').first().dblclick();
       const jv = page.getByRole('dialog', { name: /Resultados do elemento — Viga/ });
@@ -727,7 +727,7 @@ export const f_R7a = {
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
       const calcular = async () => {
-        await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+        await botaoCalcular(page).click();
         await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 90000 });
         await page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 90000 });
       };

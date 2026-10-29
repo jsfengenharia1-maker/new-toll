@@ -13,15 +13,42 @@ export const NO_PICKERS = () => {
   }
 };
 
+/** Item do "menu Arquivo": aba Arquivo (Pórtico e Fundações) ou, no Edifício, a aba Obra (nova obra, abrir, salvar, recentes, versões). */
 export async function fileMenu(page, item) {
-  await page.getByRole('tablist', { name: 'Faixa de comandos' }).getByRole('tab', { name: 'Arquivo', exact: true }).click();
-  await page.getByRole('toolbar', { name: /^Comandos: Arquivo/ }).getByRole('button', { name: item }).first().click();
+  const lista = page.getByRole('tablist', { name: 'Faixa de comandos' });
+  const aba = (await lista.getByRole('tab', { name: 'Arquivo', exact: true }).count()) ? 'Arquivo' : 'Obra';
+  await lista.getByRole('tab', { name: aba, exact: true }).click();
+  await page.getByRole('toolbar', { name: new RegExp(`^Comandos: ${aba}`) }).getByRole('button', { name: item }).first().click();
 }
 
 /** Abre uma aba da faixa de comandos (a faixa guarda a aba ativa). */
 export async function faixaAba(page, nome) {
   await page.getByRole('tablist', { name: 'Faixa de comandos' }).getByRole('tab', { name: nome, exact: true }).click();
 }
+
+/** Acha um comando (botão ou ferramenta `radio`) em qualquer aba da faixa do Edifício: tenta a aba aberta e depois as outras, na ordem;
+ *  a faixa fica na aba onde o comando foi achado. Devolve o locator (use `.click()`, `.isEnabled()`...). */
+export async function comandoFaixa(page, nome, { role = 'button', exact = true } = {}) {
+  const barra = page.getByRole('toolbar', { name: /^Comandos:/ });
+  const alvo = () => barra.getByRole(role, { name: nome, exact });
+  if (await barra.count() && await alvo().count()) return alvo().first();
+  const lista = page.getByRole('tablist', { name: 'Faixa de comandos' });
+  const abas = (await lista.getByRole('tab').allTextContents()).map((t) => t.trim());
+  for (const a of abas) {
+    await faixaAba(page, a);
+    await barra.getByRole('group').first().waitFor();
+    if (await alvo().count()) return alvo().first();
+  }
+  throw new Error(`comando "${nome}" não está em nenhuma aba da faixa (${abas.join(', ')})`);
+}
+
+/** Clica no comando `nome` da faixa, em qualquer aba (ver `comandoFaixa`). */
+export async function clicarComando(page, nome, opcoes) {
+  await (await comandoFaixa(page, nome, opcoes)).click();
+}
+
+/** Botão Calcular/Recalcular da vista aberta (Dimensionamento ou Análise), fora da faixa; o primeiro é o principal. */
+export const botaoCalcular = (page) => page.locator('.edif-main').getByRole('button', { name: /^(Calcular|Recalcular)$/ }).first();
 
 /** Abre a aba contextual da faixa (aparece com um elemento selecionado: Pilar, Viga, Laje ou Fundação). */
 export async function faixaCtx(page) {
@@ -38,9 +65,9 @@ export async function abrirConfiguracao(page, secao) {
   if (!(await janelaCfg(page).count())) {
     const ativa = page.getByRole('tablist', { name: 'Faixa de comandos' }).locator('.rtab.on');
     const antes = (await ativa.count()) ? (await ativa.first().innerText()).trim() : null;
-    await faixaAba(page, 'Arquivo');
-    await page.getByRole('toolbar', { name: /^Comandos: Arquivo/ }).getByRole('button', { name: 'Configuração da obra…' }).click();
-    if (antes && antes !== 'Arquivo') await faixaAba(page, antes);
+    await faixaAba(page, 'Obra');
+    await page.getByRole('toolbar', { name: /^Comandos: Obra/ }).getByRole('button', { name: 'Configuração da obra…' }).click();
+    if (antes && antes !== 'Obra') await faixaAba(page, antes);
   }
   await page.getByRole('navigation', { name: 'Seções da configuração' }).getByRole('button', { name: secao, exact: true }).click();
   return janelaCfg(page);
@@ -151,6 +178,7 @@ export async function importarMascara(page, tmp, extra = 0) {
   writeFileSync(f, dxfPlanta(extra));
   await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
   await grupoEdif(page, 'Máscara');
+  await faixaAba(page, 'Pilares'); // o botão Importar DXF… (e o campo de arquivo) ficam na etapa Pilares
   await page.setInputFiles('input[aria-label="Arquivo DXF da máscara"]', f);
   await page.locator('.statusbar .msg', { hasText: 'unidade cm ($INSUNITS)' }).waitFor();
 }

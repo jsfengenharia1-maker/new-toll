@@ -326,3 +326,4 @@ export { Tree, TreeItem } from './Tree';
 export { useRoving, useIndicioRolagem } from './teclado';
 export { ViewTabs, StatusBar, type ViewTabDef } from './ViewTabs';
 export { TypeCard } from './TypeCard';
+export { StepBar, TEXTO_ESTADO, type StepDef } from './StepBar';

@@ -11,7 +11,9 @@ export const f_layout = {
       const abas = page.getByRole('tablist', { name: 'Faixa de comandos' }).getByRole('tab');
       const nomes = async () => (await abas.allTextContents()).map((t) => t.trim());
       const ed = await nomes();
-      for (const a of ['Arquivo', 'Lançamento', 'Edição', 'Cargas e ações', 'Análise', 'Dimensionamento', 'Fundações', 'Pranchas', 'Vista']) assert.ok(ed.includes(a), `aba ${a} no Edifício`);
+      for (const a of ['Obra', 'Pilares', 'Vigas e lajes', 'Cargas', 'Fundação', 'Calcular', 'Resultados', 'Pranchas e memorial', 'Edição', 'Vista']) assert.ok(ed.includes(a), `aba ${a} no Edifício`);
+      assert.deepEqual(ed.slice(0, 8), ['Obra', 'Pilares', 'Vigas e lajes', 'Cargas', 'Fundação', 'Calcular', 'Resultados', 'Pranchas e memorial'], 'as 8 etapas vêm primeiro, na ordem da obra');
+      assert.ok(!ed.includes('Arquivo'), 'o Edifício não tem a aba Arquivo (o arquivo da obra está na etapa Obra)');
       await modulo('Pórtico').click();
       const po = await nomes();
       for (const a of ['Arquivo', 'Lançamento', 'Edição', 'Análise', 'Vista']) assert.ok(po.includes(a), `aba ${a} no Pórtico`);
@@ -41,7 +43,9 @@ export const f_layout = {
     },
   };
 
-const ABAS_ID = { arquivo: 'Arquivo', lancamento: 'Lançamento', edicao: 'Edição', cargas: 'Cargas e ações', analise: 'Análise', dimensionamento: 'Dimensionamento', fundacoes: 'Fundações', pranchas: 'Pranchas', vista: 'Vista' };
+const ABAS_ID = [['arquivo', 'Arquivo'], ['lancamento', 'Lançamento'], ['edicao', 'Edição'], ['cargas', 'Cargas e ações'], ['analise', 'Análise'], ['dimensionamento', 'Dimensionamento'], ['fundacoes', 'Fundações'], ['vista', 'Vista'],
+  // Edifício: uma aba por etapa da obra
+  ['obra', 'Obra'], ['pilares', 'Pilares'], ['vigasLajes', 'Vigas e lajes'], ['cargas', 'Cargas'], ['fundacao', 'Fundação'], ['calcular', 'Calcular'], ['resultados', 'Resultados'], ['pranchas', 'Pranchas e memorial']];
 const moduloTab = (page, n) => page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: n, exact: true });
 const faixaTabs = (page) => page.getByRole('tablist', { name: 'Faixa de comandos' });
 
@@ -108,7 +112,7 @@ export const f_layout_teclado = {
       const foco = await page.evaluate(() => document.activeElement?.textContent?.trim());
       assert.notEqual(foco, antes, 'ArrowRight não moveu o foco da faixa');
       await page.keyboard.press('Home');
-      assert.equal(await page.evaluate(() => document.activeElement?.textContent?.trim()), 'Arquivo');
+      assert.equal(await page.evaluate(() => document.activeElement?.textContent?.trim()), 'Obra');
       // abas de vista e árvore
       const vtabs = page.locator('.edif-tabs').getByRole('tab');
       await vtabs.first().focus();
@@ -120,8 +124,8 @@ export const f_layout_teclado = {
       await page.keyboard.press('ArrowDown');
       assert.notEqual(await page.evaluate(() => document.activeElement === document.querySelector('[role="tree"] [role="treeitem"]')), true);
       // Configuração: foco entra na janela e volta ao botão da faixa
-      await faixaTabs(page).getByRole('tab', { name: 'Arquivo', exact: true }).click();
-      const botao = page.getByRole('toolbar', { name: /^Comandos: Arquivo/ }).getByRole('button', { name: 'Configuração da obra…' });
+      await faixaTabs(page).getByRole('tab', { name: 'Obra', exact: true }).click();
+      const botao = page.getByRole('toolbar', { name: /^Comandos: Obra/ }).getByRole('button', { name: 'Configuração da obra…' });
       await botao.click();
       const jan = page.getByRole('dialog', { name: 'Configuração da obra' });
       await jan.waitFor();
@@ -145,7 +149,7 @@ export const f_layout_mapa = {
       for (const m of ['Pórtico', 'Edifício', 'Fundações']) {
         await moduloTab(page, m).click();
         const abas = (await faixaTabs(page).getByRole('tab').allTextContents()).map((s) => s.trim());
-        for (const [id, rotulo] of Object.entries(ABAS_ID)) {
+        for (const [id, rotulo] of ABAS_ID) {
           if (!abas.includes(rotulo)) continue;
           await faixaTabs(page).getByRole('tab', { name: rotulo, exact: true }).click();
           // a faixa do Edifício e a das Fundações carregam sob demanda: espera o primeiro grupo antes de ler todos

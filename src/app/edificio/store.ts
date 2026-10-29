@@ -12,6 +12,7 @@ import { criarExemplo, type IdExemplo } from '../../core/building/exemplos';
 import type { EspecificacaoObra } from '../../core/building/assistente';
 import type { ResultadoArranques } from '../../core/building/importarArranques';
 import { calcular as calcularNoWorker, calcularFundacoesNoWorker, rearmarNoWorker, type DimEdificio } from './calculo';
+import { useEdifUI } from './uiStore';
 
 const KEY = 'statikos:building';
 
@@ -72,7 +73,7 @@ interface BState {
   /** Identificador do cálculo no worker (as pranchas de armação são montadas lá, com estes resultados). */
   idCalculo: number | null;
   calculando: boolean;
-  /** Analisa e dimensiona; `semFundacao` deixa as fundações de fora (a obra sem fundação). */
+  /** Analisa e dimensiona; `semFundacao` deixa as fundações de fora (a obra sem fundação); omitido, vale a opção da etapa Calcular. */
   calcular(semFundacao?: boolean): Promise<void>;
   /** `Sessao.revFundacao` em que as fundações foram calculadas (difere = fundações desatualizadas). */
   revFund: number;
@@ -192,7 +193,9 @@ export const useBuilding = create<BState>((set, get) => {
     nAnalises: 0,
     nRearmes: 0,
     modeloDim: null,
-    async calcular(semFundacao = false) {
+    async calcular(semFundacaoPedido) {
+      // sem argumento vale a opção "Com fundações" da etapa Calcular (uiStore.semFundacao)
+      const semFundacao = semFundacaoPedido ?? useEdifUI.getState().semFundacao;
       const s = get().sessao, rev = s.revCalculo, revF = s.revFundacao, revD = s.revDetalhe, revE = s.revEsforcos;
       set({ calculando: true });
       msg('Calculando…');
@@ -243,7 +246,7 @@ export const useBuilding = create<BState>((set, get) => {
     },
     async calcularFundacao() {
       const s = get().sessao, { dim, idCalculo } = get(), revF = s.revFundacao;
-      if (!dim || idCalculo === null || !calculoAtual(get())) { msg('Calcule o edifício (aba Dimensionamento) antes das fundações: elas usam as reações da análise em vigor.'); return; }
+      if (!dim || idCalculo === null || !calculoAtual(get())) { msg('Calcule o edifício (etapa Calcular) antes das fundações: elas usam as reações da análise em vigor.'); return; }
       set({ calculandoFund: true });
       msg('Calculando as fundações…');
       try {

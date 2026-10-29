@@ -625,7 +625,7 @@ svg.mono .hinge { fill: #fff !important; }
 .lbl.train.max { fill: var(--c-n); font-size: 10px; } .lbl.train.min { fill: var(--c-m); font-size: 10px; }
 
 /* edifício */
-.edif { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; min-height: 0; }
+.edif { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr); min-height: 0; }
 .edif-main { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
 .edif-tabs button.bad { color: var(--bad); }
 .edif-out { overflow-y: auto; padding: 16px; display: grid; gap: 14px; align-content: start; }
@@ -676,7 +676,7 @@ svg.mono .hinge { fill: #fff !important; }
 .simb-fino { fill: none; stroke: var(--ink-strong); stroke-width: 1px; }
 .carimbo-campos { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
 .edif table.quadro tr.warn td { color: var(--warn, #b7791f); }
-@media (max-width: 900px) { .edif { grid-template-columns: 1fr; } .edif-in { max-height: 45vh; } .planta-cv { min-height: 360px; } }
+@media (max-width: 900px) { .edif { grid-template-columns: 1fr; grid-template-rows: none; } .edif-in { max-height: 45vh; } .planta-cv { min-height: 360px; } }
 .planta-cv[data-tema='escuro'] { background: var(--pl-escuro-fundo); }
 .planta-cv[data-tema='claro'] { background: var(--pl-claro-fundo); }
 .planta-cv[data-tema='pb'] { background: var(--pl-pb-fundo); }
@@ -991,11 +991,6 @@ table.pp-lados tr[aria-selected="true"] { background: var(--accent-soft); }
 .prev-ln.papel-abertura { stroke: var(--bad); }
 .prev-ln.papel-eixo { stroke: var(--muted); stroke-dasharray: 6 3; }
 .prev-ln.papel-pontoFixo { stroke: var(--ok); stroke-width: 2; }
-.etapas { display: grid; gap: 4px; }
-.etapa { display: flex; gap: 8px; align-items: center; font-size: 12.5px; }
-.etapa.indisponivel { opacity: 0.6; }
-.etapa-rotulo { min-width: 96px; font-weight: 600; }
-.etapa-detalhe { color: var(--muted); font-size: 11.5px; min-width: 0; }
 .recentes { display: grid; gap: 6px; }
 .recente { display: flex; gap: 8px; align-items: center; justify-content: space-between; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
 .recente-info { min-width: 0; display: grid; gap: 1px; }
@@ -1144,6 +1139,24 @@ body.ajuda-on { cursor: help; }
 }
 
 .edif { position: relative; }
+/* Barra de etapas do Edifício (fluxo por etapas): fica logo abaixo da faixa, ocupa toda a largura de .edif */
+.stepbar { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--sp-4); min-width: 0; padding: var(--sp-2) var(--sp-3); background: var(--surface); border-bottom: 1px solid var(--line); }
+.steps { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--sp-2); margin: 0; padding: 0; list-style: none; overflow-x: auto; scrollbar-width: thin; }
+.steps li { flex: none; display: flex; align-items: center; }
+.steps li + li::before { content: ''; width: var(--sp-5); height: 1px; margin-right: var(--sp-2); background: var(--line-strong); }
+.step { height: var(--h-ctl-lg); display: inline-flex; align-items: center; gap: var(--sp-3); padding: 0 var(--sp-3); border: 1px solid transparent; border-radius: var(--radius); background: none; color: var(--muted); font-weight: 600; white-space: nowrap; }
+.step:hover { background: var(--hover); color: var(--ink); }
+.step.on { border-color: var(--line-strong); color: var(--ink-strong); }
+.step-n { flex: none; width: var(--sp-5); height: var(--sp-5); box-sizing: content-box; display: grid; place-items: center; border: 1px solid var(--line-strong); border-radius: 50%; color: var(--muted); font-size: var(--fs-sm); line-height: 1; }
+.step-l { min-width: 0; }
+.step.feito .step-n { background: var(--ok); border-color: var(--ok); color: var(--accent-ink); }
+.step.erro { color: var(--bad); }
+.step.erro .step-n { background: var(--bad-bg); border-color: var(--bad); color: var(--accent-ink); }
+.step.indisponivel { opacity: 0.6; }
+.step.proxima { background: var(--accent-soft); color: var(--accent-text); }
+.step.proxima .step-n { border-color: var(--accent); color: var(--accent-text); }
+.step-prox { flex: none; color: var(--muted); white-space: nowrap; }
+.step-prox b { color: var(--accent-text); font-weight: 600; }
 .cfg-janela { position: absolute; top: 0; bottom: 0; left: 0; z-index: 6; display: flex; flex-direction: column; max-width: 100%; background: var(--surface); border-right: 1px solid var(--line); box-shadow: var(--shadow-pop); }
 .cfg-janela[hidden] { display: none; }
 .cfg-janela > .modal-head { padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--line); }

@@ -1,7 +1,7 @@
 // Fluxos de interface — R (parte 2/2).
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { faixaAba, grupoEdif, tab, downloadText, num, telaDe } from './helpers.mjs';
+import { faixaAba, grupoEdif, tab, downloadText, num, telaDe, botaoCalcular } from './helpers.mjs';
 
 export const f_R7b = {
     name: 'R7b: detalhamento de vigas (mostrar/ocultar, edição de posição com verificação DETALHE_INSUF, restaurar, opções no perfil do sistema, memorial)',
@@ -14,7 +14,7 @@ export const f_R7b = {
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
       const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 90000 });
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 90000 });
       await livre();
       const cardVigas = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Vigas$/ }) });
@@ -86,7 +86,7 @@ export const f_R7c = {
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
       const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 90000 });
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 90000 });
       await livre();
       const cardP = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: 'Pilares (por lance)' }) });
@@ -156,7 +156,7 @@ export const f_R7d = {
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
       const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 90000 });
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 90000 });
       await livre();
       const cardL = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Lajes/ }) });
@@ -223,7 +223,7 @@ export const f_R7e = {
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 90000 });
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 90000 });
       await livre();
       // painel de edição não modal sob a planta, com as camadas inferior e superior juntas
@@ -343,7 +343,7 @@ export const f_R7f = {
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 90000 });
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 90000 });
       await livre();
       const rev = () => page.locator('[data-rearmar]').evaluate((el) => ({ ...el.dataset }));
@@ -422,7 +422,7 @@ export const f_R7f = {
       await page.locator('[data-lista-erros] tbody tr.warn', { hasText: 'ESFORCO_ANTIGO' }).first().waitFor({ timeout: 30000 });
       assert.match(await page.locator('[data-rearme-info]').innerText(), /modo “alterados”.*1 elemento\(s\) refeito\(s\)/);
       // refazer a análise: a nota some e a análise roda uma segunda vez
-      await page.getByRole('button', { name: 'Refazer a análise' }).click();
+      await page.getByRole('button', { name: 'Calcular', exact: true }).click();
       await page.waitForFunction(() => document.querySelector('[data-rearmar]')?.dataset.analises === '2' && document.querySelector('[data-rearmar]')?.dataset.analiseAtual === '1', null, { timeout: 120000 });
       assert.equal(await page.locator('[data-esforcos-antigos]').count(), 0);
       // 6) cópia da armadura das lajes: salvar, apagar a base, recuperar
@@ -460,7 +460,7 @@ export const f_R7g = {
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 90000 });
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 90000 });
       await livre();
       await page.waitForTimeout(500);
@@ -536,7 +536,7 @@ export const f_R7g = {
       await cmd(`pilar.editar {"id": "${p1.id}", "secao": {"tipo": "ret", "b": 0.2, "h": 0.9}}`);
       await cmd('tabela.definir {"tipo": "pilares", "tabela": {"id": "padrao", "nome": "Padrão", "bitolas": [10, 12.5, 16, 20, 25], "espacamentos": [30, 25, 20, 15, 12, 10], "estribos": [], "grampos": [{"phiAte": 25, "ladoMaiorAte": 999, "modo": "nenhum"}]}}');
       await livre();
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await livre();
       await lista.locator('tbody tr', { hasText: 'GRAMPOS_TABELA' }).first().waitFor({ timeout: 60000 });
     },
@@ -553,7 +553,7 @@ export const f_R7g_2 = {
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 90000 });
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 90000 });
       await livre();
       await page.waitForTimeout(500);
@@ -629,7 +629,7 @@ export const f_R7g_2 = {
       await cmd(`pilar.editar {"id": "${p1.id}", "secao": {"tipo": "ret", "b": 0.2, "h": 0.9}}`);
       await cmd('tabela.definir {"tipo": "pilares", "tabela": {"id": "padrao", "nome": "Padrão", "bitolas": [10, 12.5, 16, 20, 25], "espacamentos": [30, 25, 20, 15, 12, 10], "estribos": [], "grampos": [{"phiAte": 25, "ladoMaiorAte": 999, "modo": "nenhum"}]}}');
       await livre();
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await livre();
       await lista.locator('tbody tr', { hasText: 'GRAMPOS_TABELA' }).first().waitFor({ timeout: 60000 });
     },
@@ -672,7 +672,7 @@ export const f_R8b = {
       assert.match(await g.innerText(), /Vigas de fundação: cortes da armadura principal/);
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
       const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 90000 });
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 90000 });
       await livre();
       const cardVigas = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Vigas$/ }) });

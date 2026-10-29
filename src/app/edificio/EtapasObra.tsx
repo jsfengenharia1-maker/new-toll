@@ -1,35 +1,8 @@
-// Grupos "Etapas da obra" e "Arquivo e versões" (L1): guia de etapas e controles do que o arquivo inclui.
+// Grupo "Arquivo e versões" (L1): controles do que o arquivo inclui. O guia de etapas virou a barra de etapas (BarraEtapas.tsx).
 import { useState } from 'react';
-import { useBuilding, calculoAtual } from './store';
-import { Button, Check, Group, Hint, Note, NumField, Pill, Select } from '../ui';
-import { etapasDaObra, proximaEtapa, type EtapaId } from '../../core/building/etapas';
-import type { BuildingModel } from '../../core/building/types';
+import { useBuilding } from './store';
+import { Button, Check, Group, Hint, Note, NumField, Select } from '../ui';
 
-const TOM: Record<string, 'ok' | 'warn' | 'na'> = { feito: 'ok', pendente: 'warn', indisponivel: 'na' };
-const TEXTO: Record<string, string> = { feito: 'feito', pendente: 'pendente', indisponivel: 'indisponível' };
-
-export function EtapasGrupo({ b, aoIr }: { b: BuildingModel; aoIr(id: EtapaId): void }) {
-  const calculado = useBuilding((s) => calculoAtual(s));
-  const et = etapasDaObra(b, calculado);
-  const prox = proximaEtapa(et);
-  return (
-    <Group title="Etapas da obra">
-      <div className="etapas">
-        {et.map((e) => (
-          <div key={e.id} className={`etapa ${e.estado}`} data-etapa={e.id}>
-            <Pill tone={TOM[e.estado]}>{TEXTO[e.estado]}</Pill>
-            <span className="etapa-rotulo">{e.rotulo}</span>
-            <span className="etapa-detalhe">{e.detalhe}</span>
-            {e.estado !== 'indisponivel' && (
-              <Button variant="ghost" aria-label={`Ir para ${e.rotulo}`} onClick={() => aoIr(e.id)}>Ir</Button>
-            )}
-          </div>
-        ))}
-      </div>
-      <Hint>{prox ? `Próxima etapa: ${prox.rotulo}.` : 'Todas as etapas disponíveis estão feitas.'}</Hint>
-    </Group>
-  );
-}
 
 export function ArquivoGrupo() {
   const { opcoesArquivo, setOpcoesArquivo, versoesArquivo, avisosArquivo, recuperarVersao } = useBuilding();

@@ -1,6 +1,7 @@
 // Fluxos de interface — MD (memória de cálculo detalhada), parte 1/1 (MD1: vigas e pilares; MD2: lajes maciças; MD3: nervuradas e vigotas; MD4: punção; MD5: fundações rasas; MD5b: fundações profundas).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { botaoCalcular } from './helpers.mjs';
 
 export const f_MD1 = {
     name: 'MD1: memória de cálculo detalhada (índice por etapa e elemento, passos da viga e do pilar, filtro, HTML, JSON e ZIP com dados da análise e OpenSees)',
@@ -14,7 +15,7 @@ export const f_MD1 = {
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
       const botao = page.getByRole('button', { name: 'Memória de cálculo detalhada', exact: true });
       assert.equal(await botao.isDisabled(), true); // sem cálculo
-      await page.getByRole('button', { name: 'Calcular e dimensionar', exact: true }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 60000 });
       await botao.click();
       const dlg = page.getByRole('dialog', { name: 'Memória de cálculo detalhada' });
@@ -70,7 +71,7 @@ export const f_MD2 = {
       await cmd('lote {"comandos": [' + [[[0, 0], [12, 0]], [[0, 5], [12, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]], [[12, 0], [12, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.1}}');
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: 'Calcular e dimensionar', exact: true }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 60000 });
       await page.getByRole('button', { name: 'Memória de cálculo detalhada', exact: true }).click();
       const dlg = page.getByRole('dialog', { name: 'Memória de cálculo detalhada' });
@@ -124,7 +125,7 @@ export const f_MD3 = {
         await cmd(`laje.detectarPanos {"grupo": "g_3", "tipo": ${tipo}}`);
         if (opcoes) await cmd(`opcoes.definir {"valores": ${opcoes}}`);
         await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-        await page.getByRole('button', { name: 'Calcular e dimensionar', exact: true }).click();
+        await botaoCalcular(page).click();
         await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
         await page.getByRole('button', { name: 'Memória de cálculo detalhada', exact: true }).click();
         const dlg = page.getByRole('dialog', { name: 'Memória de cálculo detalhada' });
@@ -208,7 +209,7 @@ export const f_MD4 = {
       await cmd('lote {"comandos": [' + xs.flatMap((x) => xs.map((y) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.5, "h": 0.5}}}`)).join(', ') + ']}');
       await cmd('laje.criar {"grupo": "g_3", "contorno": [[0, 0], [12, 0], [12, 12], [0, 12]], "tipo": {"tipo": "macica", "h": 0.16}}');
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: 'Calcular e dimensionar', exact: true }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
       await page.getByRole('button', { name: 'Memória de cálculo detalhada', exact: true }).click();
       const dlg = page.getByRole('dialog', { name: 'Memória de cálculo detalhada' });
@@ -267,7 +268,7 @@ export const f_MD5 = {
       await cmd('corrida.criar {"pontos": [[0, 20], [6, 20]], "bw": 0.2}');
       await cmd('carga.linha {"grupo": "fundacao", "pontos": [[0, 20], [6, 20]], "valor": 150, "caso": "G"}');
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: 'Calcular e dimensionar', exact: true }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
       await page.getByRole('button', { name: 'Memória de cálculo detalhada', exact: true }).click();
       const dlg = page.getByRole('dialog', { name: 'Memória de cálculo detalhada' });
@@ -329,7 +330,7 @@ async function prepararProfundas(page, tipo, terreno) {
   await cmd(`fundacao.terreno ${terreno}`);
   await cmd(`fundacao.gerar {"tipo": "${tipo}", ${tipo === 'bloco' ? '"estaca": "e_hc", ' : ''}"associadas": false, "vigasEquilibrio": false, "vigasTravamento": false}`);
   await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-  await page.getByRole('button', { name: 'Calcular e dimensionar', exact: true }).click();
+  await botaoCalcular(page).click();
   await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
   await page.getByRole('button', { name: 'Memória de cálculo detalhada', exact: true }).click();
   const dlg = page.getByRole('dialog', { name: 'Memória de cálculo detalhada' });
@@ -405,7 +406,7 @@ export const f_MD5d = {
       await cmd('caso.criar {"nome": "Piso", "natureza": "Q"}');
       await cmd('radier.criar {"contorno": [[0, 0], [8, 0], [8, 7], [0, 7]], "h": 0.4, "k": 40000, "sigmaAdm": 300}');
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: 'Calcular e dimensionar', exact: true }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
       await page.getByRole('button', { name: 'Memória de cálculo detalhada', exact: true }).click();
       const dlg = page.getByRole('dialog', { name: 'Memória de cálculo detalhada' });
@@ -441,7 +442,7 @@ export const f_MD5e = {
       await cmd('fundacao.terreno {"sigmaAdm": 250}');
       await cmd('fundacao.gerar {"tipo": "sapata", "associadas": false, "vigasEquilibrio": true, "vigasTravamento": true}');
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: 'Calcular e dimensionar', exact: true }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
       await page.getByRole('button', { name: 'Memória de cálculo detalhada', exact: true }).click();
       const dlg = page.getByRole('dialog', { name: 'Memória de cálculo detalhada' });
@@ -474,7 +475,7 @@ export const f_MD6 = {
       await cmd('tipoLance.criar {"id": "T", "tipo": {"nome": "T", "tipologia": "reto", "trechos": [18], "espessura": 0.15}}');
       await cmd('escada.criar {"id": "e1", "grupo": "g_3", "origem": [0.5, 1], "angulo": 0, "piso": 0.2967, "espelho": 0.16666667, "lances": [{"tipo": "T"}]}');
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: 'Calcular e dimensionar', exact: true }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
       await page.getByRole('button', { name: 'Memória de cálculo detalhada', exact: true }).click();
       const dlg = page.getByRole('dialog', { name: 'Memória de cálculo detalhada' });
@@ -555,7 +556,7 @@ async function prepararParedes(page, blocos) {
   }
   await cmd('parede.abertura {"parede": "' + ws[0].id + '", "s": 5, "largura": 1, "altura": 2.1, "pavimento": "' + terreo.id + '"}');
   await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-  await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+  await botaoCalcular(page).click();
   await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 180000 });
   await page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 180000 });
   await page.getByRole('button', { name: 'Memória de cálculo detalhada', exact: true }).click();
@@ -635,7 +636,7 @@ export const f_MD9 = {
       await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: 'Calcular e dimensionar', exact: true }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
       await page.getByRole('button', { name: 'Memória de cálculo detalhada', exact: true }).click();
       const dlg = page.getByRole('dialog', { name: 'Memória de cálculo detalhada' });

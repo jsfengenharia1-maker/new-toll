@@ -5,7 +5,8 @@ import { useLayout, type Modulo } from './layout';
 
 export const ABAS_FAIXA: Record<Modulo, RibbonTabDef[]> = {
   portico: [{ id: 'arquivo', label: 'Arquivo' }, { id: 'lancamento', label: 'Lançamento' }, { id: 'edicao', label: 'Edição' }, { id: 'cargas', label: 'Cargas e ações' }, { id: 'analise', label: 'Análise' }, { id: 'dimensionamento', label: 'Dimensionamento' }, { id: 'fundacoes', label: 'Fundações' }, { id: 'vista', label: 'Vista' }],
-  edificio: [{ id: 'arquivo', label: 'Arquivo' }, { id: 'lancamento', label: 'Lançamento' }, { id: 'edicao', label: 'Edição' }, { id: 'cargas', label: 'Cargas e ações' }, { id: 'analise', label: 'Análise' }, { id: 'dimensionamento', label: 'Dimensionamento' }, { id: 'fundacoes', label: 'Fundações' }, { id: 'pranchas', label: 'Pranchas' }, { id: 'vista', label: 'Vista' }],
+  // Edifício: uma aba por etapa da obra (mesmos ids da barra de etapas, ver etapas.ts), depois as utilitárias Edição e Vista.
+  edificio: [{ id: 'obra', label: 'Obra' }, { id: 'pilares', label: 'Pilares' }, { id: 'vigasLajes', label: 'Vigas e lajes' }, { id: 'cargas', label: 'Cargas' }, { id: 'fundacao', label: 'Fundação' }, { id: 'calcular', label: 'Calcular' }, { id: 'resultados', label: 'Resultados' }, { id: 'pranchas', label: 'Pranchas e memorial' }, { id: 'edicao', label: 'Edição' }, { id: 'vista', label: 'Vista' }],
   fundacoes: [{ id: 'arquivo', label: 'Arquivo' }, { id: 'lancamento', label: 'Lançamento' }, { id: 'dimensionamento', label: 'Dimensionamento' }, { id: 'fundacoes', label: 'Fundações' }, { id: 'vista', label: 'Vista' }],
 };
 const NOME: Record<Modulo, string> = { portico: 'Pórtico', edificio: 'Edifício', fundacoes: 'Fundações' };

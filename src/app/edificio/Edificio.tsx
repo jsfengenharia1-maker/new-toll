@@ -8,7 +8,6 @@ import { useEffect, useState } from 'react';
 import { calculoAtual, dimAtual, podeRearmar as podeRearm, useBuilding } from './store';
 import { FERRAMENTAS_FUNDACAO, aoEscolher, usePlanta, type Ferramenta } from './plantaStore';
 import { Planta, ROTULO_FERRAMENTA, TECLA_FERRAMENTA } from './Planta';
-import { escolherEscada } from './EscadaMenu';
 import { listarComandos } from '../../core/commands';
 import { UNIDADES } from './lancamentoLeitura';
 import { BLOCOS, paredesDaMascara, propriedadesLaje, TRELICADAS, vaos, areaLaje } from '../../core/building/lajes';
@@ -74,8 +73,7 @@ import { CopiarGrupoDialogo, GruposCopiaGrupo, UnirPavimentosDialogo } from './G
 import { DadosGeraisJanela } from './DadosGerais';
 import { useEdifUI, type AbaEdificio, type DialogoL1, type DialogoL2, type DialogoL4 } from './uiStore';
 import { JanelaConfiguracao } from './Configuracao';
-import { EtapasGrupo } from './EtapasObra';
-import type { EtapaId } from '../../core/building/etapas';
+import { BarraEtapas } from './BarraEtapas';
 import { TabelaLajes } from './TabelaLajes';
 import { abrirJanela, BotaoExportar, Deslocamentos, irParaElemento, JanelaElemento, LinhaElemento, ListaErros } from './Revisao';
 
@@ -112,24 +110,15 @@ export function Edificio() {
   const setDialogoL4 = (v: DialogoL4) => ui.set({ l4: v });
   const janelaCapturas = usePlanta((s) => s.janelaCapturas);
   const nErr = diags.filter((d) => d.severidade === 'erro').length;
-  const irEtapa = (id: EtapaId) => {
-    if (id === 'obra') { setDialogoL1('gerais'); return; }
-    if (id === 'calculo') { setAba('dimensionamento'); return; }
-    if (id === 'escadas') { setAba('planta'); escolherEscada(); return; }
-    if (id === 'pavimentos') { setAba('planta'); useStore.getState().set({ message: 'Pavimentos: edite a lista “Pavimentos” do painel (nome, cota, grupo, +1 para repetir).' }); return; }
-    const f = ({ gabarito: 'eixo', pilares: 'pilar', pilaresParede: 'pilarParede', muros: 'parede', vigas: 'viga', lajes: 'laje', cargas: 'carga' } as Partial<Record<EtapaId, Ferramenta>>)[id];
-    setAba('planta');
-    if (f) usePlanta.getState().set({ ferramenta: f, ...aoEscolher(f) });
-  };
 
   return (
     <div className="edif">
+      <BarraEtapas />
       <Dock id="edificio-esq" lado="esq" rotulo="painel lateral esquerdo" padrao={320}>
       <div className="dock-stack">
       <Navegador />
       <Palette titulo="Dados da obra" grow>
       <aside className="fund-in edif-in">
-        <EtapasGrupo b={b} aoIr={irEtapa} />
 
         <Group title={`Pavimentos (${ps.length})`}>
           <table className="data loads-ed edpav" {...dataAjuda('barra:pavimentos')}>
@@ -246,6 +235,7 @@ export function Edificio() {
         </Propriedades>
       </Dock>
       {memo && <MemorialEdificio onClose={() => setMemo(false)} />}
+      {ui.memoria && <MemoriaDetalhadaUI onClose={() => ui.set({ memoria: false })} />}
       {dialogoL1 === 'nova' && <NovaObra onClose={() => setDialogoL1(null)} onCriada={() => setDialogoL1('gerais')} onTexto={() => setDialogoL1('texto')} onDxf={() => { setDialogoL1(null); setDialogoL2({ tipo: 'lancar' }); }} onIfc={() => setDialogoL1('ifc')} />}
       {dialogoL1 === 'ifc' && <LancamentoIfc onClose={() => setDialogoL1(null)} onCriada={() => setDialogoL1('gerais')} />}
       {dialogoL4 === 'copiarGrupo' && <CopiarGrupoDialogo b={b} onClose={() => setDialogoL4(null)} />}
@@ -812,7 +802,7 @@ function Analise({ b, nErr }: { b: BuildingModel; nErr: number }) {
       <div className="card">
         <h3>Análise do edifício</h3>
         <div className="row wrap">
-          <Button variant="primary" disabled={calculando} onClick={() => calcular()}>{calculando ? 'Calculando…' : 'Calcular'}</Button>
+          <Button variant="primary" disabled={calculando} onClick={() => calcular()}>{calculando ? 'Calculando…' : analise ? 'Recalcular' : 'Calcular'}</Button>
           {nErr > 0 && <span className="hint bad">Há {nErr} erro(s) de lançamento: o resultado pode não ter sentido.</span>}
           {velha && <span className="hint bad">O modelo mudou depois do cálculo: calcule de novo.</span>}
         </div>
@@ -899,7 +889,6 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar
   const { dim, analise, sessao, calculando, calcular } = st;
   const [so, setSo] = useState(false);
   const [selBloq, setSelBloq] = useState(false);
-  const [memoria, setMemoria] = useState(false);
   const velha = analise && !calculoAtual(st);
   const desatualizado = !!dim && !dimAtual(st);
   const filtro = <T extends { status: string }>(xs: T[]) => (so ? xs.filter((x) => x.status !== 'ok') : xs);
@@ -911,15 +900,13 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar
       <div className="card">
         <h3>Dimensionamento (NBR 6118)</h3>
         <div className="row wrap">
-          <Button variant="primary" disabled={calculando} onClick={() => calcular()}>{calculando ? 'Calculando…' : dim ? 'Recalcular' : 'Calcular e dimensionar'}</Button>
-          {!!sessao.modelo.fundacao?.elementos.length && <Button disabled={calculando} title="Analisa e dimensiona a estrutura sem calcular as fundações lançadas" onClick={() => calcular(true)}>Calcular sem fundação</Button>}
+          <Button variant="primary" disabled={calculando} onClick={() => calcular()}>{calculando ? 'Calculando…' : dim ? 'Recalcular' : 'Calcular'}</Button>
           <Button disabled={!dim?.fundacao.length} onClick={() => { importarCargasDoEdificio(dim!.fundacao); useStore.getState().set({ module: 'fundacoes' }); }}>Enviar cargas ao módulo Fundações</Button>
           <Button onClick={onMemorial}>Memorial do edifício</Button>
-          <Button disabled={!analise || !!analise.erro} title="Registro passo a passo de todas as contas (fórmulas, valores, normas) e exportação dos dados da análise e do modelo para o OpenSees" onClick={() => setMemoria(true)}>Memória de cálculo detalhada</Button>
+          <Button disabled={!analise || !!analise.erro} title="Registro passo a passo de todas as contas (fórmulas, valores, normas) e exportação dos dados da análise e do modelo para o OpenSees" onClick={() => useEdifUI.getState().set({ memoria: true })}>Memória de cálculo detalhada</Button>
           {dim && <BotaoExportar dim={dim} />}
           <label className="check small"><Input type="checkbox" checked={so} onChange={(e) => setSo(e.target.checked)} /> <span>só o que não atende</span></label>
         </div>
-        {memoria && <MemoriaDetalhadaUI onClose={() => setMemoria(false)} />}
         {velha && <p className="hint bad">O modelo mudou depois do cálculo: recalcule{dim && podeRearm(st) ? ' ou rearme os elementos alterados (esforços guardados)' : ''}.</p>}
         {!velha && desatualizado && <p className="hint bad" data-dim-velho>O detalhamento mudou depois do dimensionamento: rearme.</p>}
         {!dim && <Hint>{analise?.erro ? `A análise falhou: ${analise.erro}` : 'Calcule para dimensionar vigas, pilares e lajes com a envoltória das combinações ELU.'}</Hint>}

@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { NO_PICKERS, fileMenu, faixaAba, abrirConfiguracao, grupoEdif, tab, downloadText, num, telaDe, reenquadrarAte, dxfGradeL2, dwgMinimoL2 } from './helpers.mjs';
+import { NO_PICKERS, fileMenu, faixaAba, abrirConfiguracao, grupoEdif, tab, downloadText, num, telaDe, reenquadrarAte, dxfGradeL2, dwgMinimoL2, botaoCalcular } from './helpers.mjs';
 
 export const f_L1 = {
     name: 'L1: assistente de nova obra, dados gerais, etapas, versões no arquivo, recentes, exemplos, desfazer e texto de cargas',
@@ -38,11 +38,11 @@ export const f_L1 = {
       await campo(gerais.getByLabel('Descrição (linha 2)'), 'Teste de interface 2');
       await gerais.getByRole('button', { name: 'Concluir' }).click();
       assert.equal(await nPav(), 4);
-      assert.match(await page.locator('[data-etapa="pavimentos"]').innerText(), /feito/);
-      assert.match(await page.locator('[data-etapa="pilares"]').innerText(), /pendente/);
-      const muros = await page.locator('[data-etapa="muros"]').innerText();
-      assert.match(muros, /pendente/);
-      assert.match(muros, /Opcional/);
+      // barra de etapas: obra com nome e pavimentos = feita; pilares ainda não lançados = pendente e a próxima
+      assert.equal(await page.locator('[data-etapa="obra"]').getAttribute('data-estado'), 'feito');
+      assert.equal(await page.locator('[data-etapa="pilares"]').getAttribute('data-estado'), 'pendente');
+      assert.equal(await page.locator('[data-proxima="pilares"]').count(), 1);
+      assert.match(await page.locator('[data-etapa="vigasLajes"]').getAttribute('title'), /opcionais/);
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
       await page.getByRole('button', { name: 'Memorial do edifício' }).click();
       const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
@@ -180,8 +180,8 @@ export const f_L2 = {
       // 2) viga pelo gabarito: clique na face e depois do lado do corpo da viga
       const masc = await abrirGrupo(/^Máscara/);
       assert.match(await masc.locator('summary').innerText(), /Máscara — Tipo \(1\)/);
-      await faixaAba(page, 'Lançamento');
-      await page.getByRole('toolbar', { name: /^Comandos: Lançamento/ }).getByRole('radio', { name: 'Viga pelo gabarito', exact: true }).click();
+      await faixaAba(page, 'Vigas e lajes');
+      await page.getByRole('toolbar', { name: /^Comandos: Vigas e lajes/ }).getByRole('radio', { name: 'Viga pelo gabarito', exact: true }).click();
       await reenquadrarAte(page, [[3.0, 1.075], [3.0, 1.4], [3.0, 0.75]]);
       const clique = async (x, y) => { const [px, py] = await telaDe(page, x, y); await page.mouse.click(px, py); };
       await clique(3.0, 1.075);
@@ -202,8 +202,8 @@ export const f_L2 = {
       assert.equal(await page.getByLabel('Alinhamento de V3', { exact: true }).inputValue(), 'centro');
       await page.keyboard.press('Escape');
       // 3) F3 e a janela de captura
-      await faixaAba(page, 'Lançamento');
-      await page.getByRole('toolbar', { name: /^Comandos: Lançamento/ }).getByRole('button', { name: 'Capturas…', exact: true }).click();
+      await faixaAba(page, 'Pilares');
+      await page.getByRole('toolbar', { name: /^Comandos: Pilares/ }).getByRole('button', { name: 'Capturas…', exact: true }).click();
       const cap = page.getByRole('dialog', { name: 'Modos de captura' });
       await cap.getByRole('button', { name: 'Nenhum', exact: true }).click();
       await cap.getByRole('button', { name: 'Concluir', exact: true }).click();
@@ -218,8 +218,8 @@ export const f_L2 = {
       await page.keyboard.press('F3');
       await msgBarra(/Capturas ligadas/);
       // 4) gerenciador de gabaritos: apelido, textos, visibilidade, unidade e origem original, copiar, salvar e abrir a configuração
-      await faixaAba(page, 'Lançamento');
-      await page.getByRole('toolbar', { name: /^Comandos: Lançamento/ }).getByRole('button', { name: 'Gabaritos e vistas…', exact: true }).click();
+      await faixaAba(page, 'Pilares');
+      await page.getByRole('toolbar', { name: /^Comandos: Pilares/ }).getByRole('button', { name: 'Gabaritos e vistas…', exact: true }).click();
       const ger = page.getByRole('dialog', { name: 'Gabaritos e vistas' });
       const prevG = ger.getByRole('img', { name: 'Prévia da configuração de grade', exact: true });
       assert.equal(await prevG.locator('path').count(), 6);
@@ -256,8 +256,8 @@ export const f_L2 = {
       await ger.getByRole('button', { name: 'Remover grade (Cobertura)', exact: true }).click();
       await ger.getByRole('button', { name: 'Fechar', exact: true }).click();
       // 5) vistas por pavimento: desligar a vista tira o desenho da planta
-      await faixaAba(page, 'Lançamento');
-      await page.getByRole('toolbar', { name: /^Comandos: Lançamento/ }).getByRole('button', { name: 'Vistas por pavimento…', exact: true }).click();
+      await faixaAba(page, 'Pilares');
+      await page.getByRole('toolbar', { name: /^Comandos: Pilares/ }).getByRole('button', { name: 'Vistas por pavimento…', exact: true }).click();
       const vis = page.getByRole('dialog', { name: 'Vistas por pavimento' });
       const segs = () => page.locator('.planta-cv').getAttribute('data-segmentos').then(Number);
       assert.ok((await segs()) > 0);
@@ -560,7 +560,7 @@ export const f_L5 = {
       await page.locator('.edif-tabs').getByRole('tab', { name: /^Verificação/ }).click();
       await page.getByText('é um pano a definir', { exact: false }).waitFor();
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Análise', exact: true }).click();
-      await page.getByRole('button', { name: 'Calcular', exact: true }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'DEFINIR_PANO' }).waitFor();
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta', exact: true }).click();
       await painel.getByRole('button', { name: 'Atribuir o tipo da ferramenta Laje aos panos a definir', exact: true }).click();

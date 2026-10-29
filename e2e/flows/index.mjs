@@ -13,6 +13,7 @@ import * as m_E_2 from './E-2.mjs';
 import * as m_L from './L.mjs';
 import * as m_E_3 from './E-3.mjs';
 import * as m_layout from './layout.mjs';
+import * as m_etapas from './etapas.mjs';
 import * as m_D from './D.mjs';
 import * as m_MD from './MD.mjs';
 
@@ -158,6 +159,7 @@ export const flows = [
   m_layout.f_layout_1024,
   m_layout.f_layout_teclado,
   m_layout.f_layout_mapa,
+  m_etapas.f_etapas,
   m_D.f_D4,
   m_L.f_L7,
   m_MD.f_MD1,

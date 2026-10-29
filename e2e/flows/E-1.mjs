@@ -1,7 +1,7 @@
 // Fluxos de interface — E (parte 1/2).
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { grupoEdif, tab, num, telaDe, reenquadrarAte, downloadText } from './helpers.mjs';
+import { grupoEdif, tab, num, telaDe, reenquadrarAte, downloadText, botaoCalcular } from './helpers.mjs';
 
 export const f_E1a = {
     name: 'E1a: pilar sobre pilar (realce e coordenadas relativas ao pilar de baixo, nome P5a) e pilar sobre viga (transição): janela, viga de transição, memorial e pranchas',
@@ -60,7 +60,7 @@ export const f_E1a = {
       assert.match(ver, /P6 nasce sobre V1 em Tipo 3: viga de transição/);
       // calcula e dimensiona
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 120000 });
       await livre();
       // janela da viga de transição: tabela com o pilar P6, Nd e cortante nas faces
@@ -138,7 +138,7 @@ export const f_E1b = {
       assert.doesNotMatch(await page.locator('.edif-out').innerText(), /PPAREDE_APOIO|PPAREDE_SOBREPOSTO/);
       // calcula e dimensiona
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 180000 });
       await livre();
       const cartao = page.locator('[data-pp-cartao]');
@@ -245,7 +245,7 @@ export const f_E1c = {
       assert.doesNotMatch(out, /sobreposta|abertura/i);
       // calcula e dimensiona
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 180000 });
       await livre();
       const cartao = page.locator('[data-pw-cartao]');
@@ -303,7 +303,7 @@ export const f_E1d = {
       await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.murosArrimo?.length === 1, null);
       // 2. cálculo e grupo de muros na barra lateral
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 180000 });
       await page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 120000 });
       const gm = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Muros de arrimo/ }) });
@@ -460,7 +460,7 @@ export const f_E1e = {
       assert.match(await gp.locator('table[data-pw-lista]').innerText(), /Blocos \(Blocos B20\)/);
       // 4. cálculo e cartões
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 180000 });
       const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 180000 });
       await livre();
@@ -575,7 +575,7 @@ export const f_E2a = {
       await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.opcoes?.mesaDimensionamento === 1, null);
       const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 180000 });
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 180000 });
       await livre();
       const cardVigas = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Vigas$/ }) });
@@ -754,7 +754,7 @@ export const f_E5i = {
     await cmd('parede.criar {"pontos": [[0, 3], [12, 3]], "espessura": 0.2, "morre": "' + tipo1.id + '"}');
     await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.paredes?.length === 3, null);
     await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-    await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+    await botaoCalcular(page).click();
     await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 180000 });
     await page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 180000 });
     // relatório de paredes e muros (CSV e HTML) e listagem geral com as paredes

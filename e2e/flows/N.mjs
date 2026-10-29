@@ -1,7 +1,7 @@
 // Fluxos de interface — N (parte 1/1).
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { faixaAba, grupoEdif, tab, downloadText, num, telaDe } from './helpers.mjs';
+import { faixaAba, grupoEdif, tab, downloadText, num, telaDe, botaoCalcular } from './helpers.mjs';
 
 export const f_N1e = {
     name: 'N1e: redistribuição e limite de fissura nas opções, colunas Td/wk e memorial',
@@ -21,7 +21,7 @@ export const f_N1e = {
       await fis.press('Enter');
       await page.locator('summary', { hasText: 'Opções de cálculo (2 alteradas)' }).waitFor();
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 60000 });
       const card = (t) => page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: t }) });
       const cab = await card(/^Vigas$/).locator('thead').textContent();
@@ -83,7 +83,7 @@ export const f_N2a = {
 
       // ---- análise e situações do usuário ----
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Análise' }).click();
-      await page.getByRole('button', { name: 'Calcular', exact: true }).click();
+      await botaoCalcular(page).click();
       await msg('Análise concluída');
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
       await est.getByRole('button', { name: 'Situações do usuário…' }).click();
@@ -152,7 +152,7 @@ export const f_N2a = {
 
       // ---- memorial ----
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await page.locator('text=O modelo mudou depois do cálculo').waitFor({ state: 'detached' });
       await page.getByRole('button', { name: 'Memorial do edifício' }).click();
       const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
@@ -184,7 +184,7 @@ export const f_N2d = {
       await cmd('lote {"comandos": [' + [0.25, 6, 11.75].flatMap((x) => [0.25, 6, 11.75].map((y) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.5, "h": 0.5}}}`)).join(', ') + ']}');
       await cmd('laje.criar {"grupo": "g_3", "contorno": [[0, 0], [12, 0], [12, 12], [0, 12]], "tipo": {"tipo": "macica", "h": 0.16}}');
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 120000 });
       await livre();
       // cartão de punção: 9 pilares por pavimento do grupo; o interno leva armadura, os de borda e de canto reprovam na biela
@@ -224,7 +224,7 @@ export const f_N2d = {
       await page.getByLabel('Armadura das lajes na planta').selectOption('puncao');
       await page.waitForFunction(() => document.querySelector('.planta-cv')?.getAttribute('data-puncao') === '9', null, { timeout: 15000 });
       // ferramenta: um clique no pilar interno lança o grupo informado; no modo Apagar, remove
-      await faixaAba(page, 'Edição');
+      await faixaAba(page, 'Resultados');
       await page.getByRole('radio', { name: 'Armadura de punção', exact: true }).click();
       await page.keyboard.press('f');
       const [px, py] = await telaDe(page, 6, 6);
@@ -235,7 +235,7 @@ export const f_N2d = {
       await card.locator('tbody tr', { hasText: 'informada' }).first().waitFor({ timeout: 30000 });
       // radier sob os 9 pilares (FU6): punção do radier na janela e no memorial
       await cmd('radier.criar {"contorno": [[0, 0], [12, 0], [12, 12], [0, 12]], "h": 0.3, "k": 40000, "sigmaAdm": 400}');
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await livre();
       const cardBase = page.locator('[data-card-base-elastica]');
       await cardBase.waitFor({ timeout: 60000 });
@@ -274,7 +274,7 @@ export const f_N2b = {
       assert.equal(await page.getByLabel('Malha das cascas (tamanho alvo)').inputValue(), '1');
       // análise: indicação do modelo em uso, gdl e tempo
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Análise' }).click();
-      await page.getByRole('button', { name: 'Calcular', exact: true }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'Análise concluída' }).waitFor({ timeout: 120000 });
       const linha = page.locator('[data-modelo]');
       await linha.waitFor();
@@ -284,12 +284,12 @@ export const f_N2b = {
       // desliga: volta ao modelo separado (comportamento anterior)
       await opcao.uncheck();
       await page.locator('summary', { hasText: 'Opções de cálculo (1 alterada)' }).waitFor();
-      await page.getByRole('button', { name: 'Calcular', exact: true }).click();
+      await botaoCalcular(page).click();
       await page.waitForFunction(() => document.querySelector('[data-modelo]')?.getAttribute('data-modelo') === 'separado', null, { timeout: 120000 });
       assert.match(await page.locator('[data-modelo]').textContent(), /Modelo separado/);
       // memorial descreve o modelo em uso
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 120000 });
       await page.getByRole('button', { name: 'Memorial do edifício' }).click();
       const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
@@ -329,7 +329,7 @@ export const f_N2c = {
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Análise' }).click();
       const card = page.locator('[data-card-2ordem]');
       await card.getByLabel('P-Δ no pórtico 3D (no lugar do γz)').check();
-      await page.getByRole('button', { name: 'Calcular', exact: true }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'Análise concluída' }).waitFor({ timeout: 120000 });
       const pd = card.locator('[data-segunda-ordem="pDelta"]');
       await pd.waitFor({ timeout: 60000 });
@@ -337,7 +337,7 @@ export const f_N2c = {
       assert.match(await pd.textContent(), /P-Δ.*sem a ampliação 0,95·γz/s);
       // janela do pilar: método local por direção, diagrama de 1ª e 2ª ordem e cortante por direção
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 120000 });
       const cardP = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: 'Pilares (por lance)' }) });
       await cardP.locator('tbody tr').first().dblclick();
@@ -372,7 +372,7 @@ export const f_N2h = {
       const card = page.locator('[data-card-2ordem]');
       const chk = card.getByLabel('Desaprumo global nas combinações ELU (11.3.3.4.1)');
       assert.equal(await chk.isChecked(), true); // padrão ligado
-      await page.getByRole('button', { name: 'Calcular', exact: true }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'Análise concluída' }).waitFor({ timeout: 120000 });
       const info = card.locator('[data-desaprumo]');
       await info.waitFor({ timeout: 60000 });
@@ -380,13 +380,13 @@ export const f_N2h = {
       assert.match(await info.textContent(), /regra dos 30 % do vento/);
       // desligar: sem o resumo depois de recalcular
       await chk.uncheck();
-      await page.getByRole('button', { name: 'Calcular', exact: true }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'Análise concluída' }).waitFor({ timeout: 120000 });
       await page.waitForFunction(() => !document.querySelector('[data-card-2ordem] [data-desaprumo]'));
       await chk.check();
       // memorial: a premissa do desaprumo
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 120000 });
       await page.getByRole('button', { name: 'Memorial do edifício' }).click();
       const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
@@ -408,7 +408,7 @@ export const f_N2e = {
       await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [0, 4], [6, 4], [10, 0], [11, 0]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [6, 0], 0.15, 0.4], [[0, 4], [6, 4], 0.15, 0.4], [[3, 0], [3, 4], 0.15, 0.4], [[10, 0], [11, 0], 0.15, 0.6]].map(([a, z, b, h]) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify([a, z])}, "secao": {"b": ${b}, "h": ${h}}}}`).join(', ') + ']}');
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
       await livre();
       // lista de erros e avisos: a viga curta e alta é viga-parede
@@ -433,7 +433,7 @@ export const f_N2e = {
       await memo.getByRole('button', { name: 'Fechar' }).click();
       // perfil NBR: ΔM = R·t/8
       await cmd('opcoes.definir {"perfil": "nbr"}');
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await livre();
       await page.getByRole('button', { name: 'Memorial do edifício' }).click();
       const memo2 = page.getByRole('dialog', { name: 'Memorial do edifício' });
@@ -455,7 +455,7 @@ export const f_N2f = {
       await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[6, 0], [6, 5]], [[6, 5], [0, 5]], [[0, 5], [0, 0]]].map(([a, b]) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify([a, b])}, "secao": {"b": 0.15, "h": 0.5}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
       await livre();
       // 1) grupo Etapas de carga (flechas): quatro etapas padrão
@@ -476,7 +476,7 @@ export const f_N2f = {
       assert.match(t, /Fator simplificado da flecha ativa \(maciças\)/);
       // 3) limite de flecha ativa impossível para as vigas: erro FLECHA_ATIVA na lista
       await cmd('flechas.limites {"elemento": "viga", "tipo": "ativa", "limite": {"rel": 100000}}');
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await livre();
       const lista = page.locator('[data-lista-erros]');
       await lista.locator('[data-contagem]').waitFor();
@@ -507,7 +507,7 @@ export const f_N2g = {
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 120000 });
       const calcular = async () => {
-        await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+        await botaoCalcular(page).click();
         await livre();
       };
       await cmd('vento.definir {"ativo": false}');
@@ -571,7 +571,7 @@ export const f_N2e_2 = {
       await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [0, 4], [6, 4], [10, 0], [11, 0]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [6, 0], 0.15, 0.4], [[0, 4], [6, 4], 0.15, 0.4], [[3, 0], [3, 4], 0.15, 0.4], [[10, 0], [11, 0], 0.15, 0.6]].map(([a, z, b, h]) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify([a, z])}, "secao": {"b": ${b}, "h": ${h}}}}`).join(', ') + ']}');
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
       await livre();
       // lista de erros e avisos: a viga curta e alta é viga-parede
@@ -596,7 +596,7 @@ export const f_N2e_2 = {
       await memo.getByRole('button', { name: 'Fechar' }).click();
       // perfil NBR: ΔM = R·t/8
       await cmd('opcoes.definir {"perfil": "nbr"}');
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await livre();
       await page.getByRole('button', { name: 'Memorial do edifício' }).click();
       const memo2 = page.getByRole('dialog', { name: 'Memorial do edifício' });
@@ -618,7 +618,7 @@ export const f_N2f_2 = {
       await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[6, 0], [6, 5]], [[6, 5], [0, 5]], [[0, 5], [0, 0]]].map(([a, b]) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify([a, b])}, "secao": {"b": 0.15, "h": 0.5}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
       await livre();
       // 1) grupo Etapas de carga (flechas): quatro etapas padrão
@@ -639,7 +639,7 @@ export const f_N2f_2 = {
       assert.match(t, /Fator simplificado da flecha ativa \(maciças\)/);
       // 3) limite de flecha ativa impossível para as vigas: erro FLECHA_ATIVA na lista
       await cmd('flechas.limites {"elemento": "viga", "tipo": "ativa", "limite": {"rel": 100000}}');
-      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await botaoCalcular(page).click();
       await livre();
       const lista = page.locator('[data-lista-erros]');
       await lista.locator('[data-contagem]').waitFor();
@@ -670,7 +670,7 @@ export const f_N2g_2 = {
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 120000 });
       const calcular = async () => {
-        await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+        await botaoCalcular(page).click();
         await livre();
       };
       await cmd('vento.definir {"ativo": false}');

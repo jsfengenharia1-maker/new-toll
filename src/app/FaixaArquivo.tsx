@@ -1,8 +1,6 @@
-// Aba Arquivo da faixa (os três módulos): os itens do antigo menu "Arquivo ▾", com os mesmos rótulos (os testes de interface os acham pelo texto).
+// Aba Arquivo da faixa (Pórtico e Fundações): os itens do antigo menu "Arquivo ▾", com os mesmos rótulos. O Edifício não tem esta aba: o arquivo da obra está na etapa Obra (FaixaEdificio).
 import { RibbonButton, RibbonGroup } from './ui';
 import { SAMPLES } from './samples';
-import { useEdifUI } from './edificio/uiStore';
-import { carregarEdificio } from './edificio/ponte';
 
 export interface AcoesArquivo {
   novo(): void; abrir(): void; salvar(como: boolean): void; biblioteca(): void;
@@ -11,28 +9,15 @@ export interface AcoesArquivo {
   podeSalvarComo: boolean;
 }
 
-export function FaixaArquivo({ a, edificio }: { a: AcoesArquivo; edificio: boolean }) {
-  const ui = useEdifUI.getState().set;
+export function FaixaArquivo({ a }: { a: AcoesArquivo }) {
   return (
     <>
-      {edificio && (
-        <RibbonGroup label="Obra">
-          <RibbonButton icon="novo" label="Nova obra…" onClick={() => ui({ l1: 'nova' })} />
-          <RibbonButton icon="obra" label="Obras recentes…" onClick={() => ui({ l1: 'recentes' })} />
-          <RibbonButton icon="novo" label="Novo padrão" onClick={() => { void carregarEdificio().then((m) => m.useBuilding.getState().novo(false)); }} />
-          <RibbonButton icon="novo" label="Novo vazio" onClick={() => { void carregarEdificio().then((m) => m.useBuilding.getState().novo(true)); }} />
-          <RibbonButton icon="obra" label="Dados gerais…" onClick={() => ui({ l1: 'gerais' })} />
-          <RibbonButton icon="config" label="Configuração da obra…" onClick={() => ui({ cfg: 'dados' })} />
-          <RibbonButton icon="importar" label="Importar de texto…" onClick={() => ui({ l1: 'texto' })} />
-        </RibbonGroup>
-      )}
       <RibbonGroup label="Arquivo">
         <RibbonButton icon="novo" label="Novo modelo" onClick={a.novo} />
         <RibbonButton icon="abrir" label="Abrir trabalho do computador…" title="Abrir trabalho do computador… (Ctrl+O)" onClick={a.abrir} />
         <RibbonButton icon="salvar" label="Salvar no computador" title="Salvar no computador (Ctrl+S)" onClick={() => a.salvar(false)} />
         {a.podeSalvarComo && <RibbonButton icon="salvar" label="Salvar como…" title="Salvar como… (Ctrl+Shift+S)" onClick={() => a.salvar(true)} />}
         <RibbonButton icon="biblioteca" label="Biblioteca e histórico…" onClick={a.biblioteca} />
-        {edificio && <RibbonButton icon="versoes" label="Versões do arquivo…" onClick={() => ui({ cfg: 'arquivo' })} />}
       </RibbonGroup>
       <RibbonGroup label="Exportar">
         <RibbonButton icon="exportar" label="Só o modelo (.json)" onClick={a.json} />

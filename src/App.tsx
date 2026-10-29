@@ -275,8 +275,8 @@ export default function App() {
     exemplo: (key) => { const s = SAMPLES.find((x) => x.key === key); if (!s) return; const m = s.make(); if (s.key === 'portico') m.combinations = nbrCombinations(m.cases, 1); forgetFile(); load(m); },
     podeSalvarComo: canPickFiles(),
   };
-  const corpoFaixa = (aba: string) => aba === 'arquivo' ? <FaixaArquivo a={acoes} edificio={st.module === 'edificio'} />
-    : st.module === 'edificio' ? <Suspense fallback={null}><FaixaEdificio aba={aba} /></Suspense>
+  const corpoFaixa = (aba: string) => st.module === 'edificio' ? <Suspense fallback={null}><FaixaEdificio aba={aba} acoes={acoes} /></Suspense>
+    : aba === 'arquivo' ? <FaixaArquivo a={acoes} />
     : st.module === 'portico' ? <FaixaPortico aba={aba} setTab={setTab} enquadrar={fit} />
     : <Suspense fallback={null}><FaixaFundacoes aba={aba} /></Suspense>;
 
