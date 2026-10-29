@@ -2,12 +2,18 @@
 // Puro: a planta monta os índices (máscara e modelo) e consulta a cada movimento do cursor.
 import Flatbush from 'flatbush';
 
-export type TipoCaptura = 'extremidade' | 'intersecao' | 'meio' | 'centro' | 'quadrante' | 'perpendicular' | 'proximo';
-/** Prioridade entre capturas (premissa 32 da spec): menor vence; empate pela distância ao cursor. */
-export const PRIORIDADE: TipoCaptura[] = ['extremidade', 'intersecao', 'meio', 'centro', 'quadrante', 'perpendicular', 'proximo'];
+export type TipoCaptura = 'extremidade' | 'intersecao' | 'meio' | 'centro' | 'quadrante' | 'alinhamento' | 'perpendicular' | 'proximo';
+/**
+ * Prioridade entre capturas (premissa 32 da spec): menor vence; empate pela distância ao cursor.
+ * O alinhamento (rastreamento de referências) fica abaixo das capturas exatas (extremidade, interseção, meio, centro, quadrante)
+ * e acima de perpendicular e mais próximo, que valem em qualquer ponto de uma linha e o esconderiam.
+ */
+export const PRIORIDADE: TipoCaptura[] = ['extremidade', 'intersecao', 'meio', 'centro', 'quadrante', 'alinhamento', 'perpendicular', 'proximo'];
 export const TODAS = new Set<TipoCaptura>(PRIORIDADE);
 
-export interface Captura { tipo: TipoCaptura; x: number; y: number; d: number }
+/** Guia de alinhamento: do ponto de referência `de` até o ponto capturado `para`. */
+export interface Guia { de: [number, number]; para: [number, number]; eixo: 'x' | 'y' }
+export interface Captura { tipo: TipoCaptura; x: number; y: number; d: number; guias?: Guia[] }
 
 const norm = (a: number) => ((a % 360) + 360) % 360;
 /** Ângulo (graus) está no arco anti-horário de a0 a a1? */
@@ -152,4 +158,75 @@ export function pontoDigitado(texto: string, ref: [number, number] | null, curso
     return Number.isFinite(d) && L ? [ref[0] + (d * dx) / L, ref[1] + (d * dy) / L] : null;
   }
   return null;
+}
+
+/**
+ * Rastreamento de alinhamento: pontos de referência (centros e cantos de pilares, extremidades de vigas, nós e eixos)
+ * indexados em duas listas ordenadas (por X e por Y); a consulta é uma busca binária, sem varrer todos os elementos.
+ * Cursor com X (ou Y) dentro de `raio` do X (Y) de uma referência prende essa coordenada; com X de uma e Y de outra,
+ * prende na interseção das duas guias.
+ */
+export class IndiceAlinhamento {
+  private readonly px: Float64Array;
+  private readonly py: Float64Array;
+  private readonly porX: Uint32Array;
+  private readonly porY: Uint32Array;
+
+  /** pontos: [x, y, x, y, ...] em m (repetidos são descartados). */
+  constructor(pontos: ArrayLike<number>) {
+    const vistos = new Set<string>(), px: number[] = [], py: number[] = [];
+    for (let i = 0; i + 1 < pontos.length; i += 2) {
+      const k = `${pontos[i].toFixed(6)}:${pontos[i + 1].toFixed(6)}`;
+      if (vistos.has(k)) continue;
+      vistos.add(k); px.push(pontos[i]); py.push(pontos[i + 1]);
+    }
+    this.px = Float64Array.from(px); this.py = Float64Array.from(py);
+    const ids = px.map((_, i) => i);
+    this.porX = Uint32Array.from(ids.sort((a, b) => px[a] - px[b]));
+    this.porY = Uint32Array.from(ids.slice().sort((a, b) => py[a] - py[b]));
+  }
+
+  get tamanho() { return this.px.length; }
+
+  /** Referência de menor |Δ| na coordenada `c` (eixo `x` ou `y`) até `raio`; empate pela distância na outra coordenada. */
+  private melhor(eixo: 'x' | 'y', c: number, o: number, raio: number): [number, number] | null {
+    const a = eixo === 'x' ? this.px : this.py, b = eixo === 'x' ? this.py : this.px, ord = eixo === 'x' ? this.porX : this.porY;
+    let lo = 0, hi = ord.length;
+    while (lo < hi) { const m = (lo + hi) >> 1; if (a[ord[m]] < c - raio) lo = m + 1; else hi = m; }
+    let melhor = -1, dc = Infinity, dop = Infinity;
+    for (let i = lo; i < ord.length && a[ord[i]] <= c + raio; i++) {
+      const id = ord[i], d1 = Math.abs(a[id] - c), d2 = Math.abs(b[id] - o);
+      if (d1 < dc - 1e-12 || (Math.abs(d1 - dc) <= 1e-12 && d2 < dop)) { melhor = id; dc = d1; dop = d2; }
+    }
+    return melhor < 0 ? null : [this.px[melhor], this.py[melhor]];
+  }
+
+  /**
+   * Captura de alinhamento para o cursor (x, y) com tolerância `raio` (m). `extras` = referências avulsas (ex.: o ponto anterior).
+   * Devolve null se nenhuma coordenada alinha.
+   */
+  consultar(x: number, y: number, raio: number, extras: ArrayLike<number> = []): Captura | null {
+    let rx = this.melhor('x', x, y, raio), ry = this.melhor('y', y, x, raio);
+    for (let i = 0; i + 1 < extras.length; i += 2) {
+      const ex = extras[i], ey = extras[i + 1];
+      if (Math.abs(ex - x) <= raio && (!rx || Math.abs(ex - x) < Math.abs(rx[0] - x) - 1e-12)) rx = [ex, ey];
+      if (Math.abs(ey - y) <= raio && (!ry || Math.abs(ey - y) < Math.abs(ry[1] - y) - 1e-12)) ry = [ex, ey];
+    }
+    if (!rx && !ry) return null;
+    const cx = rx ? rx[0] : x, cy = ry ? ry[1] : y;
+    const guias: Guia[] = [];
+    if (rx) guias.push({ de: rx, para: [cx, cy], eixo: 'x' });
+    if (ry) guias.push({ de: ry, para: [cx, cy], eixo: 'y' });
+    return { tipo: 'alinhamento', x: cx, y: cy, d: Math.hypot(cx - x, cy - y), guias };
+  }
+}
+
+/**
+ * Digitação sobre a guia: com uma única guia ativa, um número é a distância medida do ponto de referência
+ * ao longo da guia, no sentido do cursor. Com duas guias (interseção) ou texto que não seja só um número, devolve null.
+ */
+export function distanciaNaGuia(texto: string, c: Captura): [number, number] | null {
+  if (c.tipo !== 'alinhamento' || c.guias?.length !== 1 || !/^[-+\d.,\s]+$/.test(texto.trim())) return null;
+  const g = c.guias[0];
+  return pontoDigitado(texto, g.de, g.para);
 }

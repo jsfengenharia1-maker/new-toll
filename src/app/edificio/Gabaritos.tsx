@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { configuracaoDaMascara, lerConfiguracao } from '../../core/building/lancamentoDxf';
 import { gruposDaMascara, pavimentosOrdenados, type Mascara } from '../../core/building/types';
 import { PRIORIDADE, type TipoCaptura } from '../../core/geom/snap';
-import { Button, Check, ColorField, Dropdown, FilePick, Hint, Input, Modal, Note, NumCell, Pill, Select, TextCell, download } from '../ui';
+import { Button, Check, ColorField, Dropdown, FilePick, Hint, Input, Modal, Note, NumCell, NumField, Pill, Select, TextCell, download } from '../ui';
 import { useStore } from '../store';
 import { UNIDADES } from './lancamentoLeitura';
 import { PreviaCamadas } from './PreviaCamadas';
@@ -125,7 +125,7 @@ export function VistasRapidas({ onClose }: { onClose(): void }) {
   );
 }
 
-const ROTULO_CAPTURA: Record<TipoCaptura, string> = { extremidade: 'Extremidade', intersecao: 'Interseção', meio: 'Ponto médio', centro: 'Centro', quadrante: 'Quadrante', perpendicular: 'Perpendicular', proximo: 'Mais próximo' };
+const ROTULO_CAPTURA: Record<TipoCaptura, string> = { extremidade: 'Extremidade', intersecao: 'Interseção', meio: 'Ponto médio', centro: 'Centro', quadrante: 'Quadrante', alinhamento: 'Alinhamento', perpendicular: 'Perpendicular', proximo: 'Mais próximo' };
 
 /** Janela de seleção dos modos de captura (F3 abre quando nenhum modo está escolhido). */
 export function JanelaCapturas({ onClose }: { onClose(): void }) {
@@ -137,6 +137,8 @@ export function JanelaCapturas({ onClose }: { onClose(): void }) {
         <div className="row wrap">
           {PRIORIDADE.map((t) => <Check key={t} label={ROTULO_CAPTURA[t]} checked={pl.capturas.has(t)} onChange={(v) => troca(t, v)} />)}
         </div>
+        <NumField label="Tolerância do alinhamento" unit="px" value={pl.alinhaPx} min={2} onChange={(v) => pl.set({ alinhaPx: Math.max(2, Math.min(40, Math.round(v))) })} />
+        <Hint>Alinhamento: ao lançar, o cursor prende o X ou o Y de pilares, extremidades de vigas, nós e eixos já lançados (a confirmar: tolerância de 8 px). Fica abaixo das capturas exatas.</Hint>
         {!pl.capturas.size && <Note>Nenhum modo escolhido: as capturas ficam desligadas.</Note>}
         <Hint>F3 liga e desliga as capturas na planta; sem nenhum modo escolhido, abre esta janela.</Hint>
         <div className="row wrap">

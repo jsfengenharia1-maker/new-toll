@@ -1217,7 +1217,7 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
   - usado por: core/building/abacos.ts, core/building/nervuradas.ts, core/building/puncao.ts
 - `snap.test.ts`: (sem exports)
   - usado por: -
-- `snap.ts`: TipoCaptura, PRIORIDADE, TODAS, Captura, IndiceCaptura, ordenar, restringir, pontoDigitado
+- `snap.ts`: TipoCaptura, PRIORIDADE, TODAS, Guia, Captura, IndiceCaptura, ordenar, restringir, pontoDigitado, IndiceAlinhamento, distanciaNaGuia
   - usado por: app/edificio/Gabaritos.tsx, app/edificio/Planta.tsx, app/edificio/plantaStore.ts, core/geom/snap.test.ts
 ## src/core/ifc/
 

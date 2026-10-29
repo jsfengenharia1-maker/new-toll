@@ -748,3 +748,45 @@ export const f_L7 = {
       await page.waitForFunction(() => { const d = [...document.querySelectorAll('.edif-in details.group')].find((x) => /^Ferramentas de lançamento/.test(x.querySelector(':scope > summary')?.textContent ?? '')); return !!d?.open; }, null, { timeout: 15000 });
     },
   };
+
+export const f_L8 = {
+    name: 'L8: alinhamento (rastreamento) ao lançar pilares: P2 prende o Y de P1, rótulo na barra, F9 desliga',
+    async run({ newPage }) {
+      const page = await newPage(NO_PICKERS);
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      // pilar de enquadramento longe das linhas de alinhamento do teste
+      const pil = (x, y) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`;
+      await cmd('lote {"comandos": [' + [pil(0, 0), pil(8, 6)].join(', ') + ']}');
+      await page.locator('summary', { hasText: 'Pilares (2)' }).waitFor();
+      await page.locator('.planta-cv[data-vista]').waitFor();
+      const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building')).building);
+      const esperarPilares = (n) => page.waitForFunction((k) => JSON.parse(localStorage.getItem('statikos:building')).building.pilares.length === k, n, { timeout: 30000 });
+      await page.locator('.planta-st').click();
+      await page.keyboard.press('p');
+      assert.equal(await page.locator('canvas.int').getAttribute('data-ferramenta'), 'pilar');
+      await reenquadrarAte(page, [[0, 0], [8, 6], [5, 1.5]]);
+      // P1 pelo clique
+      const [x1, y1] = await telaDe(page, 2, 1.5);
+      await page.mouse.click(x1, y1);
+      await esperarPilares(3);
+      const p1 = (await modelo()).pilares.find((q) => q.x > 1 && q.x < 3);
+      // cursor 5 px abaixo do alinhamento horizontal de P1 (tolerância padrão 8 px): a barra mostra o alinhamento e o clique prende o Y
+      const [x2, y2] = await telaDe(page, 5, p1.y);
+      await page.mouse.move(x2, y2 + 5, { steps: 4 });
+      await page.waitForFunction(() => /alinhamento/.test(document.querySelector('.planta-st .num')?.textContent ?? ''), null, { timeout: 20000 });
+      await page.mouse.click(x2, y2 + 5);
+      await esperarPilares(4);
+      const m = await modelo();
+      const p2 = m.pilares.find((q) => q.x > 4 && q.x < 6);
+      assert.equal(p2.y, p1.y);
+      assert.notEqual(p2.x, p1.x);
+      // F9 desliga o alinhamento: o mesmo desvio de 5 px não prende mais
+      await page.keyboard.press('F9');
+      await page.locator('.statusbar .msg', { hasText: /Alinhamento desligado/ }).waitFor();
+      await page.mouse.move(x2 + 40, y2 + 5, { steps: 4 });
+      await page.waitForFunction(() => !/alinhamento/.test(document.querySelector('.planta-st .num')?.textContent ?? ''), null, { timeout: 20000 });
+      await page.keyboard.press('F9');
+      await page.locator('.statusbar .msg', { hasText: /Alinhamento ligado/ }).waitFor();
+    },
+  };

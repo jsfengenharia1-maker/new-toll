@@ -63,6 +63,8 @@ interface PState {
   orto: boolean;
   polar: boolean;
   capturas: Set<TipoCaptura>;
+  /** Tolerância do alinhamento (rastreamento) em pixels da tela (a confirmar; padrão 8). */
+  alinhaPx: number;
   inferior: boolean;
   /** Capturas que estavam ligadas antes de F3 desligá-las (F3 as restaura; vazio = abre a janela de seleção). */
   capturasAntes: Set<TipoCaptura>;
@@ -225,6 +227,7 @@ export const usePlanta = create<PState>((set) => ({
   orto: false,
   polar: true,
   capturas: new Set(TODAS),
+  alinhaPx: 8,
   capturasAntes: new Set(),
   janelaCapturas: false,
   modoVigaGab: 'face',

@@ -33,7 +33,7 @@ import { opcoesEmUso, perfilDe } from '../../core/building/opcoes';
 import { cadeiaDeSegmentos } from '../../core/geom/cadeia';
 import { planoGrupo } from './fundacaoGrupo';
 import { isFooting } from '../../core/footings';
-import { IndiceCaptura, ordenar, pontoDigitado, restringir, type Captura } from '../../core/geom/snap';
+import { IndiceAlinhamento, IndiceCaptura, distanciaNaGuia, ordenar, pontoDigitado, restringir, type Captura } from '../../core/geom/snap';
 import { geometriaMascara, geometriaPorCamada } from '../../core/building/pilares';
 import { vigasDoClique } from '../../core/building/lancamentoDxf';
 import { pontaProlongada, retanguloDaAbertura, retanguloPorLado } from '../../core/building/lancamentoL5';
@@ -298,6 +298,21 @@ export function Planta() {
       arcos.push(cx, cy, 1e-6, 0, 360); // centro do pilar
     }
     return new IndiceCaptura(segs, arcos);
+  }, [b.eixos, naPlanta, vigas]);
+  // referências do alinhamento: centro e cantos (círculo: centro e extremos) dos pilares, extremidades dos eixos de vigas e dos eixos do pavimento
+  const idxAlinha = useMemo(() => {
+    const pts: number[] = [];
+    for (const e of b.eixos) pts.push(e.p1[0], e.p1[1], e.p2[0], e.p2[1]);
+    for (const { g } of vigas) { const e = g.eixo; if (e.length) pts.push(e[0][0], e[0][1], e[e.length - 1][0], e[e.length - 1][1]); }
+    for (const q of naPlanta) {
+      const c = q.contorno;
+      if (!c.length) continue;
+      const cx = c.reduce((s, v) => s + v[0], 0) / c.length, cy = c.reduce((s, v) => s + v[1], 0) / c.length;
+      pts.push(cx, cy);
+      if (c.length > 4) { const r = Math.hypot(c[0][0] - cx, c[0][1] - cy); pts.push(cx - r, cy, cx + r, cy, cx, cy - r, cx, cy + r); }
+      else for (const v of c) pts.push(v[0], v[1]);
+    }
+    return new IndiceAlinhamento(pts);
   }, [b.eixos, naPlanta, vigas]);
   const todasLajes = b.lajes, todasCargas = b.cargas;
   const lajes = useMemo(() => (nivelFund ? [] : todasLajes.filter((l) => l.grupo === grupo).map((l) => ({ l, c: pontoInterno(l.contorno) }))), [todasLajes, grupo, nivelFund]);
@@ -1084,9 +1099,21 @@ export function Planta() {
       case 'centro': ctx.arc(x, y, r, 0, 2 * Math.PI); break;
       case 'quadrante': ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath(); break;
       case 'perpendicular': ctx.moveTo(x - r, y + r); ctx.lineTo(x + r, y + r); ctx.moveTo(x - r, y + r); ctx.lineTo(x - r, y - r); ctx.moveTo(x - r, y); ctx.lineTo(x, y); ctx.lineTo(x, y + r); break;
+      case 'alinhamento': ctx.moveTo(x - r, y); ctx.lineTo(x + r, y); ctx.moveTo(x, y - r); ctx.lineTo(x, y + r); break;
       case 'proximo': ctx.moveTo(x - r, y - r); ctx.lineTo(x + r, y - r); ctx.lineTo(x - r, y + r); ctx.lineTo(x + r, y + r); ctx.closePath(); break;
     }
     ctx.stroke();
+    // alinhamento: guias tracejadas finas da referência até o ponto, marcador na referência e distância em cm
+    if (c.tipo === 'alinhamento') {
+      ctx.save(); ctx.strokeStyle = cores.guia; ctx.fillStyle = cores.guia; ctx.lineWidth = 1; ctx.setLineDash([4, 3]); ctx.font = '11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      for (const g of c.guias ?? []) {
+        const [x0, y0] = paraTela(g.de[0], g.de[1]), [x1, y1] = paraTela(g.para[0], g.para[1]);
+        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+        ctx.setLineDash([]); ctx.beginPath(); ctx.moveTo(x0 - 5, y0); ctx.lineTo(x0 + 5, y0); ctx.moveTo(x0, y0 - 5); ctx.lineTo(x0, y0 + 5); ctx.stroke(); ctx.setLineDash([4, 3]);
+        ctx.fillText(`${Math.round(Math.hypot(g.para[0] - g.de[0], g.para[1] - g.de[1]) * 100)} cm`, (x0 + x1) / 2, (y0 + y1) / 2 - 3);
+      }
+      ctx.restore();
+    }
     ctx.font = '11px system-ui, sans-serif'; ctx.fillStyle = cores.captura;
     ctx.fillText(c.tipo + (it.current.caps.length > 1 ? `  (Tab: ${it.current.ciclo % it.current.caps.length + 1}/${it.current.caps.length})` : ''), x + 10, y - 9);
   };
@@ -1471,7 +1498,8 @@ export function Planta() {
   const capturar = (sx: number, sy: number) => {
     const s = it.current, w = paraMundo(sx, sy), r = RAIO_PX / vista!.k, ref = pontos.at(-1);
     const t0 = performance.now();
-    const caps = ordenar([...idxModelo.consultar(w[0], w[1], r, pl.capturas, ref), ...idxMascara.consultar(w[0], w[1], r, pl.capturas, ref)], r);
+    const alin = pl.capturas.has('alinhamento') && pl.ferramenta !== 'selecionar' ? idxAlinha.consultar(w[0], w[1], pl.alinhaPx / vista!.k, ref ?? []) : null;
+    const caps = ordenar([...idxModelo.consultar(w[0], w[1], r, pl.capturas, ref), ...idxMascara.consultar(w[0], w[1], r, pl.capturas, ref), ...(alin ? [alin] : [])], r);
     if (wrap.current) wrap.current.dataset.snapMs = (performance.now() - t0).toFixed(3);
     const mudou = caps.length !== s.caps.length || caps.some((c, i) => c.tipo !== s.caps[i]?.tipo || c.x !== s.caps[i]?.x || c.y !== s.caps[i]?.y);
     if (mudou) s.ciclo = 0;
@@ -1487,7 +1515,7 @@ export function Planta() {
       if (pl.orto || desvio < 10) { s.ponto = q; s.guia = true; } else s.ponto = w;
     } else s.ponto = w;
     const qb = s.baixo ? naPlanta.find((x) => x.p.id === s.baixo) : null;
-    if (statusRef.current) statusRef.current.textContent = `x ${fmt(s.ponto[0])}  y ${fmt(s.ponto[1])} m${s.cap ? ` · ${s.cap.tipo}` : s.guia ? ' · alinhado' : ''}${qb ? ` · sobre ${qb.p.nome}: Δx ${fmt(s.ponto[0] - refBaixo(qb.p).x)}  Δy ${fmt(s.ponto[1] - refBaixo(qb.p).y)} m` : ''}`;
+    if (statusRef.current) statusRef.current.textContent = `x ${fmt(s.ponto[0])}  y ${fmt(s.ponto[1])} m${s.cap ? ` · ${s.cap.tipo}` : s.guia ? ' · ortogonal/polar' : ''}${qb ? ` · sobre ${qb.p.nome}: Δx ${fmt(s.ponto[0] - refBaixo(qb.p).x)}  Δy ${fmt(s.ponto[1] - refBaixo(qb.p).y)} m` : ''}`;
   };
 
   /** Pilar do nível de fundação sob o ponto (dentro do contorno ou a até 8 px dele). */
@@ -2285,6 +2313,7 @@ export function Planta() {
         else P.set({ janelaCapturas: true });
         return;
       }
+      if (k === 'F9') { e.preventDefault(); const s = new Set(P.capturas); if (s.has('alinhamento')) s.delete('alinhamento'); else s.add('alinhamento'); P.set({ capturas: s }); msg(`Alinhamento ${s.has('alinhamento') ? 'ligado' : 'desligado'}.`); return; }
       if (k === 'F10') { e.preventDefault(); P.set({ polar: !P.polar }); msg(`Polar ${P.polar ? 'desligado' : 'ligado'}.`); return; }
       if (k.toLowerCase() === 'f') { enquadrar(); return; }
       if (P.ferramenta === 'pilarParede' && k.toLowerCase() === 'r') { P.set({ ppAngulo: (P.ppAngulo + 90) % 360 }); return; }
@@ -2323,7 +2352,7 @@ export function Planta() {
     }
     // com um pilar de baixo sob o cursor, "@dx;dy" sem ponto anterior é relativo ao ponto fixo dele (E1a)
     const qb = it.current.baixo ? naPlanta.find((x) => x.p.id === it.current.baixo) : null;
-    const p = pontoDigitado(digitando ?? '', pontos.at(-1) ?? (pl.ferramenta === 'pilar' && qb ? [refBaixo(qb.p).x, refBaixo(qb.p).y] : null), it.current.cursor);
+    const p = (it.current.cap && distanciaNaGuia(digitando ?? '', it.current.cap)) || pontoDigitado(digitando ?? '', pontos.at(-1) ?? (pl.ferramenta === 'pilar' && qb ? [refBaixo(qb.p).x, refBaixo(qb.p).y] : null), it.current.cursor);
     setDigitando(null);
     if (!p) { msg('Entrada inválida: use x;y, @dx;dy, @d<ângulo ou uma distância.'); return; }
     it.current.ponto = p;

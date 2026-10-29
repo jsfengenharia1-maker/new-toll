@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { IndiceCaptura, pontoDigitado, restringir } from './snap';
+import { IndiceAlinhamento, IndiceCaptura, PRIORIDADE, distanciaNaGuia, pontoDigitado, restringir } from './snap';
 
 describe('capturas', () => {
   // cruz de dois segmentos e um círculo de raio 1 em (10, 0)
@@ -51,5 +51,73 @@ describe('entrada digitada e restrições', () => {
     expect(restringir([0, 0], [5, 0.4], 90)).toEqual([5, 0]);
     const p = restringir([0, 0], [3, 1.5], 15); // ~26,6° → 30°
     expect(Math.atan2(p[1], p[0]) * 180 / Math.PI).toBeCloseTo(30);
+  });
+});
+
+describe('alinhamento (rastreamento)', () => {
+  // pilar P1 em (2, 3) e P2 em (7, 8)
+  const ia = new IndiceAlinhamento([2, 3, 7, 8, 2, 3]);
+
+  it('repetidos descartados; fora da tolerância nada', () => {
+    expect(ia.tamanho).toBe(2);
+    expect(ia.consultar(4.5, 5.5, 0.1)).toBeNull();
+  });
+
+  it('prende o Y de P1 e mantém o X do cursor', () => {
+    const c = ia.consultar(5.0, 3.06, 0.1)!;
+    expect(c).toMatchObject({ tipo: 'alinhamento', x: 5, y: 3 });
+    expect(c.guias).toEqual([{ de: [2, 3], para: [5, 3], eixo: 'y' }]);
+  });
+
+  it('prende o X de P1 e mantém o Y', () => {
+    const c = ia.consultar(2.04, 6, 0.1)!;
+    expect(c).toMatchObject({ x: 2, y: 6 });
+    expect(c.guias).toHaveLength(1);
+    expect(c.guias![0].eixo).toBe('x');
+  });
+
+  it('X de um pilar e Y de outro: interseção das duas guias', () => {
+    const c = ia.consultar(2.05, 8.04, 0.1)!;
+    expect(c).toMatchObject({ x: 2, y: 8 });
+    expect(c.guias!.map((g) => g.eixo).sort()).toEqual(['x', 'y']);
+    expect(c.guias!.find((g) => g.eixo === 'x')!.de).toEqual([2, 3]);
+    expect(c.guias!.find((g) => g.eixo === 'y')!.de).toEqual([7, 8]);
+  });
+
+  it('entre duas referências no mesmo Y vence a de menor |Δ|; empate pela proximidade na outra coordenada', () => {
+    const j = new IndiceAlinhamento([0, 1.00, 10, 1.05, 5, 1.00, 5.02, 4]);
+    expect(j.consultar(9, 1.04, 0.1)!.y).toBeCloseTo(1.05);
+    expect(j.consultar(5.01, 3.9, 0.1)!.x).toBeCloseTo(5.02); // |Δx| = 0,01 vence o de 5,00 (0,01) pela proximidade em y
+  });
+
+  it('referência avulsa (ponto anterior) também alinha', () => {
+    const c = ia.consultar(9, 12.03, 0.1, [0, 12])!;
+    expect(c).toMatchObject({ x: 9, y: 12 });
+    expect(c.guias![0].de).toEqual([0, 12]);
+  });
+
+  it('fica abaixo das capturas exatas e acima de perpendicular e mais próximo', () => {
+    const i = (t: string) => PRIORIDADE.indexOf(t as never);
+    expect(i('alinhamento')).toBeGreaterThan(Math.max(i('extremidade'), i('intersecao'), i('meio'), i('centro'), i('quadrante')));
+    expect(i('alinhamento')).toBeLessThan(Math.min(i('perpendicular'), i('proximo')));
+  });
+
+  it('digitar a distância segue a guia a partir da referência', () => {
+    const c = ia.consultar(5.0, 3.06, 0.1)!;
+    const p = distanciaNaGuia('4,5', c)!;
+    expect(p[0]).toBeCloseTo(6.5); expect(p[1]).toBeCloseTo(3);
+    expect(distanciaNaGuia('1;2', c)).toBeNull();
+    expect(distanciaNaGuia('1', ia.consultar(2.05, 8.04, 0.1)!)).toBeNull(); // duas guias
+  });
+
+  it('20 mil referências: consulta rápida', () => {
+    const pts: number[] = [];
+    let s = 11;
+    const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 20000; i++) pts.push(rnd() * 60, rnd() * 40);
+    const big = new IndiceAlinhamento(pts);
+    const t0 = performance.now();
+    for (let i = 0; i < 1000; i++) big.consultar(rnd() * 60, rnd() * 40, 0.05);
+    expect((performance.now() - t0) / 1000).toBeLessThan(1);
   });
 });
