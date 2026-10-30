@@ -59,7 +59,7 @@ function limpar(pts: P[]): P[] {
 }
 
 /** Desloca a linha clicada para a linha de ajuste (L5): `cm` à esquerda do traçado (negativo: à direita); pontos de passagem acompanham o trecho. */
-function linhaDeAjuste(pontos: P[], passagens: Passagens | undefined, cm: number | undefined): { pontos: P[]; passagens: Passagens | undefined } {
+export function linhaDeAjuste(pontos: P[], passagens: Passagens | undefined, cm: number | undefined): { pontos: P[]; passagens: Passagens | undefined } {
   const d = deslocamentoDeClique(cm ?? 0);
   if (!d || pontos.length < 2) return { pontos, passagens };
   const pts = deslocarPolilinha(pontos, d).map((q) => [r6(q[0]), r6(q[1])] as P);

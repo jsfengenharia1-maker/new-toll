@@ -58,6 +58,8 @@ import type { ElemCota } from '../../core/building/types';
 import { alternarModo, chavePar, cotasTemporarias, indiceCotasTemp, PADRAO_REF_TEMP, paramsFixarCotaTemp, paramsMoverCotaTemp, type CotaTemp, type ModoRef } from '../../core/geom/cotasTemp';
 import { geometriaCota, offsetDoPonto, resolverRef } from '../../core/building/cotas';
 import { ajudaDaFerramenta } from '../../core/ajuda';
+import { acaoDoClique, estenderCadeia, iniciarCadeia, passagensDoTrecho, reconciliarCadeia, type EstagioCadeia } from './cadeia';
+import { linhaDeAjuste } from '../../core/commands/vigas';
 import { ancoraMaisProxima, ancorasRef, deslocamentoPorCliques, refDe, textosVisiveis } from '../../core/building/vistaObra';
 
 type P2 = [number, number];
@@ -173,9 +175,9 @@ function proximoEixo(b: BuildingModel, horizontal: boolean) {
 const PASSOS: Record<Ferramenta, string[]> = {
   selecionar: ['Clique num elemento ou arraste: da esquerda para a direita seleciona o que está todo dentro; da direita para a esquerda, o que cruza. Del remove.'],
   pilar: ['Clique para inserir o pilar (A muda o ponto fixo, R gira 90°). Digite x;y e Enter para coordenadas.'],
-  viga: ['Primeiro ponto da viga (A alterna eixo/face esquerda/face direita; R alterna trecho reto/curvo).', 'Próximo ponto; Enter, duplo clique ou botão direito termina; Esc cancela. Trecho curvo (R): clique na passagem e depois no fim do arco.'],
+  viga: ['Primeiro ponto da viga (A alterna eixo/face esquerda/face direita; R alterna trecho reto/curvo).', 'Clique o próximo ponto · Esc ou botão direito termina (Enter e duplo clique também); cada clique já cria o trecho e Ctrl+Z desfaz o último. Trecho curvo (R): clique na passagem e depois no fim do arco.'],
   laje: ['Clique dentro de uma região fechada por vigas (ou desenhe o contorno de um balanço: pontos e Enter).', 'Próximo ponto do contorno; Enter fecha.'],
-  carga: ['Carga: clique o ponto (ou os pontos da linha/área; Enter termina).', 'Próximo ponto; Enter termina.'],
+  carga: ['Carga: clique o ponto (ou os pontos da linha/área; na linha cada clique já cria o trecho; Enter termina a área).', 'Próximo ponto · Esc ou botão direito termina a linha (Enter também); na área, Enter fecha.'],
   eixo: ['Primeiro ponto do eixo.', 'Segundo ponto (digite a distância, @dx;dy ou @d<ângulo e Enter).'],
   mover: ['Ponto base do deslocamento da seleção.', 'Ponto de destino.'],
   medir: ['Primeiro ponto.', 'Segundo ponto.'],
@@ -216,11 +218,11 @@ const PASSOS: Record<Ferramenta, string[]> = {
   diagonal: ['Primeiro ponto da diagonal de contraventamento, neste pavimento (pilar ou eixo de viga; a seção e o pavimento da ponta final ficam no menu da ferramenta).', 'Segundo ponto: a ponta final, no pavimento escolhido no menu (padrão: o pavimento acima), sem trocar de planta.'],
   consolo: ['Clique na face do pilar em que a viga se apoia: o consolo nasce com a geometria de partida (ajuste na janela de consolos); a face em destaque indica a viga escolhida.'],
   abaco: ['Primeiro canto do ábaco (ou primeiro vértice, no modo polígono), dentro de um pano nervurado.', 'Canto oposto (retângulo) ou próximo vértice; Enter, duplo clique ou botão direito fecha o polígono. A zona cresce até os eixos das nervuras mais próximos (caixotes inteiros).'],
-  pilarParede: ['Clique para lançar o pilar-parede do tipo escolhido no grupo Pilares-parede (o primeiro vértice do tipo vai ao clique; R gira 90°; Esc volta a Selecionar).'], parede: ['Clique os vértices do eixo da parede (capturas valem; Enter termina; Esc cancela).'],
+  pilarParede: ['Clique para lançar o pilar-parede do tipo escolhido no grupo Pilares-parede (o primeiro vértice do tipo vai ao clique; R gira 90°; Esc volta a Selecionar).'], parede: ['Clique os vértices do eixo da parede (capturas valem): o 2º clique já cria o trecho e cada clique seguinte o estende · Esc ou botão direito termina (Enter também) · Ctrl+Z desfaz o último trecho.'],
 };
 
 export function Planta() {
-  const { sessao, exec, diags } = useBuilding();
+  const { sessao, exec, diags, rev: revModelo } = useBuilding();
   const aj = useAjuda();
   const b = sessao.modelo;
   const pl = usePlanta();
@@ -250,7 +252,7 @@ export function Planta() {
   const cotaSerie = useRef<{ refs: { elem?: ElemCota; ponto: P2 }[]; linha: boolean; modo: ModoRef }>({ refs: [], linha: false, modo: 'face' });
   // espelho síncrono dos vértices em lançamento: cliques e Enter em sequência rápida chegam antes da nova renderização e leriam o estado antigo
   const pontosRef = useRef<P2[]>([]);
-  const setPontos = (v: P2[]) => { pontosRef.current = v; setPontosEstado(v); };
+  const setPontos = (v: P2[]) => { pontosRef.current = v; if (!v.length) it.current.cadeia = null; setPontosEstado(v); };
 
   // estado de interação fora do React (muda a cada movimento do mouse)
   const it = useRef({
@@ -264,6 +266,8 @@ export function Planta() {
     /** Pontos e textos clicáveis dos planos (tela) refeitos a cada desenho, e o ponto de plano em arrasto (E5b). */
     zonasPlano: [] as { x: number; y: number; r: number; id: string; indice: number; tipo: 'ponto' | 'cota' | 'inclinacao'; valor: number }[],
     arrasto: null as null | { id: string; indice: number; ponto: P2; origem: P2 },
+    /** Cadeia de lançamento em curso (viga, parede, carga linear): um estágio por clique, reconciliado com o Desfazer. */
+    cadeia: null as null | EstagioCadeia[],
   });
 
   // ---- dados derivados ----
@@ -351,7 +355,7 @@ export function Planta() {
     const e = new Set<string>(), a = new Set<string>();
     for (const [k, n] of rev.porElemento) (n === 'erro' ? e : a).add(k.slice(k.indexOf('|') + 1));
     return { e, a };
-  }, [rev]);
+  }, [revModelo]);
   const comErro = useMemo(() => new Set([...diags.filter((d) => d.severidade === 'erro').flatMap((d) => d.elementos), ...(pl.mostrarErros ? niveisRev.e : [])]), [diags, niveisRev, pl.mostrarErros]);
   // armadura das lajes do pavimento (camada opcional): posições das lajes do grupo, calculadas uma vez por resultado
   const dimLajes = useBuilding((st) => st.dim?.detalhesLajes);
@@ -1244,13 +1248,20 @@ export function Planta() {
     // prévia da viga
     if (pl.ferramenta === 'viga' && pontos.length && !s.pan) {
       // viga curva (E2b): trechos curvos já lançados e o em andamento (passagem marcada) como arcos pela mesma discretização da viga
-      const ctl = [...pontos, s.ponto], pass = Array.from({ length: ctl.length - 1 }, (_, i) => (i < pontos.length - 1 ? pl.passagensViga[i] ?? null : pl.passagemViga));
+      // com a viga já criada em cadeia, só o trecho em curso é prévia (do último ponto ao cursor)
+      const emCurso = (s.cadeia?.length ?? 0) > 1, base = emCurso ? pontos.slice(-1) : pontos, desvio = pontos.length - base.length;
+      const ctl = [...base, s.ponto], pass = Array.from({ length: ctl.length - 1 }, (_, i) => (i < base.length - 1 ? pl.passagensViga[i + desvio] ?? null : pl.passagemViga));
       const arco = pass.some((q) => q) ? montarPoligonal(ctl, pass, b.opcoes?.curvaSegmento ? b.opcoes.curvaSegmento / 100 : undefined) : null;
       const g = geometriaViga({ pontos: arco && !('degenerado' in arco) ? arco.pontos : ctl, secao: pl.secaoViga, alinhamento: pl.alinhamento });
       if (pl.passagemViga) { const [qx, qy] = paraTela(...pl.passagemViga); ctx.strokeStyle = cores.viga; ctx.beginPath(); ctx.arc(qx, qy, 4, 0, 2 * Math.PI); ctx.stroke(); }
       ctx.strokeStyle = cores.viga; ctx.globalAlpha = 0.6; ctx.lineWidth = 1.5; ctx.setLineDash([5, 3]);
       for (const lado of [g.esq, g.dir]) { ctx.beginPath(); lado.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.stroke(); }
       ctx.setLineDash([]); ctx.globalAlpha = 1;
+      if (emCurso) {
+        const [hx, hy] = paraTela(s.ponto[0], s.ponto[1]);
+        ctx.font = '11px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillStyle = cores.texto;
+        ctx.fillText('Clique o próximo ponto · Esc ou botão direito termina', hx + 14, hy + 14);
+      }
     }
     // vários pilares escolhidos (ferramenta Fundação em modo de associada/bloco): contornos, ligação entre os centros e contagem
     if (pl.ferramenta === 'fundacao' && pl.multiFund && nivelFund && !s.pan) {
@@ -1675,6 +1686,57 @@ export function Planta() {
     setPontos([]);
     if (!pl.escadaRepetir) pl.set({ ferramenta: 'selecionar' });
   };
+  /** Encerra o lançamento em cadeia: o elemento já existe no modelo; só limpa os pontos em curso. */
+  const encerrarCadeia = () => {
+    usePlanta.getState().set({ passagemViga: null, passagensViga: [] });
+    setPontos([]);
+  };
+  /**
+   * Lançamento em cadeia (viga, parede, carga linear): o 1º clique marca o início; o 2º cria o elemento na hora e cada
+   * clique seguinte o estende (mesmo elemento, mais um trecho); clicar de novo no último ponto encerra. Esc, botão direito,
+   * duplo clique e Enter também encerram; Ctrl+Z e Backspace tiram o último trecho (a cadeia acompanha o log do modelo).
+   */
+  const agirCadeia = (f: Ferramenta, p: P2) => {
+    const P = usePlanta.getState(), pts = pontosRef.current, n = pts.length;
+    const logAtual = () => useBuilding.getState().sessao.log.length;
+    const acao = acaoDoClique(pts, p, Math.max(1e-3, 4 / (vista?.k || 1)));
+    if (acao === 'iniciar') {
+      if (f === 'viga') P.set({ passagemViga: null, passagensViga: [] });
+      setPontos([p]);
+      it.current.cadeia = iniciarCadeia(p, logAtual());
+      return;
+    }
+    if (acao === 'encerrar') { encerrarCadeia(); msg('Lançamento encerrado.'); return; }
+    if (f === 'viga' && P.curvaViga && !P.passagemViga) { P.set({ passagemViga: [p[0], p[1]] }); msg('Passagem do arco marcada: clique no fim do arco.'); desenharInteracao(); return; }
+    const r4 = (q: P2): P2 => [+q[0].toFixed(4), +q[1].toFixed(4)];
+    const novos = [...pts, p], q = novos.map(r4);
+    const passagens = f === 'viga' ? passagensDoTrecho(P.passagensViga, n, P.curvaViga, P.passagemViga) : [];
+    const pq = passagens.map((x) => (x ? r4(x) : null)), curvas = pq.some((x) => x);
+    const est = it.current.cadeia ?? iniciarCadeia(pts[0], logAtual());
+    const id = est.length > 1 ? est[1].id : undefined;
+    const modelo = () => useBuilding.getState().sessao.modelo;
+    let r: { ok: boolean }, novoId: string | undefined = id;
+    if (f === 'viga') {
+      if (!id) {
+        r = exec('viga.tracar', { grupo, pontos: q, ...(curvas ? { passagens: pq } : {}), secao: pl.secaoViga, alinhamento: pl.alinhamento, invertida: pl.invertida, ...(P.l5.deslocamento ? { deslocamentoClique: P.l5.deslocamento } : {}) });
+        novoId = modelo().vigas.at(-1)?.id;
+      } else {
+        const aj = linhaDeAjuste(q, curvas ? pq : undefined, P.l5.deslocamento || undefined);
+        r = exec('viga.editar', { id, pontos: aj.pontos, ...(aj.passagens ? { passagens: aj.passagens } : {}) }, grupo);
+      }
+    } else if (f === 'parede') {
+      if (!id) { r = exec('parede.criar', { ...(P.pwParams ?? {}), pontos: q }); novoId = modelo().paredes?.at(-1)?.id; }
+      else r = exec('parede.editar', { id, pontos: q });
+    } else {
+      if (!id) { r = exec('carga.linha', { grupo: grupoCarga, pontos: q, valor: pl.valorCarga, caso: pl.caso }); novoId = modelo().cargas.at(-1)?.id; }
+      else r = exec('carga.editar', { id, pontos: q });
+    }
+    if (!r.ok || !novoId) return; // o erro já está na barra; o clique é ignorado
+    it.current.cadeia = estenderCadeia(est, p, passagens, logAtual(), novoId);
+    if (f === 'viga') P.set({ passagensViga: passagens, passagemViga: null });
+    setPontos(novos); // a mensagem do comando fica na barra; a dica do próximo clique está no passo da planta
+  };
+
   const agir = (p: P2) => {
     const f = pl.ferramenta;
     const novos = [...pontosRef.current, p];
@@ -1935,10 +1997,7 @@ export function Planta() {
         exec('viga.tracar', { grupo, pontos: novos.map((q) => [+q[0].toFixed(4), +q[1].toFixed(4)]), secao: pl.secaoViga, alinhamento: pl.alinhamento, invertida: pl.invertida, simples: true, ...(P.l5.deslocamento ? { deslocamentoClique: P.l5.deslocamento } : {}) });
         return;
       }
-      if (!n) { P.set({ passagemViga: null, passagensViga: [] }); setPontos(novos); return; }
-      if (P.curvaViga && !P.passagemViga) { P.set({ passagemViga: [p[0], p[1]] }); msg('Passagem do arco marcada: clique no fim do arco.'); desenharInteracao(); return; }
-      P.set({ passagensViga: [...P.passagensViga.slice(0, n - 1), P.curvaViga ? P.passagemViga : null], passagemViga: null });
-      setPontos(novos); return;
+      agirCadeia(f, p); return;
     }
     if (f === 'laje') {
       if (!pontos.length) {
@@ -1948,8 +2007,10 @@ export function Planta() {
       }
       setPontos(novos); return;
     }
+    if (f === 'parede') { agirCadeia(f, p); return; }
     if (f === 'carga') {
       if (pl.tipoCarga === 'ponto') { exec('carga.ponto', { grupo: grupoCarga, ponto: [+p[0].toFixed(4), +p[1].toFixed(4)], valor: pl.valorCarga, caso: pl.caso }); return; }
+      if (pl.tipoCarga === 'linha') { agirCadeia(f, p); return; }
       setPontos(novos); return;
     }
     if (f === 'eixo' && novos.length === 2) {
@@ -2094,8 +2155,8 @@ export function Planta() {
   const terminar = (pts: P2[] = pontosRef.current) => {
     const f = usePlanta.getState().ferramenta, tc = usePlanta.getState().tipoCarga;
     if (f === 'abaco') { if (pts.length >= 3) criarAbaco(pts); else msg('Ábaco: ao menos 3 vértices (ou dois cantos no modo retângulo).'); setPontos([]); return; }
+    if (f === 'viga' || f === 'parede' || (f === 'carga' && tc === 'linha')) { encerrarCadeia(); return; } // já criados a cada clique
     const q = pts.map((x) => [+x[0].toFixed(4), +x[1].toFixed(4)]);
-    if (f === 'viga') { terminarViga(pts); return; }
     if (f === 'limite') {
       const fechado = usePlanta.getState().limiteFechado;
       if (pts.length >= (fechado ? 3 : 2)) exec('limite.criar', { pontos: q, ...(fechado ? { fechado: true } : {}) }); else msg(fechado ? 'Limite fechado: ao menos 3 vértices.' : 'Limite: ao menos 2 vértices.');
@@ -2110,7 +2171,6 @@ export function Planta() {
       } else msg('Corte: ao menos 2 pontos.');
       setPontos([]); return;
     }
-    if (f === 'parede') { if (pts.length >= 2) exec('parede.criar', { ...(usePlanta.getState().pwParams ?? {}), pontos: q }); else msg('Parede: ao menos 2 pontos.'); setPontos([]); return; }
     if (f === 'radier') { if (pts.length >= 3) exec('radier.criar', { contorno: q, h: usePlanta.getState().hRadier }); else msg('Radier: ao menos 3 vértices.'); setPontos([]); return; }
     if (f === 'corrida') {
       const sc = usePlanta.getState().corridaLanc;
@@ -2119,19 +2179,9 @@ export function Planta() {
     }
     if (f === 'vigaElastica') { const sv = usePlanta.getState().secaoVigaElastica; if (pts.length >= 2) exec('vigaElastica.criar', { pontos: q, b: sv.b, h: sv.h }); else msg('Viga sobre base elástica: ao menos 2 pontos.'); setPontos([]); return; }
     if (f === 'laje' && pts.length >= 3) exec('laje.criar', { grupo, contorno: q, tipo: pl.tipoLaje });
-    if (f === 'carga' && tc === 'linha' && pts.length >= 2) exec('carga.linha', { grupo: grupoCarga, pontos: q, valor: pl.valorCarga, caso: pl.caso });
     if (f === 'carga' && tc === 'area' && pts.length >= 3) exec('carga.area', { grupo: grupoCarga, contorno: q, valor: pl.valorCarga, caso: pl.caso });
     setPontos([]);
   };
-  const terminarViga = (pts: P2[] = pontos) => {
-    const P = usePlanta.getState();
-    // passagens dos arcos (E2b), uma por trecho: null = reto
-    const passagens = Array.from({ length: Math.max(0, pts.length - 1) }, (_, i) => { const q = P.passagensViga[i]; return q ? [+q[0].toFixed(4), +q[1].toFixed(4)] : null; });
-    if (pts.length >= 2) exec('viga.tracar', { grupo, pontos: pts.map((q) => [+q[0].toFixed(4), +q[1].toFixed(4)]), ...(passagens.some((q) => q) ? { passagens } : {}), secao: pl.secaoViga, alinhamento: pl.alinhamento, invertida: pl.invertida, ...(P.l5.deslocamento ? { deslocamentoClique: P.l5.deslocamento } : {}) });
-    P.set({ passagemViga: null, passagensViga: [] });
-    setPontos([]);
-  };
-
   const escolher = (w: P2, aditivo: boolean) => {
     const tol = 6 / vista!.k;
     let id: string | null = null;
@@ -2264,6 +2314,17 @@ export function Planta() {
     return () => el.removeEventListener('wheel', onWheel);
   }, []);
 
+  // cadeia de lançamento: o Desfazer do modelo (Ctrl+Z, Backspace) tira o último trecho; outra ferramenta ou pavimento encerra
+  useEffect(() => {
+    const c = it.current.cadeia;
+    if (!c) return;
+    const r = reconciliarCadeia(c, useBuilding.getState().sessao.log.length);
+    if (!r) { usePlanta.getState().set({ passagemViga: null, passagensViga: [] }); setPontos([]); return; }
+    it.current.cadeia = r;
+    if (r.length !== c.length) { const t = r[r.length - 1]; usePlanta.getState().set({ passagensViga: t.passagens, passagemViga: null }); setPontos(t.pontos); }
+  }, [revModelo]);
+  useEffect(() => { if (it.current.cadeia) { usePlanta.getState().set({ passagemViga: null, passagensViga: [] }); setPontos([]); } }, [pl.ferramenta, grupo]);
+
   // teclado da planta
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -2321,9 +2382,11 @@ export function Planta() {
       if (P.pavimento === 'fundacao' && k.toLowerCase() === 'r') { const sel = selecionados().fundacoes; if (sel.length) { exec('lote', { comandos: sel.map((id) => ({ nome: 'fundacao.girar', params: { ids: [id], angulo: (b.fundacao?.elementos.find((e) => e.id === id)?.angulo ?? 0) + 90 } })) }); return; } }
       if (P.ferramenta === 'pilar' && k.toLowerCase() === 'a') { const o = ['c', 'so', 's', 'se', 'l', 'ne', 'n', 'no', 'o'] as const; P.set({ ajuste: o[(o.indexOf(P.ajuste) + 1) % o.length] }); return; }
       if (k === 'Backspace' && P.ferramenta === 'cota' && cotaSerie.current.refs.length && !cotaSerie.current.linha) { e.preventDefault(); cotaSerie.current.refs.pop(); setPontos(cotaSerie.current.refs.map((r) => r.ponto)); return; }
-      if (k === 'Backspace' && P.ferramenta === 'viga' && pontos.length) {
-        // L5 (C6.6): Backspace apaga o último ponto da sequência de pontos da viga
+      if (k === 'Backspace' && (P.ferramenta === 'viga' || P.ferramenta === 'parede' || (P.ferramenta === 'carga' && P.tipoCarga === 'linha')) && pontos.length) {
+        // L5 (C6.6): Backspace apaga o último ponto; com o elemento já criado em cadeia, desfaz o último trecho (a cadeia acompanha o log)
         e.preventDefault();
+        if (P.passagemViga) { P.set({ passagemViga: null }); return; }
+        if ((it.current.cadeia?.length ?? 0) > 1) { useBuilding.getState().desfazer(); return; }
         P.set({ passagemViga: null, passagensViga: P.passagensViga.slice(0, Math.max(0, pontos.length - 2)) });
         setPontos(pontos.slice(0, -1));
         return;

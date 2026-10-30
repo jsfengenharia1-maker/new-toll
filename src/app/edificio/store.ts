@@ -45,7 +45,8 @@ interface BState {
   /** Muda a cada alteração (a Sessao é mutável; os componentes dependem deste número). */
   rev: number;
   diags: Diagnostico[];
-  exec(nome: string, params: Record<string, unknown>): Resultado;
+  /** `panoGrupo`: grupo em que detectar o pano a definir no mesmo passo (comandos fora de PANO_AUTO, como a extensão de uma viga em cadeia). */
+  exec(nome: string, params: Record<string, unknown>, panoGrupo?: string): Resultado;
   desfazer(): void;
   refazer(): void;
   novo(vazio: boolean): void;
@@ -139,11 +140,12 @@ export const useBuilding = create<BState>((set, get) => {
     sessao: inicial,
     rev: 0,
     diags: inicial.verificar(),
-    exec(nome, params) {
+    exec(nome, params, panoGrupo) {
       const s = get().sessao;
       // L7 (C7.2): vigas que fecham um contorno criam o pano a definir no mesmo passo (um desfazer); sem contorno novo, segue o comando puro
-      if (PANO_AUTO.has(nome) && typeof params.grupo === 'string' && opcaoPano.automatico) {
-        const lote = s.executar('lote', { comandos: [{ nome, params }, { nome: 'laje.detectarPanos', params: { grupo: params.grupo, definir: true } }] }, 'usuario');
+      const grupoPano = panoGrupo ?? (PANO_AUTO.has(nome) && typeof params.grupo === 'string' ? params.grupo : undefined);
+      if (grupoPano && opcaoPano.automatico) {
+        const lote = s.executar('lote', { comandos: [{ nome, params }, { nome: 'laje.detectarPanos', params: { grupo: grupoPano, definir: true } }] }, 'usuario');
         if (lote.ok) { atualizar(s); msg(lote.mensagem ?? `${nome} aplicado.`); sincronizar(); return lote; }
       }
       const r = s.executar(nome, params, 'usuario');

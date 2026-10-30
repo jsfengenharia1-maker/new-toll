@@ -790,3 +790,62 @@ export const f_L8 = {
       await page.locator('.statusbar .msg', { hasText: /Alinhamento ligado/ }).waitFor();
     },
   };
+
+export const f_lancamento_em_cadeia = {
+    name: 'lançamento em cadeia: viga criada a cada clique, sem Enter (3 cliques + Esc = 2 tramos; 2 cliques + botão direito = 1 tramo; Ctrl+Z tira o último trecho)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.locator('#edcmd').fill('lote {"comandos": [' + [[0, 0], [5, 0], [5, 4], [0, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.4}}}`).join(', ') + ']}');
+      await page.locator('#edcmd').press('Enter');
+      await page.locator('summary', { hasText: 'Pilares (4)' }).waitFor();
+      const painel = await grupoEdif(page, 'Ferramentas de lançamento');
+      await painel.getByLabel('Criar o pano a definir (?) ao fechar um contorno por vigas').uncheck();
+      await painel.getByLabel('Alinhar pela face externa dos pilares').uncheck(); // coordenadas exatas: a linha clicada é o eixo
+      await page.keyboard.press('f');
+      await page.waitForTimeout(100);
+      await page.locator('.planta-cv').click({ position: { x: 5, y: 5 }, button: 'right' }); // foco na planta, sem ação
+      const vigas = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas.map((v) => v.pontos));
+      const espera = (n) => page.waitForFunction((k) => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas.length === k, n, { timeout: 10000 });
+      const tramos = (i, n) => page.waitForFunction(([j, k]) => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas[j]?.pontos.length === k, [i, n], { timeout: 10000 });
+      const clicar = async (x, y, extra = {}) => { const [sx, sy] = await telaDe(page, x, y); await page.mouse.move(sx, sy); await page.mouse.click(sx, sy, extra); };
+      const perto = (a, b) => assert.ok(a.length === b.length && a.every((p, i) => Math.hypot(p[0] - b[i][0], p[1] - b[i][1]) < 1e-3), `${JSON.stringify(a)} != ${JSON.stringify(b)}`);
+      await page.keyboard.press('v');
+      // 3 cliques + Esc: uma viga de 2 tramos; o 2º clique já cria o primeiro trecho (sem Enter)
+      await clicar(1, 1);
+      await clicar(4, 1);
+      await espera(1);
+      perto((await vigas())[0], [[1, 1], [4, 1]]);
+      await page.locator('.planta-st', { hasText: 'Clique o próximo ponto · Esc ou botão direito termina' }).waitFor();
+      await clicar(4, 3);
+      await tramos(0, 3);
+      await page.keyboard.press('Escape');
+      assert.equal((await vigas()).length, 1);
+      perto((await vigas())[0], [[1, 1], [4, 1], [4, 3]]);
+      // 2 cliques + botão direito: uma viga de 1 tramo
+      await clicar(1, 2);
+      await clicar(3, 2);
+      await espera(2);
+      await clicar(3, 2, { button: 'right' });
+      assert.equal((await vigas()).length, 2);
+      perto((await vigas())[1], [[1, 2], [3, 2]]);
+      // Ctrl+Z durante a cadeia tira o último trecho e a cadeia segue do ponto anterior
+      await clicar(1, 3);
+      await clicar(3, 3);
+      await espera(3);
+      await clicar(3, 4);
+      await tramos(2, 3);
+      await page.keyboard.press('Control+z');
+      await tramos(2, 2);
+      await clicar(3, 5);
+      await tramos(2, 3);
+      perto((await vigas())[2], [[1, 3], [3, 3], [3, 5]]);
+      // clicar de novo no último ponto encerra; o clique seguinte começa outra viga
+      await clicar(3, 5);
+      await clicar(1, -1);
+      await clicar(3, -1);
+      await espera(4);
+      await page.keyboard.press('Enter'); // Enter continua encerrando
+      perto((await vigas())[3], [[1, -1], [3, -1]]);
+    },
+  };
