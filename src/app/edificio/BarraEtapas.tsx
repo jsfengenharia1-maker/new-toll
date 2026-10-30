@@ -4,20 +4,10 @@ import { useMemo } from 'react';
 import { StepBar } from '../ui';
 import { useLayout } from '../layout';
 import { calculoAtual, useBuilding } from './store';
-import { useEdifUI, type AbaEdificio } from './uiStore';
+import { irParaEtapa } from './etapaNav';
 import { contarReprovados, etapasDaObra, proximaEtapa, type EtapaId } from '../../core/building/etapas';
 
-/** Vista aberta ao entrar na etapa (ausente = mantém a vista atual). */
-const VISTA: Partial<Record<EtapaId, AbaEdificio>> = { obra: 'planta', pilares: 'planta', vigasLajes: 'planta', cargas: 'planta', fundacao: 'planta', resultados: 'dimensionamento', pranchas: 'pranchas' };
-
-/** Abre a aba da etapa na faixa do Edifício e, quando a etapa tem vista própria, a vista. */
-export function irParaEtapa(id: EtapaId) {
-  const lay = useLayout.getState();
-  lay.setAba('edificio', id);
-  lay.setFaixaAberta(true);
-  const v = VISTA[id];
-  if (v) useEdifUI.getState().set({ aba: v });
-}
+export { irParaEtapa };
 
 export function BarraEtapas() {
   const b = useBuilding((s) => s.sessao.modelo);

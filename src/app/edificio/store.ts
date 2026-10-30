@@ -13,6 +13,10 @@ import type { EspecificacaoObra } from '../../core/building/assistente';
 import type { ResultadoArranques } from '../../core/building/importarArranques';
 import { calcular as calcularNoWorker, calcularFundacoesNoWorker, rearmarNoWorker, type DimEdificio } from './calculo';
 import { useEdifUI } from './uiStore';
+import { irParaEtapa } from './etapaNav';
+import { pendenciasAntesDeCalcular, resultadoDoCalculo } from '../../core/building/pendencias';
+import { revisarEdificio } from '../../core/building/revisao';
+import { contarReprovados } from '../../core/building/etapas';
 
 const KEY = 'statikos:building';
 
@@ -197,6 +201,14 @@ export const useBuilding = create<BState>((set, get) => {
       // sem argumento vale a opção "Com fundações" da etapa Calcular (uiStore.semFundacao)
       const semFundacao = semFundacaoPedido ?? useEdifUI.getState().semFundacao;
       const s = get().sessao, rev = s.revCalculo, revF = s.revFundacao, revD = s.revDetalhe, revE = s.revEsforcos;
+      // pendências que a análise recusaria (panos a definir, obra sem pavimentos ou pilares): a janela "Antes de calcular" lista e corrige
+      const pend = pendenciasAntesDeCalcular(s.modelo, get().diags);
+      if (!pend.podeCalcular) {
+        useEdifUI.getState().set({ antes: true, avisoCalculo: null });
+        msg(`Antes de calcular: ${pend.impeditivas.length === 1 ? '1 pendência' : `${pend.impeditivas.length} pendências`} a resolver.`);
+        return;
+      }
+      useEdifUI.getState().set({ antes: false, avisoCalculo: null });
       set({ calculando: true });
       msg('Calculando…');
       try {
@@ -205,6 +217,12 @@ export const useBuilding = create<BState>((set, get) => {
         if (get().sessao !== s) { set({ calculando: false }); return; }
         set({ analise: a, dim, revAnalise: rev, revFund: semFundacao ? -1 : revF, revDet: revD, revEsf: revE, modeloDim: s.modelo, idCalculo: id, calculando: false, nAnalises: get().nAnalises + 1 });
         sincronizar();
+        // arranques sem estrutura: o erro da análise é o aviso de que só a fundação foi calculada, não uma falha
+        if (!(a.erro && dim?.fundacoes) && useEdifUI.getState().irAoResultado) {
+          const ui = useEdifUI.getState();
+          if (resultadoDoCalculo(revisarEdificio(s.modelo, a, dim).itens, contarReprovados(dim)) === 'erros') ui.set({ aba: 'verificacao', avisoCalculo: null });
+          else { irParaEtapa('resultados'); ui.set({ avisoCalculo: 'ok' }); }
+        }
         msg(a.erro ? (dim && dim.fundacoes ? `Obra só com arranques: ${dim.fundacoes.length} fundação(ões) calculada(s) em ${Math.round(dim.ms)} ms.` : `Análise: ${a.erro}`) : `Análise concluída: ${a.gdl} gdl em ${Math.round(a.ms)} ms${dim ? `; dimensionamento em ${Math.round(dim.ms)} ms` : ''}.`);
       } catch (e) {
         set({ calculando: false });

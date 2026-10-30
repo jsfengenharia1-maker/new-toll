@@ -205,6 +205,7 @@ function Fundacao() {
 function Calcular() {
   const { calcular, calculando, calcularFundacao, calculandoFund, dim } = useBuilding();
   const semFundacao = useEdifUI((s) => s.semFundacao);
+  const irAoResultado = useEdifUI((s) => s.irAoResultado);
   const temFund = useBuilding((s) => !!s.sessao.modelo.fundacao?.elementos.length);
   return (
     <>
@@ -213,6 +214,9 @@ function Calcular() {
         <div className="rstack">
           <label className="check small" title={temFund ? 'Desmarque para analisar e dimensionar a estrutura sem calcular as fundações lançadas' : 'Não há fundações lançadas: o cálculo só tem a estrutura'}>
             <Input type="checkbox" checked={!semFundacao} disabled={!temFund} onChange={(e) => ui({ semFundacao: !e.target.checked })} /> <span>Com fundações</span>
+          </label>
+          <label className="check small" title="Ao terminar o cálculo, abre o painel Erros do cálculo (se houver erros) ou a etapa Resultados com o aviso de conclusão">
+            <Input type="checkbox" checked={irAoResultado} onChange={(e) => ui({ irAoResultado: e.target.checked })} /> <span>Abrir o resultado ao calcular</span>
           </label>
         </div>
       </RibbonGroup>

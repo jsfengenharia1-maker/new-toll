@@ -27,6 +27,7 @@ import { PaletaComandos } from './PaletaComandos';
 import { DiagonaisHost } from './DiagonaisUI';
 import { ConsolosHost } from './ConsolosUI';
 import { AberturaPanoGrupo, TipoPanoGrupo } from './TipoPano';
+import { AvisoCalculo, ErrosDoCalculo, JanelaAntesDeCalcular, JanelaTipoLajes } from './PendenciasUI';
 import { PlanosGrupo, PlanosHost } from './PlanosUI';
 import { InclinadasHost } from './InclinadasUI';
 import { EscadaCalculoHost } from './EscadaCalculoUI';
@@ -192,7 +193,9 @@ export function Edificio() {
         {aba === 'vista3d' && <Vista3D onPlanta={() => setAba('planta')} />}
         {aba !== 'planta' && aba !== 'vista3d' && (
           <div className="edif-out">
+            <AvisoCalculo />
             {aba === 'elevacao' && <div className="card"><h3>Elevação esquemática</h3><Elevacao b={b} /></div>}
+            {aba === 'verificacao' && <ErrosDoCalculo onIr={(tipo, id, pav) => { irParaElemento(b, tipo, id, pav); setAba('planta'); }} />}
             {aba === 'verificacao' && <div className="card"><h3>Verificação de lançamento</h3><Diagnosticos diags={diags} onIr={(ids) => { usePlanta.getState().set({ selecao: new Set(ids) }); setAba('planta'); }} /></div>}
             {aba === 'analise' && <Analise b={b} nErr={nErr} />}
             {aba === 'deslocamentos' && <AbaDeslocamentos b={b} />}
@@ -251,6 +254,8 @@ export function Edificio() {
       {ui.jan === 'malha' && <Modal titulo="Malha de eixos" onClose={() => ui.set({ jan: null })}><Malha /></Modal>}
       {ui.jan === 'novoPavimento' && <Modal titulo="Novo pavimento" onClose={() => ui.set({ jan: null })}><NovoPavimento b={b} /></Modal>}
       <JanelaConfiguracao b={b} />
+      <JanelaAntesDeCalcular />
+      <JanelaTipoLajes />
       <JanelaElemento />
       <JanelaCorte />
       <InclinadasHost />

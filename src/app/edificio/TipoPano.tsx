@@ -6,7 +6,7 @@ import { fichasAlveolaresDisponiveis } from '../../core/building/alveolares';
 import { formasDisponiveis } from '../../core/building/nervuradas';
 import { TIPOS_PANO } from '../../core/building/planos';
 import type { BuildingModel, Laje, TipoLaje } from '../../core/building/types';
-import { Button, Group, Hint, NumField, Select } from '../ui';
+import { Button, Group, Hint, Modal, NumField, Select } from '../ui';
 import { useStore } from '../store';
 import { usePlanta } from './plantaStore';
 import { useBuilding } from './store';
@@ -107,5 +107,16 @@ export function AberturaPanoGrupo({ b }: { b: BuildingModel }) {
         <AberturaCorpo key={ids.join(',')} ids={ids} />
       </Group>
     </div>
+  );
+}
+
+/** O mesmo seletor numa janela, para as lajes indicadas (atalho da janela "Antes de calcular"). */
+export function JanelaTipoPano({ b, ids, onClose }: { b: BuildingModel; ids: string[]; onClose: () => void }) {
+  const ls = b.lajes.filter((l) => ids.includes(l.id));
+  if (!ls.length) return null;
+  return (
+    <Modal titulo="Tipo das lajes" onClose={onClose}>
+      <Corpo key={ids.join(',')} b={b} ls={ls} />
+    </Modal>
   );
 }
