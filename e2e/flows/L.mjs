@@ -561,7 +561,10 @@ export const f_L5 = {
       await page.getByText('é um pano a definir', { exact: false }).waitFor();
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Análise', exact: true }).click();
       await botaoCalcular(page).click();
-      await page.locator('.statusbar .msg', { hasText: 'DEFINIR_PANO' }).waitFor();
+      // o Calcular não chama a análise: abre a janela "Antes de calcular" com a pendência em linguagem clara (sem o código bruto no texto)
+      const antes = page.getByRole('dialog', { name: 'Antes de calcular' });
+      await antes.getByText('sem tipo definido', { exact: false }).waitFor();
+      await antes.getByRole('button', { name: 'Voltar ao lançamento', exact: true }).click();
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta', exact: true }).click();
       await painel.getByRole('button', { name: 'Atribuir o tipo da ferramenta Laje aos panos a definir', exact: true }).click();
       await painel.getByText('Todo contorno fechado por vigas', { exact: false }).waitFor();

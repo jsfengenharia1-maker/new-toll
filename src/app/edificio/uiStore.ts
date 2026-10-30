@@ -24,7 +24,23 @@ interface UiState {
   semFundacao: boolean;
   /** Memória de cálculo detalhada aberta (botão da vista Dimensionamento e da etapa Pranchas e memorial). */
   memoria: boolean;
+  /** Janela "Antes de calcular" (pendências que impedem o cálculo) aberta. */
+  antes: boolean;
+  /** Lajes do seletor de tipo de pano aberto numa janela (vem da janela "Antes de calcular"); null = fechado. */
+  tipoLajes: string[] | null;
+  /** Aviso do último cálculo na vista: concluído sem erros (com erros, abre a vista Verificação). */
+  avisoCalculo: 'ok' | null;
+  /** Depois de calcular, abre a vista Verificação (com erros) ou a etapa Resultados (sem erros). Salvo no navegador. */
+  irAoResultado: boolean;
   set(p: Partial<Omit<UiState, 'set'>>): void;
 }
 
-export const useEdifUI = create<UiState>((set) => ({ aba: 'planta', memo: false, l1: null, l2: null, l4: null, jan: null, cfg: null, paleta: false, semFundacao: false, memoria: false, set: (p) => set(p) }));
+const CHAVE_IR_AO_RESULTADO = 'statikos:ir-ao-resultado';
+function lerIrAoResultado(): boolean { try { return localStorage.getItem(CHAVE_IR_AO_RESULTADO) !== '0'; } catch { return true; } }
+
+export const useEdifUI = create<UiState>((set) => ({ aba: 'planta', memo: false, l1: null, l2: null, l4: null, jan: null, cfg: null, paleta: false, semFundacao: false, memoria: false, antes: false, tipoLajes: null, avisoCalculo: null, irAoResultado: lerIrAoResultado(),
+  set: (p) => {
+    if (p.irAoResultado !== undefined) { try { localStorage.setItem(CHAVE_IR_AO_RESULTADO, p.irAoResultado ? '1' : '0'); } catch { /* sem armazenamento */ } }
+    set(p);
+  },
+}));

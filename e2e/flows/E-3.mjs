@@ -61,7 +61,10 @@ export const f_E3f = {
     await tp.getByRole('button', { name: 'Aplicar', exact: true }).click();
     await esperar(() => { const l = JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.[0]; return l?.definir === true && l?.espessuraDefinir === 0.12; }, null);
     await calcular();
-    await page.locator('.statusbar .msg', { hasText: 'DEFINIR_PANO' }).waitFor({ timeout: 60000 });
+    // o Calcular não chama a análise: abre a janela "Antes de calcular" com a pendência em linguagem clara (sem o código bruto no texto)
+    const antes = page.getByRole('dialog', { name: 'Antes de calcular' });
+    await antes.getByText('sem tipo definido', { exact: false }).waitFor();
+    await antes.getByRole('button', { name: 'Voltar ao lançamento', exact: true }).click();
     await aba('Planta').click();
     await lj.locator('table.loads-ed tbody tr').nth(0).click();
     await (await grupoEdif(page, /^Tipo de pano/)).getByLabel(/^Tipo de pano/).selectOption({ label: 'Maciça' });

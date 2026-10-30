@@ -1205,3 +1205,6 @@ body.ajuda-on { cursor: help; }
 .escada-arm .a-inf { fill: none; stroke: var(--accent-text); stroke-width: 0.015; }
 .escada-arm .a-sup { fill: none; stroke: var(--ink); stroke-width: 0.015; stroke-dasharray: 0.06 0.03; }
 .escada-arm .a-rot { fill: var(--ink); font-size: 0.16px; }
+
+/* Aviso de cálculo concluído (vistas de resultado do Edifício) */
+.aviso-calculo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-3); border: 1px solid var(--line); border-left: 3px solid var(--ok); border-radius: var(--radius); background: var(--surface-2); }
