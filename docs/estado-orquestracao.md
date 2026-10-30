@@ -16,9 +16,10 @@ Atualizado em 24/10/2026. Ler junto com o Andamento de `docs/plano-execucao.md`.
 4. Briefing padrão dos agentes: citar `docs/regras-agentes.md`. Antes: ver as rodadas recentes no histórico desta sessão; regras fixas — worktree próprio + `ln -s /home/user/new-toll/node_modules node_modules`; consultar `docs/mapa-codigo.md`; e2e com `{ exact: true }` exceto NumField/Select (regex ancorada); cada cartão compila sozinho; não criar tarefas agendadas; sem processos em segundo plano; relatório UMA vez; `npm run mapa` no fim.
 
 ## Rodada em andamento
-Nenhum agente rodando (26/10/2026). `main` = ca36e71 + este registro (gate verde: 2639 testes, build, e2e 156/156; artifact republicado, versão 5).
-Feito em 26/10: desempenho (memória de fiberCapacity), flecha ativa por vão + memória 2D sem duplicatas, V6a/V6b/V6c, punção de borda/canto pela NBR (opção `puncaoWpBorda`, com sentido do momento), igualação de vigotas entre panos (E6b), auditoria independente, `docs/a-confirmar-consolidado.md` (354 itens, 94 dependem do usuário).
-Restante: N4a (fogo NBR 15200) e N4b (ábacos NBR 6123) só com material do usuário (`docs/pendencias-usuario.md`); sugestão da auditoria: momentos com sinal por combinação nas lajes (hoje "pior dos dois sentidos" na punção de borda/canto); revisão linha a linha do consolidado com o usuário.
+Nenhum agente rodando (30/10/2026). `main` = f9f8112 + este registro (gate verde: 2670 testes, build, e2e 163/163; artifact versão 7).
+Feito em 29–30/10 (usabilidade, aprovado pelo usuário): captura por alinhamento (F9), faixa do Edifício por 8 etapas + barra de etapas + um só Calcular (docs/analises/fluxo-etapas.md), defeitos da auditoria de usabilidade, janela "Antes de calcular" e painel "Erros do cálculo", lançamento em cadeia (viga/parede/carga linear sem Enter).
+Em aberto com o usuário: regra da etapa Cargas (hoje: carga lançada ou sobrecarga diferente do padrão NBR 6120); capturas de tela do CYPECAD para conferir o layout (manual oficial inacessível na rede da sessão).
+Restante anterior: N4a/N4b com material do usuário; momentos com sinal na punção das lajes; revisão do docs/a-confirmar-consolidado.md.
 
 ## Próxima rodada (depois desta)
 1. Demais E5 (b–g, i–k), FU7d.

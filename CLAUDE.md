@@ -28,7 +28,7 @@ Web app de análise estrutural de pórticos planos 2D, com dimensionamento, fund
 ```bash
 npm i
 npm run dev      # Vite
-npm test         # vitest: 2638 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI, MCP e design system)
+npm test         # vitest: 2670 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI, MCP e design system)
 npm run build    # build publicado (Netlify/PWA): dist/index.html pequeno + dist/assets/* (partes sob demanda, worker do edifício à parte) + public/ (manifest, sw.js com pré-cache, ícones, vendor)
 npm run build:artifact  # variante do artifact do claude.ai: dist-artifact/index.html ÚNICO (vite-plugin-singlefile, `--mode artifact`), sem public/ nem vendor
 npm run e2e      # testes de interface: build + vite preview numa porta livre (4200–4209) + fluxos Playwright
@@ -145,7 +145,7 @@ Veja a tabela no `README.md`. Resumo:
 - Spec das próximas fases: `docs/spec-proximas-fases.md`.
 
 ## Publicação como artifact do claude.ai
-- O app foi publicado como artifact privado do usuário: https://claude.ai/artifact/EG1GFPozyKaHddVko8BzAw (versão 5, 26/10/2026).
+- O app foi publicado como artifact privado do usuário: https://claude.ai/artifact/EG1GFPozyKaHddVko8BzAw (versão 7, 30/10/2026).
 - Capabilities declaradas: `db`, `user`, `downloads`.
 - Para republicar:
   1. Rodar `npm run build:artifact` (gera `dist-artifact/index.html` único, com tudo embutido, inclusive o worker do cálculo; o import() dos módulos pesados só adia a execução).
