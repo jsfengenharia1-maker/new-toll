@@ -22,6 +22,7 @@ function base() {
   const s = padrao();
   for (const [n, p] of [
     ['eixo.malha', { dx: [4], dy: [3] }],
+    ['eixo.criar', { nome: 'M', p1: [2, -1], p2: [2, 4] }], // cruza V2 e V4: trecho livre para viga.nosEixos
     ['grupo.criar', { nome: 'Vazio' }],
     ['mascara.importar', { grupo: 'g_3', nome: 'Arquitetura', geo: GEO, escala: 0.01 }],
     ['pilar.inserir', { x: 0, y: 0, secao: { tipo: 'ret', b: 0.2, h: 0.5 } }],
@@ -129,6 +130,9 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'obra.assistente': () => ({ espec: { nome: 'Assistente', cotaBase: 100, perfil: 'nbr', pavimentos: [{ nome: 'Térreo', peDireito: 3, categoria: 'comum', repeticoes: 1 }, { nome: 'Tipo', peDireito: 3, categoria: 'residencial', repeticoes: 2 }], eixos: { dx: [5], dy: [] } } }),
   'norma.definir': () => ({ fck: 35, caa: 'III', psiQ: [0.7, 0.6, 0.4], psiUso: { C: [0.8, 0.7, 0.5] } }),
   'editar.girar': (b) => ({ pilares: [b.pilares[1].id], vigas: [b.vigas[0].id], lajes: [b.lajes[0].id], cargas: [b.cargas[0].id], centro: [4, 3], angulo: 30 }),
+  'pilar.nosEixos': () => ({ secao: { tipo: 'ret', b: 0.2, h: 0.3 } }),
+  'viga.nosEixos': (b) => ({ grupo: 'g_3', eixos: [b.eixos.find((e) => e.nome === 'M')!.id], secao: { b: 0.15, h: 0.4 } }),
+  'editar.matriz': (b) => ({ pilares: [b.pilares[1].id], vigas: [b.vigas[1].id], lajes: [b.lajes[0].id], cargas: [b.cargas[0].id], modo: 'linear', base: [0, 0], destino: [0, 9], referencia: 'ultimo', copias: 3 }),
   'editar.espelhar': (b) => ({ pilares: [b.pilares[1].id], vigas: [b.vigas[1].id], eixo: [[5, -10], [5, 10]], copiar: true }),
   'vento.definir': () => ({ v0: 40, categoria: 'III', caX: 1.2, sentido: { xn: 0.33 }, vizinhanca: 1.1, platibanda: 1 }),
   'caso.criar': () => ({ nome: 'Reservatório', natureza: 'Q', grupo: 'reservatório', psi: [0.5, 0.4, 0.3], descricao: 'Caixa d\'água superior' }),

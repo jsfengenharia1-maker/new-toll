@@ -99,6 +99,7 @@ Alvenaria estrutural e blocos de concreto (frente E1e), pela `previa`: `bloco.ti
 | `grupo_criar`, `grupo_editar` | grupos de pavimentos iguais (uso e cargas) |
 | `pavimento_criar`, `pavimento_editar`, `pavimento_remover`, `pavimento_repetir` | pavimentos (cota = topo da laje) |
 | `eixo_malha` | malha de eixos |
+| (pela `previa`) `pilar.nosEixos`, `viga.nosEixos` | lançamento em série: um pilar em cada cruzamento dos eixos (seção, ponto fixo e ângulo informados; pula onde já há pilar) e uma viga contínua por eixo, entre os pilares e vigas que ele cruza (alinhada pelo eixo; trechos já cobertos por viga não se repetem). A matriz linear e polar de cópias é `editar.matriz` |
 | `mascara_importar` | DXF de arquitetura como máscara de um grupo |
 | `pilar_inserir`, `pilar_editar`, `pilar_remover` | pilares (seção por lance, ponto fixo, nascimento e morte; `sobre` = pilar que nasce sobre outro, com x, y relativos; `inicio` = apoiado ou fundacao) |
 | `viga_tracar`, `viga_editar`, `viga_remover`, `viga_copiarParaGrupos` | vigas por polilinha, com alinhamento pelo eixo ou por uma face |

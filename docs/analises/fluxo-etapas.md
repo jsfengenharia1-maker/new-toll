@@ -62,6 +62,9 @@ Todo botão de cálculo chama a mesma ação (`useBuilding.calcular()`) com o r�
 | Importar DXF…, Alinhar, Lançar por DXF/DWG…, Gabaritos e vistas…, Vistas por pavimento…, Capturas… | Lançamento › Gabarito | Pilares › Gabarito |
 | Pilar, Pilar-parede | Lançamento › Elementos | Pilares › Pilares |
 | Pilar como arranque (novo atalho; espelha a opção Arranque da ferramenta Pilar) | só na barra da planta | Pilares › Pilares |
+| Pilares nos cruzamentos… (novo; `pilar.nosEixos`) | não existia | Pilares › Eixos. Pré-visualiza os pontos na planta (seção, ponto fixo e ângulo do pilar ativo; eixos selecionados ou todos); Espaço gira 90°, Enter ou o botão Confirmar pilares lança, Esc cancela; cruzamentos com pilar aparecem com cruz e são pulados |
+| Vigas nos eixos (novo; `viga.nosEixos`) | não existia | Vigas e lajes › Vigas. Uma viga contínua por eixo (selecionado ou todos) do primeiro ao último apoio que o eixo cruza (pilares e vigas), alinhada pelo eixo, com a seção das vigas lançadas; trechos já cobertos por viga existente não se repetem |
+| Matriz (novo; `editar.matriz`) | não existia | Edição › Série. Linear: base e depois passo ou posição da última cópia ("Até o último"), nº de cópias na barra; polar: clique no centro, ângulo total ou entre cópias; vale para pilares, vigas, lajes e cargas selecionados, com pré-visualização |
 | Viga, Diagonal, Consolo, Vigas inclinadas | Lançamento › Elementos | Vigas e lajes › Vigas |
 | Viga pelo gabarito | Lançamento › Gabarito | Vigas e lajes › Vigas |
 | Parede | Lançamento › Elementos | Vigas e lajes › Muros e paredes |

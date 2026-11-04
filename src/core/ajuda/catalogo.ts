@@ -55,6 +55,7 @@ export const AJUDAS: Ajuda[] = [
   A('ferramenta:copiar', 'ferramentas', 'Copiar', 'Copia a seleção (pilares e vigas) entre dois pontos, em série se pedido. Pilares podem levar suas cargas.'),
   A('ferramenta:girar', 'ferramentas', 'Girar', 'Gira a seleção em torno de um ponto, pelo ângulo da barra.'),
   A('ferramenta:espelhar', 'ferramentas', 'Espelhar', 'Espelha a seleção em torno de um eixo dado por dois pontos.'),
+  A('ferramenta:matriz', 'ferramentas', 'Matriz', 'Cópias em série da seleção (pilares, vigas, lajes e cargas). Linear: base e depois a distância entre cópias (Passo) ou a posição da última cópia (Até o último), com o número de cópias na barra. Polar: o clique é o centro; o ângulo é o total até a última cópia ou o ângulo entre cópias, e as cópias giram junto.'),
   A('ferramenta:puncao', 'ferramentas', 'Armadura de punção', 'Lança ou apaga grupos de armadura de punção nos pilares sem viga.'),
   A('ferramenta:zonaLaje', 'ferramentas', 'Zona de uniformização', 'Define faixa ou retângulo em que as barras de lajes recebem a mesma taxa e o mesmo comprimento.'),
   A('ferramenta:linhaDobra', 'ferramentas', 'Linha de dobra', 'Define o local de negativo máximo e emenda preferencial da armadura inferior das lajes.'),

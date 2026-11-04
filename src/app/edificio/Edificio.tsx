@@ -7,6 +7,7 @@ import { AbaEsforcos } from './AbaEsforcos';
 import { useEffect, useState } from 'react';
 import { calculoAtual, dimAtual, podeRearmar as podeRearm, useBuilding } from './store';
 import { FERRAMENTAS_FUNDACAO, aoEscolher, usePlanta, type Ferramenta } from './plantaStore';
+import { BarraSerie } from './BarraSerie';
 import { Planta, ROTULO_FERRAMENTA, TECLA_FERRAMENTA } from './Planta';
 import { listarComandos } from '../../core/commands';
 import { UNIDADES } from './lancamentoLeitura';
@@ -421,6 +422,7 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
       {pl.ferramenta === 'copiar' && <NumField label="Cópias" width={70} value={pl.copias} onChange={(v) => v >= 1 && v <= 100 && pl.set({ copias: Math.round(v) })} />}
       {pl.ferramenta === 'girar' && <NumField label="Ângulo" unit="°" width={80} value={pl.anguloGiro} onChange={(v) => pl.set({ anguloGiro: v })} />}
       {pl.ferramenta === 'espelhar' && <label className="check small"><Input type="checkbox" checked={pl.espelharCopia} onChange={(e) => pl.set({ espelharCopia: e.target.checked })} /> <span>Manter os originais (cópia)</span></label>}
+      <BarraSerie />
       {pl.ferramenta === 'fundacao' && <label className="check small" title="Cada clique marca ou desmarca um pilar; Enter cria a sapata associada ou o bloco com vários pilares"><Input type="checkbox" checked={pl.multiFund} onChange={(e) => pl.set({ multiFund: e.target.checked, pilaresFund: [] })} /> <span>Vários pilares (Enter cria)</span></label>}
       {pl.ferramenta === 'radier' && <NumField label="h do radier" unit="m" width={90} value={pl.hRadier} onChange={(v) => v >= 0.1 && v <= 3 && pl.set({ hRadier: v })} />}
       {pl.ferramenta === 'corrida' && <>

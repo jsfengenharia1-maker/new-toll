@@ -185,6 +185,7 @@ Todas as 40 ferramentas de `Ferramenta` (plantaStore.ts) e a tecla de `TECLA_FER
 | T45 | Diagonal por dois pontos | | Planta.tsx, MenuFerramentaMouse.tsx | RB:lancamento / Elementos (E5b; acrescentada após o mapa) |
 | T46 | Consolo na face do pilar | | Planta.tsx | RB:lancamento / Elementos (E5b; acrescentada após o mapa) |
 | T47 | Ábaco | | Planta.tsx, MenuFerramentaMouse.tsx | RB:vigasLajes / Ábacos (E5b; acrescentada após o mapa) |
+| T48 | Matriz | | Planta.tsx | RB:edicao / Série (lançamento em série; acrescentada após o mapa) |
 
 Opções e botões da `PlantaBarra` (barra da planta hoje, `.planta-barra`):
 
@@ -317,7 +318,7 @@ Teclas da planta (Planta.tsx, `onKey`; só no módulo Edifício, com foco fora d
 - Ferramentas da planta: 42 (T1 a T42; T42 Escada, E4b); opções da barra da planta: 22 (B1 a B22); teclas: 16 (K1 a K16).
 - Fundação, vistas e janelas: 13 (F1 a F13) + 10 vistas (V1 a V10) + 8 janelas (W1 a W8) = 31.
 - Módulo Fundações: 6 (M1 a M6). Barra de status: 6 (S1 a S6).
-- Total: 58 + 44 + 43 + 22 + 16 + 31 + 6 + 6 = **226 itens**, sem item sem destino; 13 duplicados resolvidos (seção 7).
+- Total: 58 + 44 + 44 + 22 + 16 + 31 + 6 + 6 = **227 itens**, sem item sem destino; 13 duplicados resolvidos (seção 7).
 
 ## 9. Faixa de comandos por módulo (resumo dos grupos)
 

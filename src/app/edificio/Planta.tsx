@@ -60,6 +60,7 @@ import { geometriaCota, offsetDoPonto, resolverRef } from '../../core/building/c
 import { ajudaDaFerramenta } from '../../core/ajuda';
 import { acaoDoClique, estenderCadeia, iniciarCadeia, passagensDoTrecho, reconciliarCadeia, type EstagioCadeia } from './cadeia';
 import { linhaDeAjuste } from '../../core/commands/vigas';
+import { agirMatriz, desenharSerie, tratarTeclaSerie, useSerie } from './ferramentasSerie';
 import { ancoraMaisProxima, ancorasRef, deslocamentoPorCliques, refDe, textosVisiveis } from '../../core/building/vistaObra';
 
 type P2 = [number, number];
@@ -163,6 +164,7 @@ const distSeg = (p: P2, a: P2, z: P2) => {
 export const ROTULO_FERRAMENTA: Record<Ferramenta, string> = {
   selecionar: 'Selecionar', plano: 'Definir plano na planta', pilar: 'Pilar', viga: 'Viga', laje: 'Laje', carga: 'Carga', eixo: 'Eixo', fundacao: 'Fundação', vigaFund: 'Viga de fundação', girarFund: 'Girar 2 pontos', insFund: 'Ponto de inserção', radier: 'Radier', vigaElastica: 'Viga sobre base elástica', vigaGabarito: 'Viga pelo gabarito', moverRef: 'Mover referência', contaGotas: 'Conta-gotas', contornoRet: 'Contorno retangular de vigas', aberturaRet: 'Abertura retangular', cargaLaje: 'Carga na laje inteira', cargaViga: 'Carga ao longo da viga', direcaoPano: 'Direção do pano', insercaoPano: 'Inserção do pano (vértice)', cota: 'Cota em série', corrida: 'Sapata corrida', limite: 'Limite da fundação', limiteMascara: 'Limite pela máscara', mover: 'Mover', medir: 'Medir', alinhar: 'Alinhar máscara',
   dividir: 'Dividir viga', unir: 'Unir vigas', prolongar: 'Prolongar viga', copiar: 'Copiar', girar: 'Girar', espelhar: 'Espelhar', puncao: 'Armadura de punção', zonaLaje: 'Zona de uniformização', corte: 'Corte do edifício', secao: 'Linha de seção', flecha: 'Flecha entre dois pontos', linhaDobra: 'Linha de dobra', pilarParede: 'Pilar-parede', parede: 'Parede de concreto', escada: 'Escada', diagonal: 'Diagonal por dois pontos', consolo: 'Consolo na face do pilar', abaco: 'Ábaco',
+  matriz: 'Matriz',
 };
 export const TECLA_FERRAMENTA: Partial<Record<Ferramenta, string>> = { selecionar: 'S', pilar: 'P', viga: 'V', laje: 'L', carga: 'C', eixo: 'E', fundacao: 'U', vigaFund: 'B', girarFund: 'K', insFund: 'N', radier: 'W', vigaElastica: 'X', corrida: 'A', limite: 'T', limiteMascara: 'Q', mover: 'M', medir: 'D', dividir: 'I', unir: 'J', prolongar: 'O', copiar: 'Y', girar: 'G', espelhar: 'H', puncao: 'Z', escada: 'Shift+E' };
 
@@ -180,6 +182,7 @@ const PASSOS: Record<Ferramenta, string[]> = {
   carga: ['Carga: clique o ponto (ou os pontos da linha/área; na linha cada clique já cria o trecho; Enter termina a área).', 'Próximo ponto · Esc ou botão direito termina a linha (Enter também); na área, Enter fecha.'],
   eixo: ['Primeiro ponto do eixo.', 'Segundo ponto (digite a distância, @dx;dy ou @d<ângulo e Enter).'],
   mover: ['Ponto base do deslocamento da seleção.', 'Ponto de destino.'],
+  matriz: ['Matriz linear: ponto base (na matriz polar, o clique é o centro e já cria as cópias da seleção).', 'Segundo ponto: a distância entre cópias (Passo) ou a posição da última cópia (Até o último).'],
   medir: ['Primeiro ponto.', 'Segundo ponto.'],
   flecha: ['Primeiro ponto da flecha (a laje do pavimento aberto; calcule a obra antes).', 'Segundo ponto: a aba Deslocamentos abre com a flecha entre os dois pontos.'],
   vigaGabarito: ['Clique numa linha, arco ou polilinha do gabarito (modo eixo: a viga sai pelo eixo; modo face: a linha é a face da viga).', 'Clique do lado em que o corpo da viga deve ficar (a linha é a face oposta ao clique).'],
@@ -226,6 +229,7 @@ export function Planta() {
   const aj = useAjuda();
   const b = sessao.modelo;
   const pl = usePlanta();
+  useSerie(); // pré-visualização em série (pilares nos cruzamentos) redesenha a planta
   const pavs = pavimentosOrdenados(b);
   const nivelFund = pl.pavimento === 'fundacao';
   const pav = nivelFund ? pavs[0] ?? null : pavs.find((p) => p.id === pl.pavimento) ?? pavs[Math.min(1, pavs.length - 1)] ?? null;
@@ -1370,6 +1374,7 @@ export function Planta() {
       ctx.globalAlpha = 0.45; ctx.fillStyle = cores.pilar; ctx.fill(); ctx.globalAlpha = 1; ctx.setLineDash([4, 3]); ctx.strokeStyle = cores.pilar; ctx.stroke(); ctx.setLineDash([]);
       ctx.fillStyle = cores.captura; ctx.fillRect(px - 2.5, py - 2.5, 5, 5);
     }
+    desenharSerie(ctx, paraTela, cores, b, pontos, s.ponto); // pilares nos cruzamentos e cópias da matriz
     // prévia do pilar-parede (E1b): contorno de cada lado do tipo escolhido no ponto
     if (pl.ferramenta === 'pilarParede' && pl.ppTipo && !s.pan) {
       const fant = { id: '?', nome: '?', tipo: pl.ppTipo, x: s.ponto[0], y: s.ponto[1], angulo: pl.ppAngulo, nasce: 'fundacao', morre: pavimentosOrdenados(b).at(-1)?.id ?? '' };
@@ -1771,6 +1776,7 @@ export function Planta() {
       setPontos(novos);
       return;
     }
+    if (f === 'matriz') { agirMatriz(b, p, pontosRef.current, setPontos, exec); return; }
     if (f === 'pilar') {
       // sobre um pilar de baixo que admite outro por cima: coordenadas relativas ao ponto fixo dele (nasce no pavimento em que ele morre)
       const q = !pl.arranque ? baixoSob(p) ?? (it.current.baixo ? naPlanta.find((x) => x.p.id === it.current.baixo) ?? null : null) : null;
@@ -2334,6 +2340,7 @@ export function Planta() {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       const P = usePlanta.getState(), k = e.key;
       const espera = P.ferramenta !== 'selecionar';
+      if (tratarTeclaSerie(k, e.type)) { e.preventDefault(); return; }
       if (k === ' ') { it.current.espaco = e.type === 'keydown'; e.preventDefault(); return; }
       if (e.type !== 'keydown') return;
       if (espera && /^[\d@\-+.,;<]$/.test(k)) { setPosDig([...it.current.tela]); setDigitando(k); e.preventDefault(); return; }

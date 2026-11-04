@@ -18,9 +18,9 @@ const r9 = (v: number) => +v.toFixed(9);
 const angNorm = (a: number) => { const r = r9(((a % 360) + 360) % 360); return r >= 360 ? 0 : r; };
 
 /** Transformação rígida do plano (rotação ou reflexão) aplicada a pontos e ângulos. */
-interface Transf { ponto(p: P): P; angulo(a: number): number; reflete: boolean }
+export interface Transf { ponto(p: P): P; angulo(a: number): number; reflete: boolean }
 
-function rotacao(c: P, graus: number): Transf {
+export function rotacao(c: P, graus: number): Transf {
   const t = (graus * Math.PI) / 180, cs = Math.cos(t), sn = Math.sin(t);
   return {
     ponto: ([x, y]) => [r9(c[0] + (x - c[0]) * cs - (y - c[1]) * sn), r9(c[1] + (x - c[0]) * sn + (y - c[1]) * cs)],
@@ -41,7 +41,7 @@ function reflexao(a: P, z: P): Transf {
 /** Na reflexão o eixo local y do pilar inverte: o ponto de inserção troca norte ↔ sul. */
 const AJUSTE_REFLETIDO: Record<Ajuste, Ajuste> = { c: 'c', n: 's', s: 'n', l: 'l', o: 'o', ne: 'se', se: 'ne', no: 'so', so: 'no' };
 
-function validarSelecao(b: BuildingModel, p: Selecao): Diagnostico[] {
+export function validarSelecao(b: BuildingModel, p: Selecao): Diagnostico[] {
   const total = (p.pilares?.length ?? 0) + (p.vigas?.length ?? 0) + (p.lajes?.length ?? 0) + (p.cargas?.length ?? 0);
   if (!total) return err('SELECAO_VAZIA', 'Selecione ao menos um elemento.');
   const falta = [
@@ -53,7 +53,7 @@ function validarSelecao(b: BuildingModel, p: Selecao): Diagnostico[] {
   return falta.length ? err('ELEMENTO_INEXISTENTE', `Elemento(s) inexistente(s): ${falta.join(', ')}.`, falta) : [];
 }
 
-const pilarTransformado = (q: Pilar, t: Transf): Pilar => {
+export const pilarTransformado = (q: Pilar, t: Transf): Pilar => {
   const [x, y] = t.ponto([q.x, q.y]);
   const o = t.ponto([0, 0]);
   // lances com ponto fixo, ângulo e deslocamento próprios (E1a) acompanham a transformação
@@ -66,7 +66,7 @@ const pilarTransformado = (q: Pilar, t: Transf): Pilar => {
 };
 
 /** Pilares transformados que ficariam sobre outros (movidos: ignora os da própria seleção; copiados: considera todos). */
-function sobreposicoes(b: BuildingModel, ids: string[], t: Transf, copiar: boolean): Diagnostico[] {
+export function sobreposicoes(b: BuildingModel, ids: string[], t: Transf, copiar: boolean): Diagnostico[] {
   const mov = new Set(copiar ? [] : ids);
   const novos = ids.map((id) => ({ ...pilarTransformado(b.pilares.find((x) => x.id === id)!, t), id: copiar ? `${id}#c` : id }));
   const tmp = { ...b, pilares: [...b.pilares.filter((x) => copiar || !mov.has(x.id)), ...novos] };
@@ -77,7 +77,7 @@ function sobreposicoes(b: BuildingModel, ids: string[], t: Transf, copiar: boole
   return [];
 }
 
-function aplicarTransf(d: Draft<BuildingModel>, p: Selecao, t: Transf) {
+export function aplicarTransf(d: Draft<BuildingModel>, p: Selecao, t: Transf) {
   for (const q of d.pilares) if (p.pilares?.includes(q.id)) Object.assign(q, pilarTransformado(q as Pilar, t));
   for (const v of d.vigas) if (p.vigas?.includes(v.id)) {
     v.pontos = v.pontos.map((q) => t.ponto(q as P));
