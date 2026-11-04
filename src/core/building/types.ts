@@ -1188,6 +1188,8 @@ export interface BuildingModel {
   tiposLance?: TipoLance[];
   /** Planos inclinados dos grupos (E3f): lajes e vigas com `plano` seguem z(x, y); ausente = nenhum. */
   planos?: Plano[];
+  /** Elementos fixados (alfinete): ids que não podem ser movidos, girados, espelhados, alinhados, deslocados nem apagados (`building/fixacao.ts`); ausente = nenhum. */
+  fixados?: string[];
 }
 
 /** Tipos de texto de referência da planta (L4, C3.30). */
@@ -1644,7 +1646,13 @@ export const cotaFundacao = (b: BuildingModel) => (b.pavimentos.length ? Math.mi
 
 /** Modelos gravados antes de um campo existir ganham o valor vazio. */
 export function normalizarEdificio(b: BuildingModel): BuildingModel {
-  return { ...b, mascaras: b.mascaras ?? [], pilares: b.pilares ?? [], vigas: b.vigas ?? [], lajes: b.lajes ?? [], cargas: b.cargas ?? [], vento: b.vento ?? { ...VENTO_PADRAO } };
+  const n: BuildingModel = { ...b, mascaras: b.mascaras ?? [], pilares: b.pilares ?? [], vigas: b.vigas ?? [], lajes: b.lajes ?? [], cargas: b.cargas ?? [], vento: b.vento ?? { ...VENTO_PADRAO } };
+  // fixados (alfinete): arquivos antigos não têm; lista inválida ou vazia sai, ids repetidos ou não textuais são descartados
+  if (n.fixados !== undefined) {
+    const f = Array.isArray(n.fixados) ? [...new Set(n.fixados.filter((x): x is string => typeof x === 'string'))] : [];
+    if (f.length) n.fixados = f; else delete n.fixados;
+  }
+  return n;
 }
 
 /** Pavimentos atravessados pelo pilar (topos dos lances), de baixo para cima. */

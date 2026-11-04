@@ -40,6 +40,9 @@ import './alvenaria';
 import './cortes';
 import './cotas';
 import './grupos';
+import './fixacao';
+import './modificar';
+import './corresponder';
 
 export * from './registry';
 export { PARAMS_FUNDACAO } from './fundacao';

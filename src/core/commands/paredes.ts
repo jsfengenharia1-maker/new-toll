@@ -31,7 +31,7 @@ const limpar = (pts: P[]): P[] => { const out: P[] = []; for (const p of pts) if
 const proximoNumero = (b: BuildingModel) => Math.max(0, ...(b.paredes ?? []).map((w) => { const m = /^M(\d+)$/.exec(w.nome); return m ? +m[1] : 0; })) + 1;
 
 /** Erros da parede nova ou alterada: referências, geometria, aberturas, empuxo e sobreposição com outras paredes. */
-function errosDaParede(b: BuildingModel, w: Parede): Diagnostico[] {
+export function errosDaParede(b: BuildingModel, w: Parede): Diagnostico[] {
   const ref = refsPilar(b, w.nasce, w.morre);
   if (ref.length) return ref;
   const proprios = errosProprios(b, w).filter((x) => x.severidade === 'erro');
@@ -111,7 +111,7 @@ function editada(w: Parede, p: { pontos?: P[] } & Partial<Omit<ParedeIn, 'pontos
 }
 
 /** Vigas embutidas nas paredes dadas. */
-const embutidas = (b: BuildingModel, ws: string[]) => b.vigas.filter((v) => v.embutida && ws.includes(v.embutida));
+export const embutidas = (b: BuildingModel, ws: string[]) => b.vigas.filter((v) => v.embutida && ws.includes(v.embutida));
 
 registrar<{ ids: string[]; dx: number; dy: number }>({
   nome: 'parede.mover',

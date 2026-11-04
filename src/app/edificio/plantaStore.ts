@@ -9,7 +9,7 @@ import { cssVar } from '../design/tokens';
 import { EVENTO_TEMA, temaEfetivo } from '../design/tema';
 
 export type Ferramenta = 'selecionar' | 'pilar' | 'viga' | 'laje' | 'carga' | 'eixo' | 'mover' | 'medir' | 'alinhar' | 'fundacao' | 'vigaFund' | 'girarFund'
-  | 'limite' | 'limiteMascara' | 'insFund' | 'radier' | 'vigaElastica' | 'corrida' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar' | 'puncao' | 'zonaLaje' | 'linhaDobra' | 'pilarParede' | 'parede' | 'corte' | 'secao' | 'vigaGabarito' | 'moverRef' | 'contaGotas'
+  | 'limite' | 'limiteMascara' | 'insFund' | 'radier' | 'vigaElastica' | 'corrida' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar' | 'puncao' | 'zonaLaje' | 'linhaDobra' | 'pilarParede' | 'parede' | 'corte' | 'secao' | 'vigaGabarito' | 'moverRef' | 'contaGotas' | 'corresponder'
   | 'contornoRet' | 'aberturaRet' | 'cargaLaje' | 'cargaViga' | 'direcaoPano' | 'insercaoPano' | 'cota' | 'plano' | 'escada' | 'flecha' | 'diagonal' | 'consolo' | 'abaco';
 /** Ferramentas que só existem no nível de fundação; as que mantêm a seleção ao serem escolhidas (agem sobre ela ou sobre um elemento). */
 export const FERRAMENTAS_FUNDACAO: Ferramenta[] = ['fundacao', 'vigaFund', 'girarFund', 'limite', 'limiteMascara', 'insFund', 'radier', 'vigaElastica', 'corrida'];
@@ -53,6 +53,22 @@ export interface L5Estado {
 }
 export const L5_PADRAO: L5Estado = { simples: false, deslocamento: 0, alinharContorno: true, modoAbertura: 'zero', borda: 'nenhuma', bordaB: 0.15, bordaH: 0.4, vigaRef: null, valorLaje: 2, casoLaje: 'Q', copiarCarga: '', valorViga: 5, casoViga: 'G', direcaoModo: 'viga', relacao: 'paralela', comprimento: 0, panoAuto: true };
 export type Tema = 'escuro' | 'claro' | 'pb';
+export type Restringir = 'livre' | 'horizontal' | 'vertical';
+/** Opções de Modificar lembradas por usuário (neste navegador): cópias em série, ângulo do giro, espelhar com cópia e restrição do deslocamento. */
+const CHAVE_MODIFICAR = 'statikos:opcoes-modificar';
+const OPCOES_MODIFICAR = ['copias', 'anguloGiro', 'espelharCopia', 'restringir'] as const;
+function opcoesModificar(): { copias: number; anguloGiro: number; espelharCopia: boolean; restringir: Restringir } {
+  const padrao = { copias: 1, anguloGiro: 90, espelharCopia: false, restringir: 'livre' as Restringir };
+  try {
+    const o = JSON.parse(localStorage.getItem(CHAVE_MODIFICAR) ?? '{}') as Partial<typeof padrao>;
+    return {
+      copias: Number.isInteger(o.copias) && o.copias! >= 1 && o.copias! <= 100 ? o.copias! : padrao.copias,
+      anguloGiro: typeof o.anguloGiro === 'number' && Number.isFinite(o.anguloGiro) ? o.anguloGiro : padrao.anguloGiro,
+      espelharCopia: o.espelharCopia === true,
+      restringir: o.restringir === 'horizontal' || o.restringir === 'vertical' ? o.restringir : 'livre',
+    };
+  } catch { return padrao; }
+}
 export interface Vista { k: number; ox: number; oy: number } // px por m; tela = (ox + x·k, oy − y·k)
 
 interface PState {
@@ -172,6 +188,8 @@ interface PState {
   valorCarga: number;
   /** Copiar a seleção: número de cópias em série. */
   copias: number;
+  /** Mover e copiar: restringe o deslocamento a uma direção (livre, só horizontal ou só vertical). Lembrado com as cópias, o ângulo e o espelhar com cópia. */
+  restringir: Restringir;
   /** Conta-gotas de pilar (L4): pilar de que copiar os dados e se leva as cargas (não vai para o arquivo). */
   contaGotas: { pilar: string | null; cargas: boolean };
   /** Ferramentas de lançamento (L5). */
@@ -219,7 +237,7 @@ function temaEscolhido(): Tema | null {
 }
 function temaSalvo(): Tema { return temaEscolhido() ?? temaEfetivo(); }
 
-export const usePlanta = create<PState>((set) => ({
+export const usePlanta = create<PState>((set, get) => ({
   pavimento: null,
   ferramenta: 'selecionar',
   vista: null,
@@ -302,7 +320,7 @@ export const usePlanta = create<PState>((set) => ({
   tipoCarga: 'area',
   caso: 'Q',
   valorCarga: 2,
-  copias: 1,
+  ...opcoesModificar(),
   contaGotas: { pilar: null, cargas: false },
   cotasTemp: true,
   refTemp: {},
@@ -310,8 +328,6 @@ export const usePlanta = create<PState>((set) => ({
   abrirLancamento: 0,
   origemDadosPano: '',
   abrirDadosL4: 0,
-  anguloGiro: 90,
-  espelharCopia: false,
   cores: coresSalvas(),
   ultimaAcao: null,
   set(p) {
@@ -320,6 +336,10 @@ export const usePlanta = create<PState>((set) => ({
     // a última ferramenta usada (além de Selecionar) fica para o Enter repetir
     if (p.ferramenta && p.ferramenta !== 'selecionar' && p.ultimaAcao === undefined) p = { ...p, ultimaAcao: { tipo: 'ferramenta', f: p.ferramenta } };
     set(p);
+    if (OPCOES_MODIFICAR.some((k) => k in p)) {
+      const e = get();
+      try { localStorage.setItem(CHAVE_MODIFICAR, JSON.stringify(Object.fromEntries(OPCOES_MODIFICAR.map((k) => [k, e[k]])))); } catch { /* sem armazenamento */ }
+    }
   },
 }));
 

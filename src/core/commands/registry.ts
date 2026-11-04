@@ -9,6 +9,7 @@ import { sincronizarCurvas, temCurvas } from '../building/curvas';
 import { opcoesEmUso, perfilDe } from '../building/opcoes';
 import { sincronizarComuns, temComuns } from '../building/vigaComum';
 import { sincronizarCotas, temCotas } from '../building/cotas';
+import { bloqueioPorFixacao } from '../building/fixacao';
 import { comDefaults, validarSchema, type JsonSchema } from './schema';
 
 enablePatches();
@@ -96,6 +97,8 @@ export function aplicarComando(b: BuildingModel, nome: string, params: unknown):
   const se = validarSchema(c.schema, raw);
   if (se.length) return { ok: false, modelo: b, erros: se.map((e) => erro('PARAMETRO_INVALIDO', `${nome}: ${e.caminho} ${e.mensagem}.`)) };
   const p = comDefaults(c.schema, raw) as Record<string, unknown>;
+  const fx = bloqueioPorFixacao(b, nome, p);
+  if (fx.length) return { ok: false, modelo: b, erros: fx, params: p };
   const ve = (c.validar?.(b, p) ?? []).filter((d) => d.severidade === 'erro');
   if (ve.length) return { ok: false, modelo: b, erros: ve, params: p };
   let mensagem: string | undefined;
@@ -147,7 +150,7 @@ export function diffModelos(a: BuildingModel, z: BuildingModel): Diff {
     }
     for (const [id, x] of A) if (!Z.has(id)) { d.removidos.push(id); d.resumo.push(`− ${rot} ${x.nome ?? id}`); }
   }
-  for (const k of ['obra', 'norma', 'vento', 'prancha', 'vista', 'opcoes', 'perfilOpcoes', 'casos', 'compat', 'estados', 'situacoes', 'empuxos', 'cargasPilar', 'fundacao', 'tabelas', 'normas', 'tramos', 'zonasLaje', 'linhasDobra', 'agrupamentos', 'copiasLaje', 'flechas', 'fogo', 'aberturasPadrao', 'vergasPadrao', 'tiposLaje'] as const)
+  for (const k of ['obra', 'norma', 'vento', 'prancha', 'vista', 'opcoes', 'perfilOpcoes', 'casos', 'compat', 'estados', 'situacoes', 'empuxos', 'cargasPilar', 'fundacao', 'tabelas', 'normas', 'tramos', 'zonasLaje', 'fixados', 'linhasDobra', 'agrupamentos', 'copiasLaje', 'flechas', 'fogo', 'aberturasPadrao', 'vergasPadrao', 'tiposLaje'] as const)
     if (a[k] !== z[k] && JSON.stringify(a[k]) !== JSON.stringify(z[k])) { d.alterados.push(k); d.resumo.push(`~ ${k}`); }
   return d;
 }

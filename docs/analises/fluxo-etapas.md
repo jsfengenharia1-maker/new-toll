@@ -98,6 +98,7 @@ Todo botão de cálculo chama a mesma ação (`useBuilding.calcular()`) com o r�
 | Memorial da obra | Dimensionamento › Relatórios | Pranchas e memorial › Memorial |
 | Memória detalhada… (atalho; o botão da vista Dimensionamento continua) | só na vista Dimensionamento | Pranchas e memorial › Memorial |
 | Mover, Copiar, Girar, Espelhar, Dividir, Unir, Prolongar, Mover referência, Conta-gotas | Edição | Edição (igual) |
+| (novos, aba Modificar do Revit) Corresponder propriedades, Criar semelhante, Filtrar seleção, Iguais no pavimento/na obra, Fixar, Soltar, Fixar eixos e gabarito, Restringir | Edição (grupos Propriedades, Seleção, Fixar e Mover e copiar) | Edição; as abas contextuais Pilar, Viga, Laje e Fundação trazem o grupo Modificar com os comandos aplicáveis ao selecionado (ponto fixo no pilar; dividir, unir e prolongar na viga; tipo do pano na laje) |
 | Enquadrar, Medir, Paleta de comandos, Guia rápido, Camadas | Vista | Vista (igual) |
 
 ## 5. Barra de etapas
@@ -115,3 +116,12 @@ Todo botão de cálculo chama a mesma ação (`useBuilding.calcular()`) com o r�
 - **Antes** (`useBuilding.calcular()`, o mesmo para todo botão): se `pendenciasAntesDeCalcular` (núcleo, `pendencias.ts`) achar pendência impeditiva (panos a definir, obra sem pavimentos, obra sem pilares), a análise não roda e abre a janela "Antes de calcular": impeditivas por tipo (lajes a definir viram uma só, "N lajes sem tipo definido (L1–L6)"), cada uma com "Ir ao elemento" (seleciona e centraliza, troca de pavimento) e, quando há correção, o botão dela ("Definir tipo das lajes L1–L6" abre o seletor de tipo de pano com as lajes selecionadas). Os demais diagnósticos de lançamento aparecem à parte ("Não impedem o cálculo") e o botão passa a "Calcular mesmo assim" quando não há mais impeditivas. O código técnico fica entre parênteses, discreto.
 - **Depois**: com erro de análise, erro de dimensionamento ou elemento reprovado, abre a vista Verificação com o painel "Erros do cálculo" (por tipo de elemento e pavimento; mensagem, sugestão, "Ir ao elemento" e "Abrir dimensionamento"). Sem erros, vai à etapa Resultados e mostra "Cálculo concluído sem erros" com atalhos (Esforços, Deformada, Armaduras, Pranchas), só nas vistas fora da planta. Elementos com erro continuam em vermelho na planta.
 - Obra só com arranques (calcula só a fundação) não abre painel nem aviso.
+
+## 8. Aba Modificar (04/11/2026)
+
+- **Edição**: grupos Modificar (Mover, Copiar, Girar, Espelhar, Dividir, Unir, Prolongar), Mover e copiar (Restringir: livre, só horizontal, só vertical), Propriedades (Corresponder, Criar semelhante), Seleção (Filtrar seleção…, Iguais no pavimento, Iguais na obra), Fixar (Fixar, Soltar, Fixar eixos e gabarito, Soltar tudo), um espaço reservado a Alinhar e Deslocar e Referências.
+- **Abas contextuais** (Pilar, Viga, Laje, Fundação): grupo Modificar (Mover, Copiar, Girar, Espelhar, Corresponder, Criar semelhante, Apagar), Ponto fixo (pilar), Viga (Dividir, Unir, Prolongar), Laje (Tipo do pano…), Fixar e Seleção.
+- **Seleção na planta**: clique substitui; Ctrl+clique soma; Shift+clique alterna (soma o que falta e tira o que está); janela substitui, Ctrl+janela soma e Shift+janela tira da seleção. A janela inclui as cotas do pavimento.
+- **Fixar**: `elemento.fixar/soltar` (lista `fixados` no modelo). A recusa fica no núcleo (`aplicarComando`), vale para o MCP e a CLI. Alfinete desenhado no centro do elemento fixado.
+- **Atalhos**: Shift+S (Criar semelhante) e Shift+M (Corresponder).
+

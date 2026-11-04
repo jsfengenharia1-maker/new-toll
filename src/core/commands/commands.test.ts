@@ -119,6 +119,9 @@ function base() {
   // L7: um pano criado longe dos demais e apagado (abertura com cruz tracejada; para restaurar)
   expect(s.executar('laje.criar', { grupo: 'g_3', contorno: [[200, 0], [204, 0], [204, 3], [200, 3]] }).ok).toBe(true);
   expect(s.executar('laje.apagarPano', { ids: [s.modelo.lajes.at(-1)!.id] }).ok).toBe(true);
+  // Modificar: uma carga longe das demais, já fixada (para soltar)
+  expect(s.executar('carga.ponto', { grupo: 'g_3', ponto: [300, 300], valor: 3 }).ok).toBe(true);
+  expect(s.executar('elemento.fixar', { ids: [s.modelo.cargas.at(-1)!.id] }).ok).toBe(true);
   return s.modelo;
 }
 
@@ -129,6 +132,14 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'obra.assistente': () => ({ espec: { nome: 'Assistente', cotaBase: 100, perfil: 'nbr', pavimentos: [{ nome: 'Térreo', peDireito: 3, categoria: 'comum', repeticoes: 1 }, { nome: 'Tipo', peDireito: 3, categoria: 'residencial', repeticoes: 2 }], eixos: { dx: [5], dy: [] } } }),
   'norma.definir': () => ({ fck: 35, caa: 'III', psiQ: [0.7, 0.6, 0.4], psiUso: { C: [0.8, 0.7, 0.5] } }),
   'editar.girar': (b) => ({ pilares: [b.pilares[1].id], vigas: [b.vigas[0].id], lajes: [b.lajes[0].id], cargas: [b.cargas[0].id], centro: [4, 3], angulo: 30 }),
+  'elemento.fixar': (b) => ({ ids: [b.pilares[0].id, b.lajes[0].id], tipos: ['eixos'] }),
+  'elemento.soltar': (b) => ({ ids: [b.cargas.at(-1)!.id] }),
+  'editar.corresponder': (b) => ({ origem: b.pilares[0].id, destinos: [b.pilares[2].id], campos: ['secao', 'cobrimento'] }),
+  'laje.mover': (b) => ({ ids: [b.lajes[1].id], dx: 100, dy: 0 }),
+  'laje.copiar': (b) => ({ ids: [b.lajes[1].id], dx: 100, dy: 0, vezes: 2 }),
+  'carga.mover': (b) => ({ ids: [b.cargas[0].id], dx: 1, dy: 2 }),
+  'carga.copiar': (b) => ({ ids: [b.cargas[0].id], dx: 1, dy: 2, vezes: 2 }),
+  'parede.copiar': (b) => ({ ids: [b.paredes![0].id], dx: 0, dy: 20, vezes: 1 }),
   'editar.espelhar': (b) => ({ pilares: [b.pilares[1].id], vigas: [b.vigas[1].id], eixo: [[5, -10], [5, 10]], copiar: true }),
   'vento.definir': () => ({ v0: 40, categoria: 'III', caX: 1.2, sentido: { xn: 0.33 }, vizinhanca: 1.1, platibanda: 1 }),
   'caso.criar': () => ({ nome: 'Reservatório', natureza: 'Q', grupo: 'reservatório', psi: [0.5, 0.4, 0.3], descricao: 'Caixa d\'água superior' }),
@@ -501,7 +512,7 @@ describe('revisão de cálculo', () => {
     for (const c of listarComandos().filter((x) => x.calculo === false)) {
       const r = aplicarComando(b0, c.nome, EXEMPLOS[c.nome](b0));
       expect(r.ok, c.nome).toBe(true);
-      expect(r.patches!.every((p) => ['prancha', 'vista', 'cortes', 'secoes', 'seq', 'cotas'].includes(String(p.path[0]))), c.nome).toBe(true);
+      expect(r.patches!.every((p) => ['prancha', 'vista', 'cortes', 'secoes', 'seq', 'cotas', 'fixados'].includes(String(p.path[0]))), c.nome).toBe(true);
     }
     const src = import.meta.glob(['../building/*.ts', '!../building/*.test.ts', '!../building/types.ts', '!../building/file.ts'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
     expect(Object.keys(src).length).toBeGreaterThan(10);
