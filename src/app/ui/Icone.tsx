@@ -37,6 +37,8 @@ const TRACOS: Record<string, string> = {
   cargaViga: 'M3 16 H19 M4 6 H18 M6 6 V13 M11 6 V13 M16 6 V13',
   importarDxf: 'M5 3 H13 L17 7 V19 H5 Z M8 14 H14 M8 11 H11',
   alinhar: 'M4 4 V18 M4 7 H12 M4 11 H17 M4 15 H9',
+  alinharElem: 'M5 3 V19 M5 6 H15 V10 H5 M5 13 H11 V17 H5',
+  deslocar: 'M3 6 H19 M3 15 H19 M11 8 V13 M8 10 L11 13 L14 10',
   gabarito: 'M3 3 H19 V19 H3 Z M7 7 H15 V15 H7 Z',
   contorno: 'M4 4 H18 V18 H4 Z M7 7 H15 V15 H7 Z',
   abertura: 'M3 4 H19 V18 H3 Z M8 8 H14 V14 H8 Z M8 8 L14 14',

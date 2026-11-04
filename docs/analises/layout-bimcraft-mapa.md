@@ -185,6 +185,8 @@ Todas as 40 ferramentas de `Ferramenta` (plantaStore.ts) e a tecla de `TECLA_FER
 | T45 | Diagonal por dois pontos | | Planta.tsx, MenuFerramentaMouse.tsx | RB:lancamento / Elementos (E5b; acrescentada após o mapa) |
 | T46 | Consolo na face do pilar | | Planta.tsx | RB:lancamento / Elementos (E5b; acrescentada após o mapa) |
 | T47 | Ábaco | | Planta.tsx, MenuFerramentaMouse.tsx | RB:vigasLajes / Ábacos (E5b; acrescentada após o mapa) |
+| T48 | Alinhar | Shift+A | Planta.tsx, alinharPlanta.ts, OpcoesAlinhar.tsx | RB:edicao / Alinhar e deslocar (L9; acrescentada após o mapa) |
+| T49 | Deslocar paralelo | Shift+O | Planta.tsx, alinharPlanta.ts, OpcoesAlinhar.tsx | RB:edicao / Alinhar e deslocar (L9; acrescentada após o mapa) |
 
 Opções e botões da `PlantaBarra` (barra da planta hoje, `.planta-barra`):
 

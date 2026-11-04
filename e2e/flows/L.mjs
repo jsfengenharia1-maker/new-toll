@@ -852,3 +852,82 @@ export const f_lancamento_em_cadeia = {
       perto((await vigas())[3], [[1, -1], [3, -1]]);
     },
   };
+
+export const f_L9 = {
+    name: 'L9: Alinhar (face norte de P2 coincide com a de P1), cadeado (P2 acompanha P1 em 0,5 m), recusa de viga não paralela e Deslocar paralelo com Copiar',
+    async run({ newPage }) {
+      const page = await newPage(NO_PICKERS);
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const esperar = (fn, arg, t = 30000) => page.waitForFunction(fn, arg, { timeout: t });
+      const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building')).building);
+      const solta = () => page.evaluate(() => document.activeElement?.blur?.());
+      const clicar = async (x, y, dy = 0) => { const [sx, sy] = await telaDe(page, x, y); await page.mouse.click(sx, sy + dy); };
+      const pil = (x, y) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`;
+      await cmd('lote {"comandos": [' + [pil(0, 0), pil(5, 0.13)].join(', ') + ']}');
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.pilares?.length === 2, null);
+      await page.locator('.planta-cv[data-vista]').waitFor();
+      await reenquadrarAte(page, [[-0.5, -1], [6, 4]]);
+      const ferramenta = () => page.locator('canvas.int').getAttribute('data-ferramenta');
+
+      // 1) Alinhar: face norte de P1 (referência) e face norte de P2: a de P2 coincide, exato
+      await solta();
+      await page.keyboard.press('Shift+A');
+      assert.equal(await ferramenta(), 'alinharElem');
+      await clicar(0, 0.15);
+      await clicar(5, 0.28);
+      await esperar(() => Math.abs(JSON.parse(localStorage.getItem('statikos:building')).building.pilares[1].y) < 1e-9, null);
+      let b = await modelo();
+      assert.equal(b.pilares[1].x, 5);
+      assert.ok(Math.abs(b.pilares[1].y + b.pilares[1].secao.h / 2 - (b.pilares[0].y + b.pilares[0].secao.h / 2)) < 1e-9);
+      assert.equal(b.restricoes, undefined);
+
+      // 2) cadeado aberto na linha alinhada: um clique trava; P1 sobe 0,5 m e P2 acompanha
+      await clicar(5, 0.15, -10);
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building')).building.restricoes?.length === 1, null);
+      await solta();
+      await cmd(`pilar.mover {"ids": ["${b.pilares[0].id}"], "dx": 0, "dy": 0.5}`);
+      await esperar(() => Math.abs(JSON.parse(localStorage.getItem('statikos:building')).building.pilares[1].y - 0.5) < 1e-9, null);
+      b = await modelo();
+      assert.equal(b.pilares[0].y, 0.5);
+      // desfazer volta os dois de uma vez
+      await solta();
+      await page.keyboard.press('Control+z');
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building')).building.pilares[1].y === 0, null);
+      assert.equal((await modelo()).pilares[0].y, 0);
+
+      // 3) viga não paralela à referência: avisa e não faz
+      await page.keyboard.press('Escape');
+      await page.keyboard.press('Escape');
+      assert.equal(await ferramenta(), 'selecionar');
+      await cmd('viga.tracar {"grupo": "g_3", "pontos": [[0, 3], [6, 3]], "secao": {"b": 0.15, "h": 0.4}}');
+      await cmd('viga.tracar {"grupo": "g_3", "pontos": [[1, 1.6], [4, 2.6]], "secao": {"b": 0.15, "h": 0.4}}');
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building')).building.vigas?.length === 2, null);
+      await solta();
+      await page.keyboard.press('Shift+A');
+      await clicar(3, 3);
+      await clicar(2.5, 2.1);
+      await page.locator('.statusbar .msg', { hasText: 'não é paralelo' }).waitFor();
+      assert.deepEqual((await modelo()).vigas[1].pontos, [[1, 1.6], [4, 2.6]]);
+      await page.keyboard.press('Escape');
+      await page.keyboard.press('Escape');
+
+      // 4) Deslocar paralelo: viga a 2,0 m com Copiar (a original fica)
+      await solta();
+      await page.keyboard.press('Shift+O');
+      assert.equal(await ferramenta(), 'deslocar');
+      const dist = page.locator('label.field').filter({ has: page.locator('.flabel', { hasText: /^Distância$/ }) }).locator('input');
+      await dist.fill('2');
+      await dist.press('Tab');
+      await page.getByLabel('Copiar', { exact: true }).check();
+      await clicar(3, 3);
+      await clicar(3, 4);
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building')).building.vigas?.length === 3, null);
+      b = await modelo();
+      assert.deepEqual(b.vigas[0].pontos, [[0, 3], [6, 3]]);
+      assert.deepEqual(b.vigas[2].pontos, [[0, 5], [6, 5]]);
+      await solta();
+      await page.keyboard.press('Control+z');
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building')).building.vigas?.length === 2, null);
+    },
+  };

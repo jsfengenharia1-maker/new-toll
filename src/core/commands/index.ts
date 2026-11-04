@@ -39,6 +39,8 @@ import './paredesArmadura';
 import './alvenaria';
 import './cortes';
 import './cotas';
+import './alinhar';
+import './deslocar';
 import './grupos';
 
 export * from './registry';

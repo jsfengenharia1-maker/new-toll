@@ -1,5 +1,6 @@
 // Modelo físico do edifício (lançamento por pavimentos). Editado só por comandos (src/core/commands).
 // Unidades: m, kN, graus. Ids são strings curtas estáveis; o nome visível é campo separado e renumerável.
+import type { RestricaoAlinhamento } from '../geom/referencias';
 import { opcoesEmUso, type OpcoesCalculo, type OpcoesLajePropria, type OpcoesPilarPropria, type OpcoesVigaPropria } from './opcoes';
 import type { Boring, FoundationParams, PileType } from '../piles';
 import type { TabelasArmadura } from './tabelasArmadura';
@@ -1169,6 +1170,8 @@ export interface BuildingModel {
   vista?: VistaObra;
   /** Cotas permanentes de planta (L6): séries associativas aos elementos (`building/cotas.ts`). */
   cotas?: CotaPlanta[];
+  /** Alinhamentos travados (L9): o pilar ou a viga `alvo` acompanha a `ref` quando ela se move (`building/alinhamentos.ts`). */
+  restricoes?: RestricaoAlinhamento[];
   /** Agrupamentos de pórticos (R7f): vigas armadas com a mesma armadura (a do pórtico que governa) e um só desenho nas pranchas. */
   agrupamentos?: AgrupamentoPorticos[];
   /** Cópias da armadura das lajes (R7f), guardadas para recuperar depois (ex.: antes de abrir um furo imprevisto). */

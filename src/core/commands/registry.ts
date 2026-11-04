@@ -9,6 +9,7 @@ import { sincronizarCurvas, temCurvas } from '../building/curvas';
 import { opcoesEmUso, perfilDe } from '../building/opcoes';
 import { sincronizarComuns, temComuns } from '../building/vigaComum';
 import { sincronizarCotas, temCotas } from '../building/cotas';
+import { sincronizarRestricoes, temRestricoes } from '../building/alinhamentos';
 import { comDefaults, validarSchema, type JsonSchema } from './schema';
 
 enablePatches();
@@ -125,6 +126,12 @@ export function aplicarComando(b: BuildingModel, nome: string, params: unknown):
     const [m5, p5, i5] = produceWithPatches(modelo, (d) => { avisos = sincronizarCotas(d, b); });
     if (p5.length) { modelo = m5; patches = [...patches, ...p5]; inversos = [...i5, ...inversos]; mensagem = [mensagem, ...avisos].filter(Boolean).join(' '); }
   }
+  // alinhamentos travados (L9): o elemento travado acompanha a referência que se moveu
+  if (temRestricoes(modelo)) {
+    let avisos: string[] = [];
+    const [m6, p6, i6] = produceWithPatches(modelo, (d) => { avisos = sincronizarRestricoes(d); });
+    if (p6.length || avisos.length) { modelo = m6; patches = [...patches, ...p6]; inversos = [...i6, ...inversos]; mensagem = [mensagem, ...avisos].filter(Boolean).join(' '); }
+  }
   return { ok: true, erros: [], modelo, params: p, patches, inversos, diff: diffModelos(b, modelo), mensagem };
 }
 
@@ -147,7 +154,7 @@ export function diffModelos(a: BuildingModel, z: BuildingModel): Diff {
     }
     for (const [id, x] of A) if (!Z.has(id)) { d.removidos.push(id); d.resumo.push(`− ${rot} ${x.nome ?? id}`); }
   }
-  for (const k of ['obra', 'norma', 'vento', 'prancha', 'vista', 'opcoes', 'perfilOpcoes', 'casos', 'compat', 'estados', 'situacoes', 'empuxos', 'cargasPilar', 'fundacao', 'tabelas', 'normas', 'tramos', 'zonasLaje', 'linhasDobra', 'agrupamentos', 'copiasLaje', 'flechas', 'fogo', 'aberturasPadrao', 'vergasPadrao', 'tiposLaje'] as const)
+  for (const k of ['obra', 'norma', 'vento', 'prancha', 'vista', 'opcoes', 'perfilOpcoes', 'casos', 'compat', 'estados', 'situacoes', 'empuxos', 'cargasPilar', 'fundacao', 'tabelas', 'normas', 'tramos', 'zonasLaje', 'linhasDobra', 'agrupamentos', 'copiasLaje', 'flechas', 'fogo', 'aberturasPadrao', 'vergasPadrao', 'tiposLaje', 'restricoes'] as const)
     if (a[k] !== z[k] && JSON.stringify(a[k]) !== JSON.stringify(z[k])) { d.alterados.push(k); d.resumo.push(`~ ${k}`); }
   return d;
 }

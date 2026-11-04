@@ -17,7 +17,7 @@ Diagnóstico que motivou a mudança: a faixa era organizada por tipo de comando 
 | 7 | Resultados | esforços, deslocamentos, isovalores, verificação, dimensionamento, flecha entre pontos, armaduras, resultados do elemento | Dimensionamento |
 | 8 | Pranchas e memorial | pranchas, estilo, cortes nas pranchas, memorial do edifício, memória detalhada | Pranchas |
 
-Depois das etapas ficam as abas utilitárias **Edição** (mover, copiar, girar, espelhar, dividir, unir, prolongar, referências) e **Vista**; a aba contextual do elemento selecionado continua no fim. A aba Arquivo deixa de existir no Edifício (o arquivo da obra está na etapa 1); Pórtico e Fundações mantêm a deles.
+Depois das etapas ficam as abas utilitárias **Edição** (mover, copiar, girar, espelhar, dividir, unir, prolongar, alinhar e deslocar paralelo, referências) e **Vista**; a aba contextual do elemento selecionado continua no fim. A aba Arquivo deixa de existir no Edifício (o arquivo da obra está na etapa 1); Pórtico e Fundações mantêm a deles.
 
 ## 2. Estado de cada etapa (`src/core/building/etapas.ts`)
 
@@ -98,6 +98,7 @@ Todo botão de cálculo chama a mesma ação (`useBuilding.calcular()`) com o r�
 | Memorial da obra | Dimensionamento › Relatórios | Pranchas e memorial › Memorial |
 | Memória detalhada… (atalho; o botão da vista Dimensionamento continua) | só na vista Dimensionamento | Pranchas e memorial › Memorial |
 | Mover, Copiar, Girar, Espelhar, Dividir, Unir, Prolongar, Mover referência, Conta-gotas | Edição | Edição (igual) |
+| Alinhar (Shift+A), Deslocar paralelo (Shift+O) | Edição › Alinhar e deslocar | Edição (igual; L9) |
 | Enquadrar, Medir, Paleta de comandos, Guia rápido, Camadas | Vista | Vista (igual) |
 
 ## 5. Barra de etapas

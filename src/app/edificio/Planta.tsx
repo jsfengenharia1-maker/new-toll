@@ -60,6 +60,7 @@ import { geometriaCota, offsetDoPonto, resolverRef } from '../../core/building/c
 import { ajudaDaFerramenta } from '../../core/ajuda';
 import { acaoDoClique, estenderCadeia, iniciarCadeia, passagensDoTrecho, reconciliarCadeia, type EstagioCadeia } from './cadeia';
 import { linhaDeAjuste } from '../../core/commands/vigas';
+import { agirAlinhar, agirDeslocar, alinharComReferencia, ciclarAlinhar, cliqueNoCadeado, desenharAlinhar, deslocarComElemento, reiniciarAlinhar, type EntradaAlinhar, type OpcoesAlinhar } from './alinharPlanta';
 import { ancoraMaisProxima, ancorasRef, deslocamentoPorCliques, refDe, textosVisiveis } from '../../core/building/vistaObra';
 
 type P2 = [number, number];
@@ -161,10 +162,10 @@ const distSeg = (p: P2, a: P2, z: P2) => {
 
 /** Nome de cada ferramenta (barra da planta, paleta e repetição pelo Enter) e a tecla de atalho. */
 export const ROTULO_FERRAMENTA: Record<Ferramenta, string> = {
-  selecionar: 'Selecionar', plano: 'Definir plano na planta', pilar: 'Pilar', viga: 'Viga', laje: 'Laje', carga: 'Carga', eixo: 'Eixo', fundacao: 'Fundação', vigaFund: 'Viga de fundação', girarFund: 'Girar 2 pontos', insFund: 'Ponto de inserção', radier: 'Radier', vigaElastica: 'Viga sobre base elástica', vigaGabarito: 'Viga pelo gabarito', moverRef: 'Mover referência', contaGotas: 'Conta-gotas', contornoRet: 'Contorno retangular de vigas', aberturaRet: 'Abertura retangular', cargaLaje: 'Carga na laje inteira', cargaViga: 'Carga ao longo da viga', direcaoPano: 'Direção do pano', insercaoPano: 'Inserção do pano (vértice)', cota: 'Cota em série', corrida: 'Sapata corrida', limite: 'Limite da fundação', limiteMascara: 'Limite pela máscara', mover: 'Mover', medir: 'Medir', alinhar: 'Alinhar máscara',
+  selecionar: 'Selecionar', plano: 'Definir plano na planta', pilar: 'Pilar', viga: 'Viga', laje: 'Laje', carga: 'Carga', eixo: 'Eixo', fundacao: 'Fundação', vigaFund: 'Viga de fundação', girarFund: 'Girar 2 pontos', insFund: 'Ponto de inserção', radier: 'Radier', vigaElastica: 'Viga sobre base elástica', vigaGabarito: 'Viga pelo gabarito', moverRef: 'Mover referência', contaGotas: 'Conta-gotas', contornoRet: 'Contorno retangular de vigas', aberturaRet: 'Abertura retangular', cargaLaje: 'Carga na laje inteira', cargaViga: 'Carga ao longo da viga', direcaoPano: 'Direção do pano', insercaoPano: 'Inserção do pano (vértice)', cota: 'Cota em série', corrida: 'Sapata corrida', limite: 'Limite da fundação', limiteMascara: 'Limite pela máscara', mover: 'Mover', medir: 'Medir', alinhar: 'Alinhar máscara', alinharElem: 'Alinhar', deslocar: 'Deslocar paralelo',
   dividir: 'Dividir viga', unir: 'Unir vigas', prolongar: 'Prolongar viga', copiar: 'Copiar', girar: 'Girar', espelhar: 'Espelhar', puncao: 'Armadura de punção', zonaLaje: 'Zona de uniformização', corte: 'Corte do edifício', secao: 'Linha de seção', flecha: 'Flecha entre dois pontos', linhaDobra: 'Linha de dobra', pilarParede: 'Pilar-parede', parede: 'Parede de concreto', escada: 'Escada', diagonal: 'Diagonal por dois pontos', consolo: 'Consolo na face do pilar', abaco: 'Ábaco',
 };
-export const TECLA_FERRAMENTA: Partial<Record<Ferramenta, string>> = { selecionar: 'S', pilar: 'P', viga: 'V', laje: 'L', carga: 'C', eixo: 'E', fundacao: 'U', vigaFund: 'B', girarFund: 'K', insFund: 'N', radier: 'W', vigaElastica: 'X', corrida: 'A', limite: 'T', limiteMascara: 'Q', mover: 'M', medir: 'D', dividir: 'I', unir: 'J', prolongar: 'O', copiar: 'Y', girar: 'G', espelhar: 'H', puncao: 'Z', escada: 'Shift+E' };
+export const TECLA_FERRAMENTA: Partial<Record<Ferramenta, string>> = { alinharElem: 'Shift+A', deslocar: 'Shift+O', selecionar: 'S', pilar: 'P', viga: 'V', laje: 'L', carga: 'C', eixo: 'E', fundacao: 'U', vigaFund: 'B', girarFund: 'K', insFund: 'N', radier: 'W', vigaElastica: 'X', corrida: 'A', limite: 'T', limiteMascara: 'Q', mover: 'M', medir: 'D', dividir: 'I', unir: 'J', prolongar: 'O', copiar: 'Y', girar: 'G', espelhar: 'H', puncao: 'Z', escada: 'Shift+E' };
 
 const LETRAS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 function proximoEixo(b: BuildingModel, horizontal: boolean) {
@@ -193,6 +194,8 @@ const PASSOS: Record<Ferramenta, string[]> = {
   insercaoPano: ['Clique no pano.', 'Clique perto do vértice que será o ponto de inserção do pano.'],
   plano: ['Primeiro ponto do plano (captura o eixo ou a face da viga mais próxima); o tipo de definição e os desníveis ficam no grupo Planos da doca Propriedades.', 'Próximo ponto do plano.', 'Último ponto: cria o plano. Esc cancela.'],
   contaGotas: ['Clique num pilar para pegar os dados dele (clique noutro pilar para trocar).', 'Clique onde inserir um pilar novo com esses dados (Esc volta a Selecionar).'],
+  alinharElem: ['Clique a referência: face de pilar ou viga, eixo da viga, eixo da malha, linha do gabarito ou borda de laje (Tab alterna as sobrepostas).', 'Clique a face, o eixo ou o centro do pilar ou da viga a alinhar: ele é transladado até coincidir com a referência. Cadeado na linha trava; Esc sai.'],
+  deslocar: ['Clique a viga, a parede ou o eixo (ou selecione vários antes) a deslocar em paralelo.', 'Clique do lado para onde deslocar (distância digitada na barra; no modo gráfico, a do clique ao traçado). Copiar mantém o original.'],
   alinhar: ['1º ponto na máscara.', 'Onde esse ponto deve ficar.', '2º ponto na máscara.', 'Onde o 2º ponto deve ficar.'],
   vigaFund: ['Clique no primeiro elemento de fundação (ou pilar de arranque) da viga de fundação.', 'Clique no segundo elemento; a viga é lançada com o tipo e a seção do grupo Fundação. Esc cancela.'],
   girarFund: ['Primeiro ponto da direção: os elementos de fundação selecionados giram para a direção dos dois pontos.', 'Segundo ponto da direção.'],
@@ -438,6 +441,7 @@ export function Planta() {
   const paraMundo = (sx: number, sy: number, v: Vista = vista!): P2 => [(sx - v.ox) / v.k, (v.oy - sy) / v.k];
   const paraTela = (x: number, y: number, v: Vista = vista!): P2 => [v.ox + x * v.k, v.oy - y * v.k];
 
+  useEffect(() => { reiniciarAlinhar(); }, [pl.ferramenta]);
   useEffect(() => {
     const el = wrap.current;
     if (!el) return;
@@ -1178,6 +1182,7 @@ export function Planta() {
     desenharCotasPermanentes(ctx);
     desenharCotasTemporarias(ctx);
     const s = it.current, [px, py] = paraTela(...s.ponto);
+    if (pl.ferramenta === 'alinharElem' || pl.ferramenta === 'deslocar') desenharAlinhar(ctx, pl.ferramenta, entradaAlinhar(), opcoesAlinhar(), paraTela, cores, exec);
     // janela de seleção
     if (s.janela) {
       const [ax, ay] = paraTela(...s.janela.a), [zx, zy] = paraTela(...s.janela.z), cruz = zx < ax;
@@ -1737,8 +1742,17 @@ export function Planta() {
     setPontos(novos); // a mensagem do comando fica na barra; a dica do próximo clique está no passo da planta
   };
 
+  /** Alinhar e Deslocar paralelo (L9): dados da planta para `alinharPlanta.ts`. */
+  const entradaAlinhar = (): EntradaAlinhar => ({ b, pilares: naPlanta.map((q) => q.p), vigas: vigas.map((x) => x.v), lajes: lajes.map((x) => x.l), grupo, cursor: it.current.cursor, k: vista?.k || 1, selecao: pl.selecao });
+  const opcoesAlinhar = (): OpcoesAlinhar => ({ multiplo: pl.alinharMultiplo, travar: pl.alinharTravar, distancia: pl.deslocarDist, copiar: pl.deslocarCopiar, modo: pl.deslocarModo });
   const agir = (p: P2) => {
     const f = pl.ferramenta;
+    if (f === 'alinharElem' || f === 'deslocar') {
+      if (nivelFund || !pav) { msg('Alinhar e deslocar valem nas plantas dos pavimentos.'); return; }
+      (f === 'alinharElem' ? agirAlinhar : agirDeslocar)(entradaAlinhar(), opcoesAlinhar(), exec, msg);
+      desenharInteracao();
+      return;
+    }
     const novos = [...pontosRef.current, p];
     if (f === 'escada') { agirEscada(p); return; }
     if (f === 'diagonal') {
@@ -2246,6 +2260,7 @@ export function Planta() {
       const zona = it.current.zonas.find((q) => Math.hypot(q.x - sx, q.y - sy) <= q.r && !(q.pe && sob && pl.selecao.has(sob.id)));
       if (zona) { zona.acao(); return; }
     }
+    if (pl.ferramenta === 'alinharElem' && cliqueNoCadeado(sx, sy)) { desenharInteracao(); return; }
     if (pl.ferramenta === 'plano' && !nivelFund && !pontosRef.current.length) {
       // E5b (C7.67): arrastar o ponto do plano ou reescrever a cota/inclinação sobre o texto
       const z = it.current.zonasPlano.find((q) => Math.hypot(q.x - sx, q.y - sy) <= q.r), pln = z ? b.planos?.find((x) => x.id === z.id) : undefined;
@@ -2359,9 +2374,13 @@ export function Planta() {
       const ferr: Record<string, Ferramenta> = { s: 'selecionar', p: 'pilar', v: 'viga', l: 'laje', c: 'carga', e: 'eixo', m: 'mover', d: 'medir', u: 'fundacao', b: 'vigaFund', k: 'girarFund', n: 'insFund', t: 'limite', q: 'limiteMascara', w: 'radier', x: 'vigaElastica', i: 'dividir', j: 'unir', o: 'prolongar', y: 'copiar', g: 'girar', h: 'espelhar', z: 'puncao' };
       // A é a tecla da sapata corrida só no nível de fundação e fora das ferramentas em que A já é outra coisa (alinhamento da viga, ajuste do pilar)
       if (k.toLowerCase() === 'a' && nivelFund && P.ferramenta !== 'viga' && P.ferramenta !== 'pilar') { P.set({ ferramenta: 'corrida', ...aoEscolher('corrida') }); it.current.fundPilar = null; it.current.vfIni = null; it.current.insEl = null; setPontos([]); return; }
+      // Shift+A / Shift+O (L9): Alinhar e Deslocar paralelo (as letras sozinhas já são de outras ferramentas)
+      if (e.shiftKey && (k === 'A' || k === 'O') && !e.ctrlKey && !e.metaKey && !nivelFund) { const fe: Ferramenta = k === 'A' ? 'alinharElem' : 'deslocar'; reiniciarAlinhar(); P.set({ ferramenta: fe, ...aoEscolher(fe) }); setPontos([]); return; }
       // Shift+E: ferramenta Escada (E4b); a tecla E sozinha continua sendo Eixo
       if (k === 'E' && e.shiftKey) { if (escolherEscada()) setPontos([]); return; }
       if (ferr[k.toLowerCase()]) { const fe = ferr[k.toLowerCase()]; P.set({ ferramenta: fe, ...aoEscolher(fe) }); it.current.fundPilar = null; it.current.vfIni = null; it.current.insEl = null; setPontos([]); return; }
+      if (k === 'Escape' && (alinharComReferencia() || deslocarComElemento())) { reiniciarAlinhar(); desenharInteracao(); msg('Referência descartada (Esc de novo sai da ferramenta).'); return; }
+      if (k === 'Tab' && P.ferramenta === 'alinharElem') { e.preventDefault(); ciclarAlinhar(); desenharInteracao(); return; }
       if (k === 'Escape') { cotaSerie.current = { refs: [], linha: false, modo: cotaSerie.current.modo }; P.set({ passagemViga: null, passagensViga: [] }); it.current.fundPilar = null; it.current.vigaRef = null; it.current.vfIni = null; it.current.insEl = null; if (P.pilaresFund.length) P.set({ pilaresFund: [] }); else if (pontos.length) setPontos([]); else P.set({ ferramenta: 'selecionar', selecao: new Set() }); return; }
       if (k === 'Tab' && P.ferramenta === 'cota') { e.preventDefault(); const S = cotaSerie.current; S.modo = S.modo === 'face' ? 'eixo' : 'face'; msg(`Referência da série: ${S.modo === 'face' ? 'faces' : 'eixos e centros'}.`); return; }
       if (k === 'Tab') { e.preventDefault(); const s = it.current; s.ciclo++; s.cap = s.caps.length ? s.caps[s.ciclo % s.caps.length] : null; if (s.cap) s.ponto = [s.cap.x, s.cap.y]; desenharInteracao(); return; }

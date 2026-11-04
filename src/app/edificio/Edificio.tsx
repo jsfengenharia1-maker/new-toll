@@ -18,6 +18,7 @@ import { useStore } from '../store';
 import { PREMISSAS, TAXAS } from '../../core/building/premissas';
 import type { Diagnostico } from '../../core/building/verify';
 import { Navegador } from './Navegador';
+import { OpcoesAlinhar } from './OpcoesAlinhar';
 import { Propriedades } from './Propriedades';
 import { Button, Check, Chip, Dock, Dropdown, Group, Hint, Input, Modal, Note, NumField, Palette, Seg, Select, TextCell, TextField, Textarea, ViewTabs, dataAjuda, download, useAjuda } from '../ui';
 import { combinacoesEdificio } from '../../core/building/combinacoes';
@@ -418,6 +419,7 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
         {FERRAMENTAS.filter((t) => nivelFund || t.f === 'fundacao' || !FERRAMENTAS_FUNDACAO.includes(t.f)).map((t) => <Button variant="nenhuma" key={t.f} type="button" role="radio" aria-checked={pl.ferramenta === t.f} className={pl.ferramenta === t.f ? 'on' : ''} title={`${t.rot} (${t.tecla})`} onClick={() => pl.set({ ferramenta: t.f, ...aoEscolher(t.f) })}>{t.rot}</Button>)}
       </div>
       {pl.ferramenta === 'vigaGabarito' && <Seg small value={pl.modoVigaGab} onChange={(v) => pl.set({ modoVigaGab: v })} options={[{ v: 'face', label: 'Linha = face' }, { v: 'eixo', label: 'Linha = eixo' }]} />}
+      {(pl.ferramenta === 'alinharElem' || pl.ferramenta === 'deslocar') && <OpcoesAlinhar />}
       {pl.ferramenta === 'copiar' && <NumField label="Cópias" width={70} value={pl.copias} onChange={(v) => v >= 1 && v <= 100 && pl.set({ copias: Math.round(v) })} />}
       {pl.ferramenta === 'girar' && <NumField label="Ângulo" unit="°" width={80} value={pl.anguloGiro} onChange={(v) => pl.set({ anguloGiro: v })} />}
       {pl.ferramenta === 'espelhar' && <label className="check small"><Input type="checkbox" checked={pl.espelharCopia} onChange={(e) => pl.set({ espelharCopia: e.target.checked })} /> <span>Manter os originais (cópia)</span></label>}

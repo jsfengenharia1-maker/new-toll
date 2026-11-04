@@ -290,6 +290,7 @@ function Edicao() {
         <Ferr f="mover" icon="mover" /><Ferr f="copiar" icon="copiar" /><Ferr f="girar" icon="girar" /><Ferr f="espelhar" icon="espelhar" />
         <Ferr f="dividir" icon="dividir" /><Ferr f="unir" icon="unir" /><Ferr f="prolongar" icon="prolongar" />
       </RibbonGroup>
+      <RibbonGroup label="Alinhar e deslocar" radios="Ferramenta"><Ferr f="alinharElem" icon="alinharElem" /><Ferr f="deslocar" icon="deslocar" /></RibbonGroup>
       <RibbonGroup label="Referências" radios="Ferramenta"><Ferr f="moverRef" icon="referencia" /><Ferr f="contaGotas" icon="contaGotas" /></RibbonGroup>
     </>
   );

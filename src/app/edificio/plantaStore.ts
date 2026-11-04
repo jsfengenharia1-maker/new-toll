@@ -10,7 +10,7 @@ import { EVENTO_TEMA, temaEfetivo } from '../design/tema';
 
 export type Ferramenta = 'selecionar' | 'pilar' | 'viga' | 'laje' | 'carga' | 'eixo' | 'mover' | 'medir' | 'alinhar' | 'fundacao' | 'vigaFund' | 'girarFund'
   | 'limite' | 'limiteMascara' | 'insFund' | 'radier' | 'vigaElastica' | 'corrida' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar' | 'puncao' | 'zonaLaje' | 'linhaDobra' | 'pilarParede' | 'parede' | 'corte' | 'secao' | 'vigaGabarito' | 'moverRef' | 'contaGotas'
-  | 'contornoRet' | 'aberturaRet' | 'cargaLaje' | 'cargaViga' | 'direcaoPano' | 'insercaoPano' | 'cota' | 'plano' | 'escada' | 'flecha' | 'diagonal' | 'consolo' | 'abaco';
+  | 'contornoRet' | 'aberturaRet' | 'cargaLaje' | 'cargaViga' | 'direcaoPano' | 'insercaoPano' | 'cota' | 'plano' | 'escada' | 'flecha' | 'diagonal' | 'consolo' | 'abaco' | 'alinharElem' | 'deslocar';
 /** Ferramentas que só existem no nível de fundação; as que mantêm a seleção ao serem escolhidas (agem sobre ela ou sobre um elemento). */
 export const FERRAMENTAS_FUNDACAO: Ferramenta[] = ['fundacao', 'vigaFund', 'girarFund', 'limite', 'limiteMascara', 'insFund', 'radier', 'vigaElastica', 'corrida'];
 export const MANTEM_SELECAO: Ferramenta[] = ['girarFund', 'insFund'];
@@ -157,6 +157,13 @@ interface PState {
   mostrarCortes: boolean;
   janelaCorte: { tipo: 'corte' | 'secao'; id: string } | null;
   alinharEscala: boolean;
+  /** Alinhar (L9): manter a referência e alinhar vários elementos; travar (cadeado) ao alinhar. */
+  alinharMultiplo: boolean;
+  alinharTravar: boolean;
+  /** Deslocar paralelo (L9): distância digitada (m), cópia em vez de mover e modo (digitar ou arrastar). */
+  deslocarDist: number;
+  deslocarCopiar: boolean;
+  deslocarModo: 'digitar' | 'grafico';
   secaoViga: { b: number; h: number };
   alinhamento: Alinhamento;
   invertida: boolean;
@@ -292,6 +299,11 @@ export const usePlanta = create<PState>((set) => ({
   mostrarCortes: true,
   janelaCorte: null,
   alinharEscala: false,
+  alinharMultiplo: false,
+  alinharTravar: false,
+  deslocarDist: 1,
+  deslocarCopiar: false,
+  deslocarModo: 'digitar',
   secaoViga: { b: 0.15, h: 0.4 },
   alinhamento: 'centro',
   invertida: false,

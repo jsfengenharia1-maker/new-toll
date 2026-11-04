@@ -368,6 +368,10 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'pilar.pontoFixo': (b) => ({ ids: [b.pilares[0].id], ajuste: 'so', mantemPosicao: true }),
   'laje.copiarDados': (b) => ({ de: b.lajes[1].id, para: [b.lajes[0].id], campos: ['tipo', 'cobrimento'] }),
   'portico.renumerar': () => ({ grupo: 'g_3' }),
+  // L9
+  'editar.alinhar': (b) => ({ ref: { k: 'pilar', id: b.pilares[0].id, parte: 'cx' }, alvo: { k: 'pilar', id: b.pilares[1].id, parte: 'cx' }, travar: true }),
+  'restricao.alinhamento': (b) => ({ ref: { k: 'pilar', id: b.pilares[0].id, parte: 'cx' }, alvo: { k: 'pilar', id: b.pilares[1].id, parte: 'cx' } }),
+  'editar.deslocar': (b) => ({ vigas: [b.vigas[0].id], distancia: 1.5, copiar: true }),
   // L5
   'viga.contornoRetangular': () => ({ grupo: 'g_3', c1: [-20, 20], c2: [-14, 24], secao: { b: 0.15, h: 0.5 } }),
   'laje.aberturaRetangular': (b) => ({ id: b.lajes[0].id, modo: 'zero', c1: [10.5, 0.5], c2: [11.2, 1.2], borda: 'alta' }),
