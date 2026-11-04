@@ -983,3 +983,138 @@ export const f_L10 = {
       await esperar('pilares', 10);
     },
   };
+
+// ---- aba Modificar (Revit): filtro da seleção, fixar, corresponder e mover lajes ----
+const modeloEdif = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
+async function abrirEdificio(page, comandos) {
+  await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+  const lote = async (lista) => {
+    const txt = lista.map((c) => `{"nome": "${c[0]}", "params": ${JSON.stringify(c[1])}}`).join(', ');
+    await page.locator('#edcmd').fill(`lote {"comandos": [${txt}]}`);
+    await page.locator('#edcmd').press('Enter');
+  };
+  // 1º lote: o que não precisa do grupo (grava o modelo no navegador); 2º: o que precisa, com o id do grupo Tipo lido do modelo
+  const todos = comandos('__GRUPO__');
+  await lote([['obra.definir', { nome: 'Teste Modificar' }], ...todos.filter((c) => !JSON.stringify(c[1]).includes('__GRUPO__'))]);
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.grupos?.length);
+  const grupo = (await modeloEdif(page)).grupos.find((g) => g.nome === 'Tipo').id;
+  const com = todos.filter((c) => JSON.stringify(c[1]).includes('__GRUPO__')).map((c) => [c[0], JSON.parse(JSON.stringify(c[1]).replaceAll('__GRUPO__', grupo))]);
+  if (com.length) await lote(com);
+  await page.waitForTimeout(300);
+  await page.keyboard.press('f');
+  await page.waitForTimeout(150);
+  await page.locator('.planta-cv').click({ position: { x: 5, y: 5 }, button: 'right' }); // foco na planta, sem ação
+}
+const clicarEm = async (page, x, y, extra = {}) => { const [sx, sy] = await telaDe(page, x, y); await page.mouse.move(sx, sy); await page.mouse.click(sx, sy, extra); };
+const arrastar = async (page, de, ate) => {
+  const [ax, ay] = await telaDe(page, ...de), [zx, zy] = await telaDe(page, ...ate);
+  await page.mouse.move(ax, ay); await page.mouse.down(); await page.mouse.move((ax + zx) / 2, (ay + zy) / 2, { steps: 4 }); await page.mouse.move(zx, zy, { steps: 4 }); await page.mouse.up();
+};
+const statusMsg = (page, texto) => page.locator('.statusbar .msg', { hasText: texto }).waitFor();
+
+export const f_modificar_filtro = {
+    name: 'Modificar: janela de seleção com filtro por tipo (conta por tipo, tira as vigas e o Delete só apaga os pilares)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await abrirEdificio(page, (g) => [
+        ...[[0, 0], [5, 0], [5, 4], [0, 4]].map(([x, y]) => ['pilar.inserir', { x, y, secao: { tipo: 'ret', b: 0.2, h: 0.4 } }]),
+        ['viga.tracar', { grupo: g, pontos: [[0, 0], [5, 0]], secao: { b: 0.15, h: 0.4 } }],
+        ['viga.tracar', { grupo: g, pontos: [[5, 0], [5, 4]], secao: { b: 0.15, h: 0.4 } }],
+      ]);
+      await page.locator('summary', { hasText: 'Pilares (4)' }).waitFor();
+      await reenquadrarAte(page, [[-0.5, 4.5], [5.5, -0.5]]);
+      await arrastar(page, [-0.4, 4.4], [5.4, -0.4]); // da esquerda para a direita: só o que cabe inteiro na janela
+      await statusMsg(page, '6 elemento(s) selecionado(s)');
+      await faixaAba(page, 'Edição');
+      await page.getByRole('button', { name: 'Filtrar seleção…', exact: true }).click();
+      const jan = page.getByRole('dialog', { name: 'Filtrar seleção' });
+      await jan.getByText('6 elemento(s) selecionado(s): 4 pilares, 2 vigas').waitFor();
+      await jan.getByLabel('Vigas (2)').uncheck();
+      await jan.getByRole('button', { name: 'Aplicar', exact: true }).click();
+      await statusMsg(page, 'Filtro aplicado: 4 elemento(s) na seleção (2 retirado(s))');
+      await page.locator('.planta-cv').click({ position: { x: 5, y: 5 }, button: 'right' }); // foco na planta, mantém a seleção
+      await page.keyboard.press('Delete');
+      await page.waitForFunction(() => { const b = JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building; return b && b.pilares.length === 0; });
+      const b = await modeloEdif(page);
+      assert.equal(b.vigas.length, 2, 'as vigas ficaram fora da seleção e não foram apagadas');
+    },
+  };
+
+export const f_modificar_fixar = {
+    name: 'Modificar: fixar eixos e gabarito; mover um eixo fixado é recusado com aviso e solto volta a obedecer',
+    async run({ newPage }) {
+      const page = await newPage();
+      await abrirEdificio(page, () => [['eixo.criar', { nome: 'A', p1: [0, 2], p2: [8, 2] }], ['eixo.criar', { nome: 'B', p1: [0, 6], p2: [8, 6] }]]);
+      await reenquadrarAte(page, [[0, 2], [8, 6]]);
+      await faixaAba(page, 'Edição');
+      await page.getByRole('button', { name: 'Fixar eixos e gabarito', exact: true }).click();
+      await page.waitForFunction(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.fixados?.length === 2);
+      const antes = (await modeloEdif(page)).eixos.map((e) => [e.p1, e.p2]);
+      await clicarEm(page, 3.3, 2); // seleciona o eixo A
+      await page.keyboard.press('m');
+      await clicarEm(page, 3.3, 2);
+      await clicarEm(page, 3.3, 4);
+      await statusMsg(page, 'Elemento fixado (A): não pode ser movido');
+      assert.deepEqual((await modeloEdif(page)).eixos.map((e) => [e.p1, e.p2]), antes, 'o eixo fixado não se moveu');
+      // solto, volta a obedecer
+      await page.keyboard.press('Escape');
+      await faixaAba(page, 'Edição');
+      await page.getByRole('button', { name: 'Soltar tudo' }).click();
+      await page.waitForFunction(() => !JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.fixados);
+      await clicarEm(page, 3.3, 2);
+      await page.keyboard.press('m');
+      await clicarEm(page, 3.3, 2);
+      await clicarEm(page, 3.3, 4);
+      await page.waitForFunction(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.eixos[0].p1[1] !== 2);
+    },
+  };
+
+export const f_modificar_corresponder = {
+    name: 'Modificar: corresponder a seção de um pilar para 3 pilares (origem, janela de campos lembrados, um clique por destino)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await abrirEdificio(page, () => [
+        ['pilar.inserir', { x: 0, y: 0, secao: { tipo: 'ret', b: 0.3, h: 0.6 } }],
+        ...[[4, 0], [8, 0], [12, 0]].map(([x, y]) => ['pilar.inserir', { x, y, secao: { tipo: 'ret', b: 0.2, h: 0.3 } }]),
+      ]);
+      await page.locator('summary', { hasText: 'Pilares (4)' }).waitFor();
+      await reenquadrarAte(page, [[0, 0], [12, 0]]);
+      await faixaAba(page, 'Edição');
+      await page.getByRole('radio', { name: 'Corresponder propriedades', exact: true }).click();
+      await clicarEm(page, 0, 0); // a origem
+      const jan = page.getByRole('dialog', { name: 'Corresponder propriedades' });
+      await jan.getByLabel('Seção (e seções por lance)').waitFor();
+      assert.ok(await jan.getByLabel('Seção (e seções por lance)').isChecked(), 'a seção já vem marcada');
+      assert.ok(!(await jan.getByLabel('Cobrimento').isChecked()), 'o cobrimento não vem marcado');
+      await jan.getByLabel('Cobrimento').check();
+      await jan.getByRole('button', { name: 'Concluir', exact: true }).click();
+      for (const x of [4, 8, 12]) { await clicarEm(page, x, 0); await page.waitForTimeout(80); }
+      await page.waitForFunction(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.pilares.every((p) => p.secao.b === 0.3 && p.secao.h === 0.6));
+      const b = await modeloEdif(page);
+      assert.deepEqual(b.pilares.map((p) => [p.x, p.y]), [[0, 0], [4, 0], [8, 0], [12, 0]], 'a posição nunca é copiada');
+      // os campos marcados ficam lembrados para a próxima vez
+      const lembrado = await page.evaluate(() => JSON.parse(localStorage.getItem('statikos:corresponder-campos') ?? 'null'));
+      assert.ok(lembrado.pilar.includes('cobrimento') && lembrado.pilar.includes('secao'), JSON.stringify(lembrado));
+    },
+  };
+
+export const f_modificar_mover_laje = {
+    name: 'Modificar: mover vale para lajes; "Só vertical" zera o deslocamento em x e a opção fica lembrada',
+    async run({ newPage }) {
+      const page = await newPage();
+      await abrirEdificio(page, (g) => [['laje.criar', { grupo: g, contorno: [[0, 0], [4, 0], [4, 3], [0, 3]] }]]);
+      await reenquadrarAte(page, [[0, 0], [4, 8]]);
+      await faixaAba(page, 'Edição');
+      await page.getByLabel('Restringir o deslocamento').selectOption('vertical');
+      await clicarEm(page, 1.3, 1.2); // seleciona a laje
+      await page.keyboard.press('m');
+      await clicarEm(page, 1.3, 1.2);
+      await clicarEm(page, 2.9, 5.2); // dx = 1,6 e dy = 4: só o dy vale
+      await page.waitForFunction(() => { const l = JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes[0]; return l && l.contorno[0][1] > 3; });
+      const l = (await modeloEdif(page)).lajes[0];
+      assert.deepEqual(l.contorno.map((q) => q[0]), [0, 4, 4, 0], 'x não mudou');
+      assert.ok(Math.abs(l.contorno[0][1] - 4) < 0.35, `y subiu cerca de 4 m: ${l.contorno[0][1]}`);
+      const op = await page.evaluate(() => JSON.parse(localStorage.getItem('statikos:opcoes-modificar') ?? 'null'));
+      assert.equal(op?.restringir, 'vertical');
+    },
+  };

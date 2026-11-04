@@ -7,6 +7,7 @@ import { BotaoPilaresNosCruzamentos, BotaoVigasNosEixos } from './BarraSerie';
 import { aoEscolher, usePlanta, type Ferramenta, type Tema } from './plantaStore';
 import { ROTULO_FERRAMENTA, TECLA_FERRAMENTA } from './Planta';
 import { PlanosFaixa } from './PlanosUI';
+import { BotaoApagar, BotaoSemelhante, BotaoTipoPano, GrupoFixar, GrupoOpcoesMover, GrupoSelecao, PontoFixoPilar } from './ModificarUI';
 import { useBuilding } from './store';
 import { useEdifUI } from './uiStore';
 import { useInclinadasUI } from './InclinadasUI';
@@ -33,6 +34,11 @@ export function Ferr({ f, icon, disabled }: { f: Ferramenta; icon: string; disab
   const atual = usePlanta((s) => s.ferramenta);
   const t = TECLA_FERRAMENTA[f];
   return <RibbonButton role="radio" aria-checked={atual === f} icon={icon} label={ROTULO_FERRAMENTA[f]} title={t ? `${ROTULO_FERRAMENTA[f]} (${t})` : ROTULO_FERRAMENTA[f]} disabled={disabled} onClick={() => irFerramenta(f)} />;
+}
+
+/** Alinhar e deslocar (L9): Alinhar, Deslocar paralelo e as restrições de alinhamento; na aba Edição e nas contextuais. */
+function GrupoAlinharDeslocar() {
+  return <RibbonGroup label="Alinhar e deslocar" radios="Ferramenta"><Ferr f="alinharElem" icon="alinharElem" /><Ferr f="deslocar" icon="deslocar" /></RibbonGroup>;
 }
 
 function Gabarito() {
@@ -293,7 +299,11 @@ function Edicao() {
         <Ferr f="mover" icon="mover" /><Ferr f="copiar" icon="copiar" /><Ferr f="girar" icon="girar" /><Ferr f="espelhar" icon="espelhar" />
         <Ferr f="dividir" icon="dividir" /><Ferr f="unir" icon="unir" /><Ferr f="prolongar" icon="prolongar" />
       </RibbonGroup>
-      <RibbonGroup label="Alinhar e deslocar" radios="Ferramenta"><Ferr f="alinharElem" icon="alinharElem" /><Ferr f="deslocar" icon="deslocar" /></RibbonGroup>
+      <GrupoOpcoesMover />
+      <RibbonGroup label="Propriedades" radios="Ferramenta"><Ferr f="corresponder" icon="transformar" /><BotaoSemelhante /></RibbonGroup>
+      <GrupoSelecao />
+      <GrupoFixar />
+      <GrupoAlinharDeslocar />
       <RibbonGroup label="Série" radios="Ferramenta"><Ferr f="matriz" icon="copiar" /></RibbonGroup>
       <RibbonGroup label="Referências" radios="Ferramenta"><Ferr f="moverRef" icon="referencia" /><Ferr f="contaGotas" icon="contaGotas" /></RibbonGroup>
     </>
@@ -364,6 +374,17 @@ function Contexto() {
         <RibbonButton icon="relatorio" label="Resultados do elemento" disabled={!dim} onClick={() => abrirJanela(alvo)} />
         <RibbonButton icon="enquadrar" label="Centralizar na planta" onClick={() => pl.set({ foco: { id: alvo.id, n: (pl.foco?.n ?? 0) + 1 } })} />
       </RibbonGroup>
+      <RibbonGroup label="Modificar" radios="Ferramenta">
+        <Ferr f="mover" icon="mover" /><Ferr f="copiar" icon="copiar" /><Ferr f="girar" icon="girar" /><Ferr f="espelhar" icon="espelhar" /><Ferr f="corresponder" icon="transformar" />
+        <BotaoSemelhante />
+        {alvo.tipo !== 'fundacao' && <BotaoApagar />}
+      </RibbonGroup>
+      {alvo.tipo === 'pilar' && <PontoFixoPilar />}
+      {alvo.tipo === 'viga' && <RibbonGroup label="Viga" radios="Ferramenta"><Ferr f="dividir" icon="dividir" /><Ferr f="unir" icon="unir" /><Ferr f="prolongar" icon="prolongar" /></RibbonGroup>}
+      {alvo.tipo === 'laje' && <RibbonGroup label="Laje"><BotaoTipoPano /></RibbonGroup>}
+      <GrupoFixar />
+      <GrupoSelecao />
+      <GrupoAlinharDeslocar />
       {alvo.tipo === 'fundacao' && (
         <RibbonGroup label="Fundação">
           <RibbonButton icon="girar" label="Girar 90°" title="Gira os elementos selecionados em 90° (R)" disabled={!fundSel.length} onClick={() => exec('lote', { comandos: fundSel.map((e) => ({ nome: 'fundacao.girar', params: { ids: [e.id], angulo: e.angulo + 90 } })) })} />

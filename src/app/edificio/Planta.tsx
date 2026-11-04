@@ -17,6 +17,10 @@ import { useRevisao } from './revisao';
 import { desenharSimboloPilar } from './simbolosCanvas';
 import { simboloDoEstado, simbolosEmUso } from '../../core/sheets/simbolos';
 import { aoEscolher, facesLaje, hexDaCor, paleta, usePlanta, type Ferramenta, type Vista } from './plantaStore';
+import { restringirDelta, useModificar } from './modificarStore';
+import { desenharFixados } from './fixadosCanvas';
+import { criarSemelhanteSelecionado } from './ModificarAcoes';
+import { tipoCorresp } from '../../core/building/corresponder';
 import { MenuFerramentaMouse } from './MenuFerramentaMouse';
 import { EscadaMenu, escolherEscada } from './EscadaMenu';
 import { dadosComunsDe, geometriaEscada, nomeSequencial, tiposLanceDisponiveis } from '../../core/building/escadas';
@@ -164,10 +168,10 @@ const distSeg = (p: P2, a: P2, z: P2) => {
 /** Nome de cada ferramenta (barra da planta, paleta e repetição pelo Enter) e a tecla de atalho. */
 export const ROTULO_FERRAMENTA: Record<Ferramenta, string> = {
   selecionar: 'Selecionar', plano: 'Definir plano na planta', pilar: 'Pilar', viga: 'Viga', laje: 'Laje', carga: 'Carga', eixo: 'Eixo', fundacao: 'Fundação', vigaFund: 'Viga de fundação', girarFund: 'Girar 2 pontos', insFund: 'Ponto de inserção', radier: 'Radier', vigaElastica: 'Viga sobre base elástica', vigaGabarito: 'Viga pelo gabarito', moverRef: 'Mover referência', contaGotas: 'Conta-gotas', contornoRet: 'Contorno retangular de vigas', aberturaRet: 'Abertura retangular', cargaLaje: 'Carga na laje inteira', cargaViga: 'Carga ao longo da viga', direcaoPano: 'Direção do pano', insercaoPano: 'Inserção do pano (vértice)', cota: 'Cota em série', corrida: 'Sapata corrida', limite: 'Limite da fundação', limiteMascara: 'Limite pela máscara', mover: 'Mover', medir: 'Medir', alinhar: 'Alinhar máscara', alinharElem: 'Alinhar', deslocar: 'Deslocar paralelo',
-  dividir: 'Dividir viga', unir: 'Unir vigas', prolongar: 'Prolongar viga', copiar: 'Copiar', girar: 'Girar', espelhar: 'Espelhar', puncao: 'Armadura de punção', zonaLaje: 'Zona de uniformização', corte: 'Corte do edifício', secao: 'Linha de seção', flecha: 'Flecha entre dois pontos', linhaDobra: 'Linha de dobra', pilarParede: 'Pilar-parede', parede: 'Parede de concreto', escada: 'Escada', diagonal: 'Diagonal por dois pontos', consolo: 'Consolo na face do pilar', abaco: 'Ábaco',
+  dividir: 'Dividir viga', unir: 'Unir vigas', prolongar: 'Prolongar viga', copiar: 'Copiar', girar: 'Girar', espelhar: 'Espelhar', puncao: 'Armadura de punção', zonaLaje: 'Zona de uniformização', corte: 'Corte do edifício', secao: 'Linha de seção', flecha: 'Flecha entre dois pontos', linhaDobra: 'Linha de dobra', pilarParede: 'Pilar-parede', parede: 'Parede de concreto', escada: 'Escada', diagonal: 'Diagonal por dois pontos', consolo: 'Consolo na face do pilar', abaco: 'Ábaco', corresponder: 'Corresponder propriedades',
   matriz: 'Matriz',
 };
-export const TECLA_FERRAMENTA: Partial<Record<Ferramenta, string>> = { alinharElem: 'Shift+A', deslocar: 'Shift+O', selecionar: 'S', pilar: 'P', viga: 'V', laje: 'L', carga: 'C', eixo: 'E', fundacao: 'U', vigaFund: 'B', girarFund: 'K', insFund: 'N', radier: 'W', vigaElastica: 'X', corrida: 'A', limite: 'T', limiteMascara: 'Q', mover: 'M', medir: 'D', dividir: 'I', unir: 'J', prolongar: 'O', copiar: 'Y', girar: 'G', espelhar: 'H', puncao: 'Z', escada: 'Shift+E' };
+export const TECLA_FERRAMENTA: Partial<Record<Ferramenta, string>> = { alinharElem: 'Shift+A', deslocar: 'Shift+O', selecionar: 'S', pilar: 'P', viga: 'V', laje: 'L', carga: 'C', eixo: 'E', fundacao: 'U', vigaFund: 'B', girarFund: 'K', insFund: 'N', radier: 'W', vigaElastica: 'X', corrida: 'A', limite: 'T', limiteMascara: 'Q', mover: 'M', medir: 'D', dividir: 'I', unir: 'J', prolongar: 'O', copiar: 'Y', girar: 'G', espelhar: 'H', puncao: 'Z', escada: 'Shift+E', corresponder: 'Shift+M' };
 
 const LETRAS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 function proximoEixo(b: BuildingModel, horizontal: boolean) {
@@ -199,6 +203,7 @@ const PASSOS: Record<Ferramenta, string[]> = {
   contaGotas: ['Clique num pilar para pegar os dados dele (clique noutro pilar para trocar).', 'Clique onde inserir um pilar novo com esses dados (Esc volta a Selecionar).'],
   alinharElem: ['Clique a referência: face de pilar ou viga, eixo da viga, eixo da malha, linha do gabarito ou borda de laje (Tab alterna as sobrepostas).', 'Clique a face, o eixo ou o centro do pilar ou da viga a alinhar: ele é transladado até coincidir com a referência. Cadeado na linha trava; Esc sai.'],
   deslocar: ['Clique a viga, a parede ou o eixo (ou selecione vários antes) a deslocar em paralelo.', 'Clique do lado para onde deslocar (distância digitada na barra; no modo gráfico, a do clique ao traçado). Copiar mantém o original.'],
+  corresponder: ['Clique no elemento de origem (pilar, viga, laje ou fundação) e marque os campos a copiar.', 'Clique nos elementos de destino, do mesmo tipo (clique na origem para mudar os campos; Esc volta a Selecionar).'],
   alinhar: ['1º ponto na máscara.', 'Onde esse ponto deve ficar.', '2º ponto na máscara.', 'Onde o 2º ponto deve ficar.'],
   vigaFund: ['Clique no primeiro elemento de fundação (ou pilar de arranque) da viga de fundação.', 'Clique no segundo elemento; a viga é lançada com o tipo e a seção do grupo Fundação. Esc cancela.'],
   girarFund: ['Primeiro ponto da direção: os elementos de fundação selecionados giram para a direção dos dois pontos.', 'Segundo ponto da direção.'],
@@ -1185,6 +1190,7 @@ export function Planta() {
     it.current.zonas = [];
     desenharCotasPermanentes(ctx);
     desenharCotasTemporarias(ctx);
+    desenharFixados(ctx, b, grupo, (x, y) => paraTela(x, y), cores.texto);
     const s = it.current, [px, py] = paraTela(...s.ponto);
     if (pl.ferramenta === 'alinharElem' || pl.ferramenta === 'deslocar') desenharAlinhar(ctx, pl.ferramenta, entradaAlinhar(), opcoesAlinhar(), paraTela, cores, exec);
     // janela de seleção
@@ -1926,6 +1932,16 @@ export function Planta() {
       exec('pilar.inserir', { x: +p[0].toFixed(4), y: +p[1].toFixed(4), copiarDe: P.contaGotas.pilar, incluirCargas: P.contaGotas.cargas });
       return;
     }
+    if (f === 'corresponder') {
+      // Corresponder propriedades: o 1º clique escolhe a origem e abre os campos; os seguintes aplicam aos destinos do mesmo tipo
+      const id = idSob(it.current.cursor), M = useModificar.getState(), tipo = id ? tipoCorresp(b, id) : null;
+      if (!id || !tipo) { msg('Clique num pilar, viga, laje ou fundação.'); return; }
+      const origem = M.corrOrigem && tipoCorresp(b, M.corrOrigem) ? M.corrOrigem : null;
+      if (!origem || id === origem || tipo !== tipoCorresp(b, origem)) { M.set({ corrOrigem: id, corrJanela: true }); usePlanta.getState().set({ selecao: new Set([id]) }); return; }
+      if (!M.corrCampos[tipo].length) { msg('Nenhum campo marcado: clique na origem para escolher os campos.'); return; }
+      exec('editar.corresponder', { origem, destinos: [id], campos: M.corrCampos[tipo] });
+      return;
+    }
     if (f === 'contornoRet') {
       // L5 (C6.51): dois cliques + Enter = cantos opostos (ângulo zero); três cliques = um lado e um ponto do lado oposto
       if (nivelFund || !pav) { msg('O contorno de vigas é lançado nas plantas dos pavimentos.'); return; }
@@ -2067,17 +2083,22 @@ export function Planta() {
       return;
     }
     if (f === 'mover' && novos.length === 2) {
-      const dx = +(novos[1][0] - novos[0][0]).toFixed(4), dy = +(novos[1][1] - novos[0][1]).toFixed(4);
-      const sel = selecionados();
+      const [dx, dy] = restringirDelta(+(novos[1][0] - novos[0][0]).toFixed(4), +(novos[1][1] - novos[0][1]).toFixed(4), pl.restringir);
+      const sel = selecionados(), paredesSel = [...pl.selecao].filter((id) => b.paredes?.some((w) => w.id === id));
+      setPontos([]);
+      if (!dx && !dy) { msg('Deslocamento nulo (a restrição horizontal/vertical zerou o movimento).'); return; }
       const cmds = [
         ...(sel.fundacoes.length ? [{ nome: 'fundacao.mover', params: { ids: sel.fundacoes, dx, dy } }] : []),
         ...sel.limites.map((id) => ({ nome: 'limite.editar', params: { id, pontos: b.fundacao!.limites!.find((l) => l.id === id)!.pontos.map((q) => [+(q[0] + dx).toFixed(4), +(q[1] + dy).toFixed(4)]) } })),
         ...(sel.pilares.length ? [{ nome: 'pilar.mover', params: { ids: sel.pilares, dx, dy } }] : []),
         ...(sel.vigas.length ? [{ nome: 'viga.mover', params: { ids: sel.vigas, dx, dy } }] : []),
+        ...(paredesSel.length ? [{ nome: 'parede.mover', params: { ids: paredesSel, dx, dy } }] : []),
+        ...(sel.lajes.length ? [{ nome: 'laje.mover', params: { ids: sel.lajes, dx, dy } }] : []),
+        ...(sel.cargas.length ? [{ nome: 'carga.mover', params: { ids: sel.cargas, dx, dy } }] : []),
         ...sel.eixos.map((id) => { const e = b.eixos.find((x) => x.id === id)!; return { nome: 'eixo.editar', params: { id, p1: [e.p1[0] + dx, e.p1[1] + dy], p2: [e.p2[0] + dx, e.p2[1] + dy] } }; }),
       ];
-      if (cmds.length) exec('lote', { comandos: cmds });
-      setPontos([]); return;
+      if (cmds.length) exec('lote', { comandos: cmds }); else msg('Selecione os elementos a mover.');
+      return;
     }
     if (f === 'dividir') {
       const v = vigaSob(p);
@@ -2122,11 +2143,18 @@ export function Planta() {
       return;
     }
     if (f === 'copiar' && novos.length === 2) {
-      const dx = +(novos[1][0] - novos[0][0]).toFixed(4), dy = +(novos[1][1] - novos[0][1]).toFixed(4), vezes = Math.max(1, Math.round(pl.copias));
-      const sel = selecionados();
-      const cmds = [...(sel.pilares.length ? [{ nome: 'pilar.copiar', params: { ids: sel.pilares, dx, dy, vezes } }] : []), ...(sel.vigas.length ? [{ nome: 'viga.copiar', params: { ids: sel.vigas, dx, dy, vezes } }] : [])];
-      if (cmds.length) exec('lote', { comandos: cmds }); else msg('Selecione pilares ou vigas para copiar.');
-      setPontos([]); return;
+      const [dx, dy] = restringirDelta(+(novos[1][0] - novos[0][0]).toFixed(4), +(novos[1][1] - novos[0][1]).toFixed(4), pl.restringir), vezes = Math.max(1, Math.round(pl.copias));
+      const sel = selecionados(), paredesSel = [...pl.selecao].filter((id) => b.paredes?.some((w) => w.id === id));
+      setPontos([]);
+      if (!dx && !dy) { msg('Deslocamento nulo (a restrição horizontal/vertical zerou a cópia).'); return; }
+      const cmds = [
+        ...(sel.pilares.length ? [{ nome: 'pilar.copiar', params: { ids: sel.pilares, dx, dy, vezes } }] : []), ...(sel.vigas.length ? [{ nome: 'viga.copiar', params: { ids: sel.vigas, dx, dy, vezes } }] : []),
+        ...(paredesSel.length ? [{ nome: 'parede.copiar', params: { ids: paredesSel, dx, dy, vezes } }] : []),
+        ...(sel.lajes.length ? [{ nome: 'laje.copiar', params: { ids: sel.lajes, dx, dy, vezes } }] : []),
+        ...(sel.cargas.length ? [{ nome: 'carga.copiar', params: { ids: sel.cargas, dx, dy, vezes } }] : []),
+      ];
+      if (cmds.length) exec('lote', { comandos: cmds }); else msg('Selecione pilares, vigas, paredes, lajes ou cargas para copiar.');
+      return;
     }
     if (f === 'girar') {
       const sel = selecionados();
@@ -2202,7 +2230,8 @@ export function Planta() {
     if (f === 'carga' && tc === 'area' && pts.length >= 3) exec('carga.area', { grupo: grupoCarga, contorno: q, valor: pl.valorCarga, caso: pl.caso });
     setPontos([]);
   };
-  const escolher = (w: P2, aditivo: boolean) => {
+  /** Id do elemento sob o ponto da planta (na ordem de prioridade da seleção), ou null. */
+  const idSob = (w: P2): string | null => {
     const tol = 6 / vista!.k;
     let id: string | null = null;
     for (const q of [...naPlanta].reverse()) if (q.estado !== 'inferior' && dentro(w, q.contorno)) { id = q.p.id; break; }
@@ -2220,12 +2249,17 @@ export function Planta() {
     if (!id && !nivelFund) id = escadasNoPonto(b, grupo, w, tol)[0] ?? null;
     if (!id) for (const { l } of lajes) if (dentro(w, l.contorno)) { id = l.id; break; }
     if (!id && !nivelFund) id = (b.panosVazios ?? []).find((v) => v.grupo === grupo && dentro(w, v.contorno as P2[]))?.id ?? null;
-    const s = new Set(aditivo ? pl.selecao : []);
-    if (id) { if (aditivo && s.has(id)) s.delete(id); else s.add(id); }
+    return id;
+  };
+  /** Clique de seleção: sem tecla substitui; Ctrl soma; Shift alterna (soma o que não está e tira o que está). */
+  const escolher = (w: P2, modo: 'novo' | 'soma' | 'alterna') => {
+    const id = idSob(w);
+    const s = new Set(modo === 'novo' ? [] : pl.selecao);
+    if (id) { if (modo === 'alterna' && s.has(id)) s.delete(id); else s.add(id); }
     pl.set({ selecao: s });
   };
 
-  const selecionarJanela = (a: P2, z: P2) => {
+  const selecionarJanela = (a: P2, z: P2, modo: 'novo' | 'soma' | 'remove' = 'novo') => {
     const cruz = z[0] < a[0];
     const x0 = Math.min(a[0], z[0]), x1 = Math.max(a[0], z[0]), y0 = Math.min(a[1], z[1]), y1 = Math.max(a[1], z[1]);
     const inside = (p: P2) => p[0] >= x0 && p[0] <= x1 && p[1] >= y0 && p[1] <= y1;
@@ -2247,8 +2281,16 @@ export function Planta() {
       const cr = v.pontos.some((q, i) => i > 0 && cruzaRet(v.pontos[i - 1], q, x0, y0, x1, y1));
       if (cruz ? cantos.some(inside) || cr : cantos.every(inside)) s.add(v.id);
     }
-    pl.set({ selecao: s });
-    msg(`${s.size} elemento(s) selecionado(s).`);
+    // cotas permanentes do pavimento (as linhas de cota e as chamadas)
+    if (!nivelFund) for (const c of b.cotas ?? []) {
+      if (c.grupo !== grupo) continue;
+      const g = geometriaCota(b, c), pts = [...g.linhas.flat(), ...g.chamadas.flat()] as P2[];
+      if (pts.length && (cruz ? pts.some(inside) : pts.every(inside))) s.add(c.id);
+    }
+    // Ctrl + janela soma à seleção; Shift + janela tira da seleção
+    const final = modo === 'soma' ? new Set([...pl.selecao, ...s]) : modo === 'remove' ? new Set([...pl.selecao].filter((i) => !s.has(i))) : s;
+    pl.set({ selecao: final });
+    msg(`${final.size} elemento(s) selecionado(s).`);
   };
 
   // ---- eventos ----
@@ -2312,8 +2354,8 @@ export function Planta() {
           if (ids.length) { const r = exec('escada.remover', { ids }); if (r.ok) { pl.set({ selecao: new Set() }); msg(`${ids.length} escada(s) removida(s).`); } } else msg('Nenhuma escada na janela.');
         } else agir(it.current.ponto);
       }
-      else if (Math.hypot(zx - ax, zy - ay) > 4) selecionarJanela(s.janela.a, s.janela.z);
-      else escolher(s.janela.a, e.shiftKey);
+      else if (Math.hypot(zx - ax, zy - ay) > 4) selecionarJanela(s.janela.a, s.janela.z, e.ctrlKey || e.metaKey ? 'soma' : e.shiftKey ? 'remove' : 'novo');
+      else escolher(s.janela.a, e.ctrlKey || e.metaKey ? 'soma' : e.shiftKey ? 'alterna' : 'novo');
       s.janela = null;
       desenharInteracao();
     }
@@ -2383,6 +2425,9 @@ export function Planta() {
       if (k.toLowerCase() === 'a' && nivelFund && P.ferramenta !== 'viga' && P.ferramenta !== 'pilar') { P.set({ ferramenta: 'corrida', ...aoEscolher('corrida') }); it.current.fundPilar = null; it.current.vfIni = null; it.current.insEl = null; setPontos([]); return; }
       // Shift+A / Shift+O (L9): Alinhar e Deslocar paralelo (as letras sozinhas já são de outras ferramentas)
       if (e.shiftKey && (k === 'A' || k === 'O') && !e.ctrlKey && !e.metaKey && !nivelFund) { const fe: Ferramenta = k === 'A' ? 'alinharElem' : 'deslocar'; reiniciarAlinhar(); P.set({ ferramenta: fe, ...aoEscolher(fe) }); setPontos([]); return; }
+      // Shift+S: Criar semelhante (abre a ferramenta do elemento selecionado com as mesmas propriedades); Shift+M: Corresponder propriedades
+      if (k === 'S' && e.shiftKey) { if (criarSemelhanteSelecionado()) setPontos([]); return; }
+      if (k === 'M' && e.shiftKey) { P.set({ ferramenta: 'corresponder' }); useModificar.getState().set({ corrOrigem: null, corrJanela: false }); setPontos([]); return; }
       // Shift+E: ferramenta Escada (E4b); a tecla E sozinha continua sendo Eixo
       if (k === 'E' && e.shiftKey) { if (escolherEscada()) setPontos([]); return; }
       if (ferr[k.toLowerCase()]) { const fe = ferr[k.toLowerCase()]; P.set({ ferramenta: fe, ...aoEscolher(fe) }); it.current.fundPilar = null; it.current.vfIni = null; it.current.insEl = null; setPontos([]); return; }
@@ -2423,6 +2468,8 @@ export function Planta() {
           ...(sel.lajes.length ? [{ nome: 'laje.remover', params: { ids: sel.lajes } }] : []), ...(sel.cargas.length ? [{ nome: 'carga.remover', params: { ids: sel.cargas } }] : []), ...(sel.escadas.length ? [{ nome: 'escada.remover', params: { ids: sel.escadas } }] : [])];
         const paredesSel = [...P.selecao].filter((id) => (b.paredes ?? []).some((w) => w.id === id));
         if (paredesSel.length) cmds.push({ nome: 'parede.remover', params: { ids: paredesSel } });
+        const cotasSel = [...P.selecao].filter((id) => b.cotas?.some((c) => c.id === id));
+        if (cotasSel.length) cmds.push({ nome: 'cota.remover', params: { ids: cotasSel } });
         if (cmds.length) exec('lote', { comandos: cmds });
         P.set({ selecao: new Set() });
       }

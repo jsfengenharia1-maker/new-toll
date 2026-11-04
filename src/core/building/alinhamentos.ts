@@ -96,7 +96,7 @@ export function destravar(d: Draft<BuildingModel>, quem: { alvo?: RefAlinh; id?:
  * Faz cumprir as restrições depois de um comando: o elemento travado volta a ficar à distância da referência (que pode ter
  * se movido). Restrições cujo elemento deixou de existir saem, com aviso; as que perderam o paralelismo ficam, com aviso.
  */
-export function sincronizarRestricoes(d: Draft<BuildingModel>): string[] {
+export function sincronizarRestricoes(d: Draft<BuildingModel>, recusados?: { id: string; mensagem: string }[]): string[] {
   const avisos: string[] = [];
   if (!d.restricoes?.length) return avisos;
   const m = d as unknown as BuildingModel;
@@ -117,6 +117,12 @@ export function sincronizarRestricoes(d: Draft<BuildingModel>): string[] {
       if ('erro' in res) { naoParalelas.add(r.id); continue; }
       naoParalelas.delete(r.id);
       if (Math.hypot(res.t[0], res.t[1]) <= TOL_MOVER) continue;
+      // elemento fixado (alfinete) não acompanha a referência: o movimento da referência é recusado
+      const alvoId = elementoDe(r.alvo as RefAlinh);
+      if (recusados && d.fixados?.includes(alvoId)) {
+        if (!recusados.some((x) => x.id === alvoId)) recusados.push({ id: alvoId, mensagem: `${nome(r.alvo as RefAlinh)} está fixado e travado à referência (${nome(r.ref as RefAlinh)}): a referência não pode se mover sem arrastá-lo. Solte ${nome(r.alvo as RefAlinh)} ou remova a trava antes.` });
+        continue;
+      }
       transladarAlvo(d, r.alvo as RefAlinh, res.t);
       avisos.push(`${nome(r.alvo as RefAlinh)} acompanhou a referência travada (${(Math.round(res.t[0] * 1000) / 1000).toString().replace('.', ',')}; ${(Math.round(res.t[1] * 1000) / 1000).toString().replace('.', ',')} m).`);
       mudou = true;

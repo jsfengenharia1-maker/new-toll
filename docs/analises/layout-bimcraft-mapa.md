@@ -188,6 +188,7 @@ Todas as 40 ferramentas de `Ferramenta` (plantaStore.ts) e a tecla de `TECLA_FER
 | T48 | Alinhar | Shift+A | Planta.tsx, alinharPlanta.ts, OpcoesAlinhar.tsx | RB:edicao / Alinhar e deslocar (L9; acrescentada após o mapa) |
 | T49 | Deslocar paralelo | Shift+O | Planta.tsx, alinharPlanta.ts, OpcoesAlinhar.tsx | RB:edicao / Alinhar e deslocar (L9; acrescentada após o mapa) |
 | T50 | Matriz | | Planta.tsx | RB:edicao / Série (lançamento em série; acrescentada após o mapa) |
+| T51 | Corresponder propriedades | Shift+M | Planta.tsx, ModificarUI.tsx | RB:edicao / Propriedades (aba Modificar; acrescentada após o mapa) |
 
 Opções e botões da `PlantaBarra` (barra da planta hoje, `.planta-barra`):
 

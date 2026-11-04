@@ -31,6 +31,7 @@ import { ConsolosHost } from './ConsolosUI';
 import { AberturaPanoGrupo, TipoPanoGrupo } from './TipoPano';
 import { AvisoCalculo, ErrosDoCalculo, JanelaAntesDeCalcular, JanelaTipoLajes } from './PendenciasUI';
 import { PlanosGrupo, PlanosHost } from './PlanosUI';
+import { ModificarHost } from './ModificarUI';
 import { InclinadasHost } from './InclinadasUI';
 import { EscadaCalculoHost } from './EscadaCalculoUI';
 import { EscadaArmaduraHost } from './EscadaArmaduraUI';
@@ -268,6 +269,7 @@ export function Edificio() {
       <DiagonaisHost />
       <ConsolosHost />
       <PlanosHost />
+      <ModificarHost />
       <PaletaComandos setAba={(a) => setAba(a as typeof aba)} />
     </div>
   );

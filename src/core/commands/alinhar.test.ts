@@ -259,3 +259,57 @@ describe('deslocar paralelo', () => {
     expect(s.executar('editar.deslocar', { paredes: [w1.id], distancia: 3 }).ok).toBe(false);
   });
 });
+
+describe('integração com fixação (alfinete)', () => {
+  it('eixo fixado pode ser referência do alinhamento; pilar fixado não pode ser alinhado', () => {
+    const s = padrao();
+    ok(s, 'eixo.criar', { nome: 'A', p1: [0, 0], p2: [10, 0] });
+    ok(s, 'pilar.inserir', { x: 4, y: 0.37, secao: pil });
+    const eixo = s.modelo.eixos[0], q = s.modelo.pilares[0];
+    ok(s, 'elemento.fixar', { ids: [eixo.id] });
+    ok(s, 'editar.alinhar', { ref: { k: 'eixo', id: eixo.id }, alvo: { k: 'pilar', id: q.id, parte: 'cx' } });
+    expect(centroPilar(s.modelo.pilares[0], pil as never)[1]).toBeCloseTo(0, 9);
+    ok(s, 'elemento.fixar', { ids: [q.id] });
+    const r = s.executar('editar.alinhar', { ref: { k: 'eixo', id: eixo.id }, alvo: { k: 'pilar', id: q.id, parte: 'cy' } });
+    expect(r.ok).toBe(false);
+    expect(r.erros[0].codigo).toBe('ELEMENTO_FIXADO');
+    expect(r.erros[0].elementos).toEqual([q.id]);
+  });
+
+  it('deslocar: eixo fixado não é deslocado, mas pode ser copiado', () => {
+    const s = padrao();
+    ok(s, 'eixo.criar', { nome: 'A', p1: [0, 0], p2: [10, 0] });
+    const id = s.modelo.eixos[0].id;
+    ok(s, 'elemento.fixar', { ids: [id] });
+    const r = s.executar('editar.deslocar', { eixos: [id], distancia: 2 });
+    expect(r.ok).toBe(false);
+    expect(r.erros[0].codigo).toBe('ELEMENTO_FIXADO');
+    ok(s, 'editar.deslocar', { eixos: [id], distancia: 2, copiar: true });
+    expect(s.modelo.eixos).toHaveLength(2);
+  });
+
+  it('referência de uma trava cujo alvo está fixado não se move: comando recusado, modelo intacto', () => {
+    const s = dois();
+    const [p1, p2] = s.modelo.pilares;
+    ok(s, 'editar.alinhar', { ref: refN(p1.id), alvo: refN(p2.id), travar: true });
+    ok(s, 'elemento.fixar', { ids: [p2.id] });
+    const antes = s.modelo;
+    const r = s.executar('pilar.mover', { ids: [p1.id], dx: 0, dy: 0.5 });
+    expect(r.ok).toBe(false);
+    expect(r.erros[0].codigo).toBe('ELEMENTO_FIXADO');
+    expect(r.erros[0].mensagem).toMatch(/P2 está fixado e travado/);
+    expect(s.modelo).toBe(antes);
+    ok(s, 'elemento.soltar', { ids: [p2.id] });
+    ok(s, 'pilar.mover', { ids: [p1.id], dx: 0, dy: 0.5 });
+    expect(P(s.modelo, 'P2').y).toBeCloseTo(0.5, 9);
+  });
+
+  it('editar.matriz copia elementos fixados (copiar não move)', () => {
+    const s = padrao();
+    ok(s, 'pilar.inserir', { x: 0, y: 0, secao: pil });
+    const id = s.modelo.pilares[0].id;
+    ok(s, 'elemento.fixar', { ids: [id] });
+    ok(s, 'editar.matriz', { pilares: [id], modo: 'linear', base: [0, 0], destino: [0, 3], referencia: 'ultimo', copias: 2 });
+    expect(s.modelo.pilares).toHaveLength(3);
+  });
+});

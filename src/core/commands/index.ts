@@ -43,6 +43,9 @@ import './cotas';
 import './alinhar';
 import './deslocar';
 import './grupos';
+import './fixacao';
+import './modificar';
+import './corresponder';
 
 export * from './registry';
 export { PARAMS_FUNDACAO } from './fundacao';
