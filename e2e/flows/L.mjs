@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { NO_PICKERS, fileMenu, faixaAba, abrirConfiguracao, grupoEdif, tab, downloadText, num, telaDe, reenquadrarAte, dxfGradeL2, dwgMinimoL2, botaoCalcular } from './helpers.mjs';
+import { NO_PICKERS, fileMenu, faixaAba, abrirConfiguracao, grupoEdif, tab, downloadText, num, telaDe, reenquadrarAte, dxfGradeL2, dwgMinimoL2, botaoCalcular, comandoFaixa } from './helpers.mjs';
 
 export const f_L1 = {
     name: 'L1: assistente de nova obra, dados gerais, etapas, versões no arquivo, recentes, exemplos, desfazer e texto de cargas',
@@ -929,5 +929,57 @@ export const f_L9 = {
       await solta();
       await page.keyboard.press('Control+z');
       await esperar(() => JSON.parse(localStorage.getItem('statikos:building')).building.vigas?.length === 2, null);
+    },
+  };
+
+export const f_L10 = {
+    name: 'L10: pilares nos cruzamentos (pré-visualização, Espaço gira 90°, confirmar), vigas nos eixos e matriz linear até o último com 4 cópias',
+    async run({ newPage }) {
+      const page = await newPage(NO_PICKERS);
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building')).building);
+      const esperar = (campo, n) => page.waitForFunction(([c, k]) => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.[c]?.length === k, [campo, n], { timeout: 30000 });
+      const perto = (a, b) => assert.ok(a.length === b.length && a.every((p, i) => Math.hypot(p[0] - b[i][0], p[1] - b[i][1]) < 1e-6), `${JSON.stringify(a)} != ${JSON.stringify(b)}`);
+      // malha 3 × 3 (x = 0, 4, 8 e y = 0, 3, 6) no lugar dos eixos da obra
+      await cmd('eixo.malha {"dx": [4, 4], "dy": [3, 3], "substituir": true}');
+      await esperar('eixos', 6);
+      await page.locator('.planta-cv[data-vista]').waitFor();
+      // pilares nos cruzamentos: pré-visualização com 9 pontos; Espaço gira 90°; confirmar lança os 9 pilares
+      await (await comandoFaixa(page, 'Pilares nos cruzamentos…')).click();
+      await page.locator('[data-cruzamentos]', { hasText: '9 a lançar' }).waitFor();
+      assert.equal((await modelo()).pilares.length, 0);
+      await page.locator('.planta-st').click();
+      await page.keyboard.press(' ');
+      await page.getByRole('button', { name: 'Confirmar pilares', exact: true }).click();
+      await esperar('pilares', 9);
+      const m1 = await modelo();
+      perto(m1.pilares.map((p) => [p.x, p.y]).sort((a, z) => a[1] - z[1] || a[0] - z[0]), [[0, 0], [4, 0], [8, 0], [0, 3], [4, 3], [8, 3], [0, 6], [4, 6], [8, 6]]);
+      assert.ok(m1.pilares.every((p) => p.angulo === 90), 'o Espaço gira 90° o pilar lançado');
+      assert.equal(await page.locator('[data-cruzamentos]').count(), 0);
+      // vigas nos eixos: uma por eixo (3 verticais e 3 horizontais), do primeiro ao último pilar
+      await (await comandoFaixa(page, 'Vigas nos eixos')).click();
+      await esperar('vigas', 6);
+      const m2 = await modelo();
+      perto(m2.vigas.map((v) => v.pontos[0]).sort((a, z) => a[1] - z[1] || a[0] - z[0] || 0), [[0, 0], [0, 0], [4, 0], [8, 0], [0, 3], [0, 6]].sort((a, z) => a[1] - z[1] || a[0] - z[0]));
+      assert.ok(m2.vigas.every((v) => v.pontos.length === 2 && v.alinhamento === 'centro'));
+      // matriz linear "até o último": pilar solto em (20; 0) copiado 4 vezes até (28; 0) → x = 22, 24, 26, 28
+      await cmd('pilar.inserir {"x": 20, "y": 0, "secao": {"tipo": "ret", "b": 0.2, "h": 0.4}}');
+      await esperar('pilares', 10);
+      await reenquadrarAte(page, [[0, 0], [20, 0]]);
+      const [sx, sy] = await telaDe(page, 20, 0);
+      await page.mouse.click(sx, sy);
+      await (await comandoFaixa(page, 'Matriz', { role: 'radio' })).click();
+      await page.getByRole('radio', { name: 'Até o último', exact: true }).click();
+      await page.getByLabel(/^Cópias/).fill('4');
+      await page.getByLabel(/^Cópias/).press('Tab');
+      await page.locator('.planta-st').hover();
+      await page.keyboard.type('20;0'); await page.keyboard.press('Enter');
+      await page.keyboard.type('28;0'); await page.keyboard.press('Enter');
+      await esperar('pilares', 14);
+      const m3 = await modelo();
+      perto(m3.pilares.filter((p) => p.x >= 20).map((p) => [p.x, p.y]), [[20, 0], [22, 0], [24, 0], [26, 0], [28, 0]]);
+      await page.keyboard.press('Control+z');
+      await esperar('pilares', 10);
     },
   };

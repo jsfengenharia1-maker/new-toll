@@ -30,6 +30,7 @@ import './fundacao';
 import './baseElastica';
 import './corrida';
 import './edicao';
+import './serie';
 import './pilarParede';
 import './obraAssistente';
 import './flechas';

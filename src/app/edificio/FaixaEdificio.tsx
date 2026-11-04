@@ -3,6 +3,7 @@ import { useRef, type ReactNode } from 'react';
 import { Dropdown, Input, RibbonButton, RibbonGroup } from '../ui';
 import { CoresPlanta } from './CoresPlanta';
 import { CamadaVigotas } from './CamadaVigotas';
+import { BotaoPilaresNosCruzamentos, BotaoVigasNosEixos } from './BarraSerie';
 import { aoEscolher, usePlanta, type Ferramenta, type Tema } from './plantaStore';
 import { ROTULO_FERRAMENTA, TECLA_FERRAMENTA } from './Planta';
 import { PlanosFaixa } from './PlanosUI';
@@ -117,6 +118,7 @@ function Pilares() {
       <RibbonGroup label="Eixos" radios="Ferramenta">
         <Ferr f="eixo" icon="eixo" />
         <RibbonButton icon="malha" label="Malha de eixos…" onClick={() => ui({ jan: 'malha' })} />
+        <BotaoPilaresNosCruzamentos />
       </RibbonGroup>
       <Gabarito />
       <RibbonGroup label="Pilares" radios="Ferramenta">
@@ -135,6 +137,7 @@ function VigasLajes() {
       <RibbonGroup label="Vigas" radios="Ferramenta">
         <Ferr f="viga" icon="viga" /><Ferr f="vigaGabarito" icon="viga" /><Ferr f="diagonal" icon="vigaInclinada" /><Ferr f="consolo" icon="viga" />
         <RibbonButton icon="vigaInclinada" label="Vigas inclinadas" onClick={() => useInclinadasUI.getState().abrir()} />
+        <BotaoVigasNosEixos />
       </RibbonGroup>
       <RibbonGroup label="Muros e paredes" radios="Ferramenta"><Ferr f="parede" icon="parede" /></RibbonGroup>
       <RibbonGroup label="Lajes" radios="Ferramenta">
@@ -291,6 +294,7 @@ function Edicao() {
         <Ferr f="dividir" icon="dividir" /><Ferr f="unir" icon="unir" /><Ferr f="prolongar" icon="prolongar" />
       </RibbonGroup>
       <RibbonGroup label="Alinhar e deslocar" radios="Ferramenta"><Ferr f="alinharElem" icon="alinharElem" /><Ferr f="deslocar" icon="deslocar" /></RibbonGroup>
+      <RibbonGroup label="Série" radios="Ferramenta"><Ferr f="matriz" icon="copiar" /></RibbonGroup>
       <RibbonGroup label="Referências" radios="Ferramenta"><Ferr f="moverRef" icon="referencia" /><Ferr f="contaGotas" icon="contaGotas" /></RibbonGroup>
     </>
   );
